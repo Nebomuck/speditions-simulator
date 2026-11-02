@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 – unveröffentlicht
+## 0.5.0 – 03.11.2026
 
 - **Vorausplanung/Tourenketten:** Aufträge lassen sich auf fahrende LKW ziehen (oder im Dispositionsdialog „Nach laufender Fahrt einplanen“). Bis zu 5 Folgeaufträge je Fahrzeug starten automatisch mit demselben Fahrer, sobald die laufende Fahrt endet. Die Plantafel zeigt sie gestreift mit voraussichtlicher Abholung/Ankunft und Verspätungswarnung; ein Klick auf ✕ nimmt sie wieder heraus.
 - **Kalender** in der Disposition mit Tag-, Wochen- und Monatsansicht: Laden, Lieferung, vorausgeplante und noch offene Aufträge, Verspätungen und Feiertage.
