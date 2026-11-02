@@ -33,6 +33,8 @@ interface UiState {
   connection: string;
   /** Multiplayer-Firma wird auf diesem PC gehostet */
   hosting: boolean;
+  /** Internet-Zugang des Hosts (Cloudflare-Tunnel) */
+  tunnel: { status: 'off' | 'starting' | 'checking' | 'ready' | 'error'; url?: string; error?: string };
   theme: 'dark' | 'light';
   sound: boolean;
   dispatchDraft: { orderId?: string; vehicleId?: string } | null;
@@ -50,6 +52,7 @@ let ui: UiState = {
   toasts: [],
   connection: '',
   hosting: false,
+  tunnel: { status: 'off' },
   theme: (localStorageGet('spedsim.theme') as 'dark' | 'light') ?? 'dark',
   sound: localStorageGet('spedsim.sound') !== 'off',
   dispatchDraft: null,

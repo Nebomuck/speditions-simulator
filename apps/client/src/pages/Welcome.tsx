@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server } from 'lucide-react';
 import { CITIES, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type DifficultyId } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
-import { connect, ensureLocalServer, forgetSession, isDesktop, loadSessions, normalizeServerUrl, resume, type MpSession } from '../game/multiplayer.ts';
+import { connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
 import type { SaveMeta } from '../game/protocol.ts';
 import { localStorageSet, receiveSnapshot, setUi, toast } from '../game/store.ts';
 import { Avatar } from '../ui/components.tsx';
@@ -112,7 +112,7 @@ export function Welcome() {
       return;
     }
     localStorageSet('spedsim.joinAddr', serverAddr);
-    connect(url, { t: 'join', code: code.trim(), name: player, character }, false);
+    joinWithCode(url, code.trim(), player, character);
   }
 
   async function resumeSession(s: MpSession) {
@@ -294,8 +294,20 @@ export function Welcome() {
           {tab === 'mp' && mpMode === 'join' && (
             <>
               <div className="field mt">
-                <label>Adresse des Hosts</label>
-                <input className="input" value={serverAddr} onChange={(e) => setServerAddr(e.target.value)} placeholder="z. B. 192.168.178.20 oder meinserver.de:8787" />
+                <label>Einladung oder Adresse des Hosts</label>
+                <input
+                  className="input"
+                  value={serverAddr}
+                  onChange={(e) => {
+                    // eingefügte Internet-Einladung "adresse/CODE" automatisch aufteilen
+                    const inv = parseInvite(e.target.value);
+                    if (inv) {
+                      setServerAddr(inv.addr);
+                      setCode(inv.code);
+                    } else setServerAddr(e.target.value);
+                  }}
+                  placeholder="Einladung einfügen, z. B. abc-xyz.trycloudflare.com/K7Q-2MX"
+                />
               </div>
               <div className="field">
                 <label>Einladungscode</label>
@@ -305,6 +317,10 @@ export function Welcome() {
                 <button className="btn" onClick={() => setMpMode('list')}>Zurück</button>
                 <button className="btn primary" style={{ flex: 1, justifyContent: 'center' }} disabled={!code.trim() || !player.trim()} onClick={joinNew}><LogIn size={15} />Beitreten</button>
               </div>
+              <p className="dim" style={{ fontSize: 12.5 }}>
+                Die Einladung bekommst du vom Host (Team &amp; Kommunikation → „Internet-Einladung kopieren“). Bist du der Firma schon einmal beigetreten,
+                spielst du mit einer neuen Einladung als derselbe Spieler weiter.
+              </p>
             </>
           )}
         </div>

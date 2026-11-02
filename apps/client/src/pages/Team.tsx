@@ -1,9 +1,9 @@
 // Team & Kommunikation: Spieler, Rechte, Firmenchat, Ereignisprotokoll.
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, Copy, Crown } from 'lucide-react';
+import { Send, Copy, Crown, Globe, RefreshCw } from 'lucide-react';
 import { ALL_PERMISSIONS, PERMISSION_LABEL, formatDateTime, type Permission } from '@spedsim/core';
-import { DEFAULT_PORT, localAddress } from '../game/multiplayer.ts';
+import { DEFAULT_PORT, inviteLine, isDesktop, localAddress, startTunnel } from '../game/multiplayer.ts';
 import { sendCommand, toast, useGame, useUi } from '../game/store.ts';
 import { Avatar, Badge, Card, PageHeader } from '../ui/components.tsx';
 
@@ -13,22 +13,43 @@ function InviteCard({ code }: { code: string }) {
   useEffect(() => {
     localAddress().then(setIp);
   }, []);
+  const tunnel = useUi((u) => u.tunnel);
   const addr = ip ? `${ip}:${DEFAULT_PORT}` : null;
   const copy = (t: string) => {
     navigator.clipboard?.writeText(t);
     toast('success', 'In die Zwischenablage kopiert.');
   };
+  const invite = tunnel.status === 'ready' && tunnel.url ? inviteLine(tunnel.url, code) : null;
   return (
     <Card title="Freunde einladen" className="mb">
+      {isDesktop() && (
+        <div className="mb">
+          <div className="row wrap" style={{ gap: 10, alignItems: 'center' }}>
+            <Globe size={16} />
+            {invite ? (
+              <button className="btn primary" onClick={() => copy(invite)}><Copy size={15} /> Internet-Einladung kopieren: <b>{invite}</b></button>
+            ) : tunnel.status === 'error' ? (
+              <>
+                <span style={{ color: 'var(--danger)' }}>Internet-Zugang fehlgeschlagen: {tunnel.error}</span>
+                <button className="btn small" onClick={() => startTunnel()}><RefreshCw size={14} />Erneut versuchen</button>
+              </>
+            ) : (
+              <span className="dim">{tunnel.status === 'checking' ? 'Internet-Zugang wird geprüft …' : 'Internet-Zugang wird eingerichtet …'}</span>
+            )}
+          </div>
+          <p className="dim" style={{ fontSize: 12.5, marginBottom: 0 }}>
+            Schick die Internet-Einladung deinen Freunden; sie fügen sie unter „Multiplayer → Einer Firma beitreten“ ein. Keine Portfreigabe nötig.
+            Die Adresse gilt, solange das Spiel bei dir läuft, und ändert sich beim nächsten Start – dann einfach die neue Einladung schicken.
+          </p>
+        </div>
+      )}
       <div className="row wrap" style={{ gap: 10 }}>
         {addr && <button className="btn" onClick={() => copy(addr)}><Copy size={15} /> Adresse (Heimnetz): <b>{addr}</b></button>}
         <button className="btn" onClick={() => copy(code)}><Copy size={15} /> Einladungscode: <b>{code}</b></button>
       </div>
       <p className="dim" style={{ fontSize: 12.5, marginBottom: 0 }}>
         Der Spielserver läuft auf diesem PC, solange das Spiel geöffnet ist; beim Beenden wird gespeichert.
-        Mitspieler im selben Netzwerk geben die Adresse und den Code unter „Multiplayer → Einer Firma beitreten“ ein.
-        Über das Internet brauchst du eine Portfreigabe (TCP {DEFAULT_PORT}) im Router oder ein VPN wie Tailscale/ZeroTier –
-        dann gilt die öffentliche bzw. VPN-Adresse. Fragt die Windows-Firewall beim ersten Start nach, erlaube den Zugriff im privaten Netzwerk.
+        Im selben Netzwerk reichen Heimnetz-Adresse und Code (fragt die Windows-Firewall nach, Zugriff im privaten Netzwerk erlauben).
       </p>
     </Card>
   );

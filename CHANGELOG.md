@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 – 02.11.2026
+
+### Hinzugefügt
+- **Multiplayer über das Internet ohne Portfreigabe:** Beim Hosten öffnet die Desktop-App automatisch einen Cloudflare Quick Tunnel (`cloudflared` 2026.10.0 als Sidecar, Prüfsumme beim Build verifiziert). Funktioniert auch bei DS-Lite/CGNAT.
+- Team-Seite: „Internet-Einladung kopieren“ (`adresse.trycloudflare.com/CODE`); die App prüft vorher per DNS-over-HTTPS und Test-Verbindung, ob die Adresse wirklich erreichbar ist
+- Beitreten: Einladung einfach einfügen, Adresse und Code werden automatisch übernommen. Wer der Firma schon beigetreten ist, spielt mit einer neuen Einladung als derselbe Spieler weiter.
+- Tests für Adress- und Einladungsverarbeitung (22 Tests)
+
+### Hinweise
+- Die Tunnel-Adresse ändert sich bei jedem Start der Host-App; Freunde brauchen dann die neue Einladung.
+- Cloudflare Quick Tunnels sind ein kostenloser Dienst ohne Verfügbarkeitszusage.
+
 ## 0.2.0 – 02.11.2026
 
 ### Hinzugefügt

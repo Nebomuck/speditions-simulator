@@ -27,7 +27,7 @@ npm run server
 
 Startet den serverautoritativen Spielserver auf `ws://localhost:8787` (Port per `PORT` oder `--port`, Datenbank per `DB` oder `--db` änderbar). Nur für die Browser-Version und für dedizierte Server nötig – **die Desktop-App startet ihren mitgelieferten Server automatisch**, sobald du eine Multiplayer-Firma hostest oder fortsetzt, und beendet ihn beim Schließen (vorher wird gespeichert).
 
-Im Spiel unter **Multiplayer → Neue Firma hosten** gründen; Adresse und Einladungscode stehen unter „Team & Kommunikation“. Freunde wählen **Einer Firma beitreten**. Für Spiele über das Internet muss TCP 8787 erreichbar sein (Portfreigabe, VPN wie Tailscale oder gehosteter Server, siehe [ARCHITECTURE.md](ARCHITECTURE.md#multiplayer)).
+Im Spiel unter **Multiplayer → Neue Firma hosten** gründen. Die Desktop-App öffnet automatisch einen Internet-Zugang (Cloudflare Quick Tunnel, keine Portfreigabe nötig); unter „Team & Kommunikation“ steht die **Internet-Einladung** zum Kopieren. Freunde wählen **Einer Firma beitreten** und fügen sie ein. Im Heimnetz reichen Heimnetz-Adresse und Einladungscode. Alternativ: dedizierter Server mit Portfreigabe oder Reverse Proxy (siehe [ARCHITECTURE.md](ARCHITECTURE.md#multiplayer)).
 
 ### Tests
 
@@ -87,6 +87,6 @@ tools/roadnet     Generator für das Straßennetz aus OpenStreetMap-Routen
 - Karten- und Straßendaten © [OpenStreetMap-Mitwirkende](https://www.openstreetmap.org/copyright), ODbL 1.0
 - Grundkarte: [OpenFreeMap](https://openfreemap.org) (OpenMapTiles-Schema, BSD-3/CC-BY 4.0) – austauschbar über `VITE_MAP_STYLE_DARK` / `VITE_MAP_STYLE_LIGHT`
 - Routenberechnung beim Netzaufbau: OSRM (BSD-2)
-- Bibliotheken: MapLibre GL JS (BSD-3), React (MIT), Lucide (ISC), ws (MIT), Vite (MIT), Vitest (MIT), Tauri (MIT/Apache-2.0)
+- Bibliotheken: MapLibre GL JS (BSD-3), React (MIT), Lucide (ISC), ws (MIT), Vite (MIT), Vitest (MIT), Tauri (MIT/Apache-2.0), cloudflared (Apache-2.0, mitgeliefert für den Internet-Zugang)
 - Sounds werden zur Laufzeit per Web Audio erzeugt; Icons und Avatare sind eigene SVGs.
 - Alle Fahrzeughersteller, Firmen und Personen sind frei erfunden.

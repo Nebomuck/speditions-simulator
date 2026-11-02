@@ -4,9 +4,11 @@
 
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { RemoteHost } from './host.ts';
-import { localStorageSet, receiveSnapshot, setUi, toast } from './store.ts';
+import { DEFAULT_PORT, normalizeServerUrl } from './invite.ts';
+import { getUi, localStorageSet, receiveSnapshot, setUi, toast } from './store.ts';
 
-export const DEFAULT_PORT = 8787;
+export { DEFAULT_PORT, inviteLine, normalizeServerUrl, parseInvite } from './invite.ts';
+
 const SESSIONS_KEY = 'spedsim.mpSessions';
 
 export interface MpSession {
@@ -48,16 +50,6 @@ export function forgetSession(gameId: string) {
   localStorageSet(SESSIONS_KEY, JSON.stringify(loadSessions().filter((x) => x.gameId !== gameId)));
 }
 
-/** Eingabe wie "192.168.1.20", "meinserver.de:9000" oder "ws://…" in eine WebSocket-URL umwandeln. */
-export function normalizeServerUrl(input: string): string {
-  let s = input.trim();
-  if (!s) return `ws://localhost:${DEFAULT_PORT}`;
-  if (!/^wss?:\/\//i.test(s)) s = `ws://${s}`;
-  const u = new URL(s);
-  if (!u.port && u.protocol === 'ws:') u.port = String(DEFAULT_PORT);
-  return u.toString().replace(/\/$/, '');
-}
-
 /** Eingebauten Server starten (Desktop-App). Im Browser muss er per `npm run server` laufen. */
 export async function ensureLocalServer(): Promise<string> {
   const url = `ws://localhost:${DEFAULT_PORT}`;
@@ -80,6 +72,64 @@ export async function stopLocalServer() {
   if (isDesktop()) await invoke('stop_server');
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Wartet, bis der neue Tunnel-Hostname öffentlich auflösbar ist. Fragt bewusst per DNS-over-HTTPS,
+ *  damit ein zu früher Fehlschlag nicht im DNS-Cache von Windows oder des Routers hängen bleibt. */
+async function waitForDns(hostname: string) {
+  for (let i = 0; i < 30; i++) {
+    try {
+      const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${hostname}&type=A`, { headers: { accept: 'application/dns-json' } });
+      const j = await r.json();
+      if (j.Status === 0 && j.Answer?.length) return true;
+    } catch {
+      /* nächster Versuch */
+    }
+    await sleep(2000);
+  }
+  return false;
+}
+
+/** Prüft, ob der Server über die öffentliche Adresse wirklich per WebSocket erreichbar ist. */
+function probe(url: string) {
+  return new Promise<boolean>((resolve) => {
+    const ws = new WebSocket(url);
+    const timer = setTimeout(() => (ws.close(), resolve(false)), 8000);
+    ws.onopen = () => (clearTimeout(timer), ws.close(), resolve(true));
+    ws.onerror = () => (clearTimeout(timer), resolve(false));
+  });
+}
+
+/** Internet-Zugang für die gehostete Firma öffnen (Desktop-App). Läuft im Hintergrund. */
+export async function startTunnel() {
+  const cur = getUi().tunnel.status;
+  if (!isDesktop() || cur === 'starting' || cur === 'checking' || cur === 'ready') return;
+  setUi({ tunnel: { status: 'starting' } });
+  try {
+    const url = await invoke<string>('start_tunnel', { port: DEFAULT_PORT });
+    setUi({ tunnel: { status: 'checking', url } });
+    const hostname = new URL(url).hostname;
+    if (!(await waitForDns(hostname))) throw new Error('Die Tunnel-Adresse wurde nicht im DNS veröffentlicht.');
+    await sleep(2000);
+    const wss = normalizeServerUrl(url);
+    for (let i = 0; i < 5; i++) {
+      if (await probe(wss)) {
+        setUi({ tunnel: { status: 'ready', url } });
+        return;
+      }
+      await sleep(3000);
+    }
+    throw new Error('Der Server ist über die Tunnel-Adresse nicht erreichbar.');
+  } catch (e) {
+    setUi({ tunnel: { status: 'error', error: String((e as Error).message ?? e) } });
+  }
+}
+
+export async function stopTunnel() {
+  if (isDesktop()) await invoke('stop_tunnel');
+  setUi({ tunnel: { status: 'off' } });
+}
+
 /** Verbindung zu einer Firma aufbauen. `hello` ist create- oder join-Nachricht. */
 export function connect(url: string, hello: Record<string, unknown>, hosted: boolean) {
   let started = false;
@@ -89,6 +139,7 @@ export function connect(url: string, hello: Record<string, unknown>, hosted: boo
       if (!started) {
         started = true;
         setUi({ host, page: 'dashboard', hosting: hosted, connection: 'verbunden' });
+        if (hosted) startTunnel();
       }
     },
     onError: (m) => toast('danger', m),
@@ -102,6 +153,14 @@ export function connect(url: string, hello: Record<string, unknown>, hosted: boo
     },
   });
   return host;
+}
+
+/** Neu beitreten. Kennt dieser PC die Firma schon (gleicher Code), tritt er als derselbe Spieler
+ *  wieder bei – nötig, weil sich die Tunnel-Adresse des Hosts bei jedem Start ändert. */
+export function joinWithCode(url: string, code: string, name: string, character: unknown) {
+  const known = loadSessions().find((s) => !s.hosted && s.inviteCode.toUpperCase() === code.toUpperCase());
+  if (known) return connect(url, { t: 'join', code: known.inviteCode, playerId: known.playerId, token: known.token }, false);
+  return connect(url, { t: 'join', code, name, character }, false);
 }
 
 /** Gemerkte Firma fortsetzen – startet bei eigenen Firmen vorher den eingebauten Server. */
