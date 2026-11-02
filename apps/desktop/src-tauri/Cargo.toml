@@ -1,6 +1,6 @@
 [package]
 name = "spedsim-desktop"
-version = "0.3.0"
+version = "0.4.0"
 description = "Speditions-Simulator"
 edition = "2021"
 
@@ -11,6 +11,9 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+serde_json = "1"
 
 [profile.release]
 strip = true

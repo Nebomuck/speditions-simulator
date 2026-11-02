@@ -36,7 +36,14 @@ export class SaveError extends Error {}
 
 type Migration = (s: Record<string, unknown>) => Record<string, unknown>;
 /** MIGRATIONS[n] hebt einen Zustand von Version n auf n+1. */
-export const MIGRATIONS: Record<number, Migration> = {};
+export const MIGRATIONS: Record<number, Migration> = {
+  // 0.4.0: Bankkredite
+  1: (s) => {
+    const company = s.company as Record<string, unknown>;
+    company.loans ??= [];
+    return s;
+  },
+};
 
 export function deserializeSave(text: string): GameState {
   let parsed: SaveFile;

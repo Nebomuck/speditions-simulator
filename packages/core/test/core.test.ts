@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CITIES, CITY_BY_ID, CARGO_BY_ID, GameSession, HOS_RULES, PRIVATE_LIVING_COST, TRAILER_BY_TYPE, applyCommand, book,
-  deserializeSave, haversineKm, serializeSave, tickMinutes, vehicleMarker, processMonthEnd, generateOrder, SaveError,
+  deserializeSave, haversineKm, serializeSave, tickMinutes, vehicleMarker, processMonthEnd, generateOrder, SaveError, createInvoice,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -303,5 +303,73 @@ describe('Performance-Test', () => {
     const t1 = performance.now();
     for (const id of Object.keys(s.vehicles)) vehicleMarker(s, ctx, id);
     expect(performance.now() - t1).toBeLessThan(100);
+  });
+});
+
+describe('Liquidität: Zahlungsmoral, Kredite, Factoring', () => {
+  it('Kunden zahlen überwiegend pünktlich, Ausfälle sind selten', () => {
+    const s = newGame(7);
+    const order = addOrder(s, 'leipzig', 'prag');
+    let onTime = 0;
+    let defaults = 0;
+    const n = 4000;
+    const custs = Object.values(s.customers);
+    for (let i = 0; i < n; i++) {
+      order.customerId = custs[i % custs.length].id;
+      createInvoice(s, order, 1_000_00);
+    }
+    for (const inv of Object.values(s.invoices)) {
+      if (inv.willPayAt === null) defaults++;
+      else if (inv.willPayAt <= inv.due) onTime++;
+    }
+    expect(onTime / n).toBeGreaterThan(0.85);
+    expect(defaults / n).toBeLessThan(0.015);
+  });
+
+  it('Kredit: Auszahlung, Rahmenprüfung, monatliche Annuität bis zur vollständigen Tilgung', () => {
+    const s = newGame();
+    const before = s.company.account.balance;
+    expect(applyCommand(s, ctx, 'p1', { type: 'takeLoan', amount: 900_000_00, months: 12 }).ok).toBe(false); // über Kreditrahmen
+    const r = applyCommand(s, ctx, 'p1', { type: 'takeLoan', amount: 20_000_00, months: 12 });
+    expect(r.ok).toBe(true);
+    expect(s.company.account.balance).toBe(before + 20_000_00);
+    const loan = s.company.loans[0];
+    expect(loan.monthly).toBeGreaterThan(20_000_00 / 12);
+    expect(loan.monthly).toBeLessThan((20_000_00 / 12) * 1.06);
+    for (let m = 0; m < 12; m++) processMonthEnd(s);
+    expect(s.company.loans.length).toBe(0);
+    const paid = s.ledger.filter((e) => e.text === 'Kredittilgung').reduce((a, e) => a - e.amount, 0);
+    expect(paid).toBe(20_000_00);
+  });
+
+  it('Kredit ohne Recht „Kredite aufnehmen“ wird abgelehnt', () => {
+    const s = newGame();
+    s.players.p2 = { ...s.players.p1, id: 'p2', isFounder: false, permissions: ['dispatch'] };
+    expect(applyCommand(s, ctx, 'p2', { type: 'takeLoan', amount: 10_000_00, months: 24 }).ok).toBe(false);
+  });
+
+  it('Factoring zahlt offene Rechnungen sofort abzüglich Gebühr aus und beendet das Ausfallrisiko', () => {
+    const s = newGame();
+    const order = addOrder(s, 'leipzig', 'prag');
+    createInvoice(s, order, 10_000_00);
+    const inv = Object.values(s.invoices)[0];
+    inv.willPayAt = null; // Kunde würde nie zahlen
+    const before = s.company.account.balance;
+    expect(applyCommand(s, ctx, 'p1', { type: 'factorInvoices' }).ok).toBe(true);
+    expect(s.company.account.balance - before).toBe(9_700_00); // 3 % Gebühr
+    expect(inv.status).toBe('factored');
+    tickMinutes(s, ctx, 80 * 1440);
+    expect(inv.status).toBe('factored'); // kein Zahlungsausfall mehr
+  });
+
+  it('Spielstände der Version 1 werden um Kredite ergänzt', () => {
+    const s = newGame();
+    const old = JSON.parse(JSON.stringify(s));
+    delete old.company.loans;
+    old.version = 1;
+    const text = serializeSave(old, 'alt').replace('"version":2', '"version":1');
+    const loaded = deserializeSave(text);
+    expect(loaded.company.loans).toEqual([]);
+    expect(loaded.version).toBe(2);
   });
 });

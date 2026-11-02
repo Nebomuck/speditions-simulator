@@ -4,8 +4,26 @@ import { useEffect, useRef, useState } from 'react';
 import { Send, Copy, Crown, Globe, RefreshCw } from 'lucide-react';
 import { ALL_PERMISSIONS, PERMISSION_LABEL, formatDateTime, type Permission } from '@spedsim/core';
 import { DEFAULT_PORT, inviteLine, isDesktop, localAddress, startTunnel } from '../game/multiplayer.ts';
-import { sendCommand, toast, useGame, useUi } from '../game/store.ts';
+import { sendCommand, setUi, toast, useGame, useUi } from '../game/store.ts';
 import { Avatar, Badge, Card, PageHeader } from '../ui/components.tsx';
+
+/** Chattext mit geteilten Aufträgen ([[ord:ID]]) als anklickbarem Link. */
+function ChatText({ text }: { text: string }) {
+  const parts = text.split(/(\[\[ord:[a-z0-9]+\]\])/);
+  return (
+    <>
+      {parts.map((p, i) => {
+        const m = p.match(/^\[\[ord:([a-z0-9]+)\]\]$/);
+        if (!m) return p;
+        return (
+          <button key={i} className="btn small" style={{ marginLeft: 6 }} onClick={() => setUi({ page: 'orders', focusOrderId: m[1] })}>
+            Auftrag öffnen
+          </button>
+        );
+      })}
+    </>
+  );
+}
 
 /** Für den Host: Adresse und Einladungscode, mit denen Freunde beitreten. */
 function InviteCard({ code }: { code: string }) {
@@ -126,7 +144,7 @@ export function TeamPage() {
             {s.chat.map((m) => (
               <div key={m.id} className="list-item">
                 <time>{formatDateTime(m.t).slice(3)}</time>
-                <span><b>{s.players[m.playerId]?.name ?? '?'}:</b> {m.text}</span>
+                <span><b>{s.players[m.playerId]?.name ?? '?'}:</b> <ChatText text={m.text} /></span>
               </div>
             ))}
             <div ref={chatEnd} />

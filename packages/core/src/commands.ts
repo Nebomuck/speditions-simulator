@@ -7,7 +7,7 @@ import { CITY_BY_ID } from './data/cities.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { createRelocation, createTrip, validateDispatch, type Issue } from './dispatch.ts';
-import { addLog, book, formatMoney } from './finance.ts';
+import { addLog, book, factorInvoices, formatMoney, repayLoan, takeLoan } from './finance.ts';
 import { plate, vehicleMarketValue } from './generate.ts';
 import { freshHos } from './hos.ts';
 import { newId } from './rng.ts';
@@ -31,6 +31,9 @@ export type Command =
   | { type: 'fireDriver'; driverId: Id }
   | { type: 'setCeoSalary'; playerId: Id; salary: number }
   | { type: 'upgradeLocation'; locationId: Id; kind: LocationKind }
+  | { type: 'takeLoan'; amount: number; months: number }
+  | { type: 'repayLoan'; loanId: Id }
+  | { type: 'factorInvoices'; invoiceId?: Id }
   | { type: 'chat'; text: string }
   | { type: 'setPermissions'; playerId: Id; permissions: Permission[] };
 
@@ -53,6 +56,9 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   fireDriver: 'fireStaff',
   setCeoSalary: 'finance',
   upgradeLocation: 'expansion',
+  takeLoan: 'loans',
+  repayLoan: 'loans',
+  factorInvoices: 'finance',
   chat: null,
   setPermissions: 'admin',
 };
@@ -281,6 +287,18 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       p.character.salary = Math.round(cmd.salary / 100) * 100;
       addLog(state, { level: 'info', category: 'finance', text: `Geschäftsführergehalt von ${p.character.name} auf ${formatMoney(p.character.salary)}/Monat festgelegt.` });
       return { ok: true };
+    }
+    case 'takeLoan': {
+      const r = takeLoan(state, Number(cmd.amount), Number(cmd.months), (id) => vehicleMarketValue(state, id));
+      return r.ok ? { ok: true, id: r.loan.id } : fail(r.error);
+    }
+    case 'repayLoan': {
+      const r = repayLoan(state, cmd.loanId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'factorInvoices': {
+      const r = factorInvoices(state, cmd.invoiceId);
+      return r.ok ? { ok: true } : fail(r.error);
     }
     case 'upgradeLocation': {
       const loc = state.company.locations.find((l) => l.id === cmd.locationId);

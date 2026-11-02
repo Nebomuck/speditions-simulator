@@ -45,6 +45,14 @@ npm run typecheck
 npm run build -w @spedsim/desktop
 ```
 
+Für ein Release mit In-App-Update stattdessen:
+
+```bash
+npm run release:build
+```
+
+Das signiert den Installer mit dem privaten Update-Schlüssel (`%USERPROFILE%\.tauri\spedsim-updater.key`, nicht im Repository – sicher aufbewahren!) und erzeugt `latest.json`. Beides an das GitHub-Release hängen; installierte Spiele (ab 0.4.0) bieten das Update dann im Startbildschirm an.
+
 Baut automatisch Oberfläche und Server mit (`beforeBuildCommand`). `npm run build:server` bündelt den Multiplayer-Server mit esbuild und erzeugt daraus eine eigenständige `spedsim-server.exe` (Node Single Executable Application), die als Tauri-Sidecar nach `apps/desktop/src-tauri/binaries/` kopiert wird. Ergebnis ist ein NSIS-Installer unter `apps/desktop/src-tauri/target/release/bundle/nsis/` mit Einzelspieler und eingebautem Multiplayer-Server.
 
 ### Straßennetz neu erzeugen (optional)

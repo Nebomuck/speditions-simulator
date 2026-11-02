@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { formatDate, formatDateTime, monthlyFixedCosts, receivables, companyValue, vehicleMarketValue, type LedgerCategory } from '@spedsim/core';
-import { useGame } from '../game/store.ts';
+import { LOAN_TERMS, annuity, factoringPayout, formatDate, formatDateTime, formatMoney, loanLimit, loanRate, monthlyFixedCosts, receivables, companyValue, vehicleMarketValue, type LedgerCategory } from '@spedsim/core';
+import { Landmark, HandCoins } from 'lucide-react';
+import { sendCommand, useGame } from '../game/store.ts';
 import { Badge, Card, Empty, LineChart, Money, PageHeader, Stat } from '../ui/components.tsx';
 
 const CAT_LABEL: Record<LedgerCategory, string> = {
@@ -11,7 +12,9 @@ const CAT_LABEL: Record<LedgerCategory, string> = {
 
 export function FinancePage() {
   const s = useGame();
-  const [tab, setTab] = useState<'overview' | 'invoices' | 'ledger'>('overview');
+  const [tab, setTab] = useState<'overview' | 'invoices' | 'credit' | 'ledger'>('overview');
+  const [loanAmount, setLoanAmount] = useState(20_000);
+  const [loanMonths, setLoanMonths] = useState<number>(24);
   const invoices = Object.values(s.invoices).sort((a, b) => b.issued - a.issued);
   const open = invoices.filter((i) => i.status === 'open' || i.status === 'overdue');
   const fixed = monthlyFixedCosts(s);
@@ -19,12 +22,15 @@ export function FinancePage() {
   const since = s.time - 30 * 1440;
   const byCat = new Map<LedgerCategory, number>();
   for (const l of s.ledger) if (l.account === 'company' && l.t >= since) byCat.set(l.category, (byCat.get(l.category) ?? 0) + l.amount);
+  const limit = loanLimit(s, (id) => vehicleMarketValue(s, id));
+  const rate = loanRate(s, loanMonths);
+  const factorAll = open.reduce((a, i) => a + factoringPayout(s, i), 0);
   const vehValue = Object.values(s.vehicles).filter((v) => v.ownership === 'owned').reduce((a, v) => a + vehicleMarketValue(s, v.id), 0);
   return (
     <div className="page">
       <PageHeader title="Finanzen" subtitle="Firmenkonto · Forderungen · Hauptbuch" />
       <div className="grid grid-4">
-        <Stat label="Kontostand" value={<Money value={s.company.account.balance} colored />} hint="Kontokorrentrahmen 10.000 € · 12 % p. a. Überziehungszins" />
+        <Stat label="Kontostand" value={<Money value={s.company.account.balance} colored />} hint={s.company.account.balance < 0 ? <>Im Minus – Hilfe unter <a href="#" onClick={(e) => { e.preventDefault(); setTab('credit'); }}>Kredite &amp; Factoring</a></> : 'Kontokorrentrahmen 10.000 € · 12 % p. a. Überziehungszins'} />
         <Stat label="Offene Forderungen" value={<Money value={receivables(s)} />} hint={`${open.length} Rechnungen · ${open.filter((i) => i.status === 'overdue').length} überfällig`} />
         <Stat label="Monatliche Fixkosten" value={<Money value={fixedSum} />} hint="Löhne, Mieten, Versicherung, Leasing, GF-Gehalt" />
         <Stat label="Unternehmenswert" value={<Money value={companyValue(s, (id) => vehicleMarketValue(s, id))} />} hint={<>davon Fahrzeugwert <Money value={vehValue} /></>} />
@@ -32,6 +38,7 @@ export function FinancePage() {
       <div className="tabs mt">
         <button className={`tab ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>Übersicht</button>
         <button className={`tab ${tab === 'invoices' ? 'active' : ''}`} onClick={() => setTab('invoices')}>Rechnungen ({open.length} offen)</button>
+        <button className={`tab ${tab === 'credit' ? 'active' : ''}`} onClick={() => setTab('credit')}>Kredite & Factoring</button>
         <button className={`tab ${tab === 'ledger' ? 'active' : ''}`} onClick={() => setTab('ledger')}>Hauptbuch</button>
       </div>
       {tab === 'overview' && (
@@ -62,7 +69,7 @@ export function FinancePage() {
       {tab === 'invoices' && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Kunde</th><th>Gestellt</th><th>Fällig</th><th>Status</th><th>Mahnungen</th><th className="num">Betrag</th></tr></thead>
+            <thead><tr><th>Kunde</th><th>Gestellt</th><th>Fällig</th><th>Status</th><th>Mahnungen</th><th className="num">Betrag</th><th></th></tr></thead>
             <tbody>
               {invoices.map((i) => (
                 <tr key={i.id}>
@@ -70,17 +77,75 @@ export function FinancePage() {
                   <td>{formatDate(i.issued)}</td>
                   <td>{formatDate(i.due)}</td>
                   <td>
-                    <Badge kind={i.status === 'paid' ? 'success' : i.status === 'overdue' ? 'warning' : i.status === 'defaulted' ? 'danger' : 'info'}>
-                      {{ open: 'Offen', paid: `Bezahlt ${i.paid ? formatDate(i.paid) : ''}`, overdue: 'Überfällig', defaulted: 'Ausgefallen' }[i.status]}
+                    <Badge kind={i.status === 'paid' || i.status === 'factored' ? 'success' : i.status === 'overdue' ? 'warning' : i.status === 'defaulted' ? 'danger' : 'info'}>
+                      {{ open: 'Offen', paid: `Bezahlt ${i.paid ? formatDate(i.paid) : ''}`, overdue: 'Überfällig', defaulted: 'Ausgefallen', factored: `Verkauft ${i.paid ? formatDate(i.paid) : ''}` }[i.status]}
                     </Badge>
                   </td>
                   <td>{i.reminders || '–'}</td>
                   <td className="num"><Money value={i.amount} /></td>
+                  <td>
+                    {(i.status === 'open' || i.status === 'overdue') && (
+                      <button className="btn small" title="Rechnung an Factoring-Gesellschaft verkaufen" onClick={() => sendCommand({ type: 'factorInvoices', invoiceId: i.id })}>
+                        Verkaufen ({formatMoney(factoringPayout(s, i))})
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
           {invoices.length === 0 && <Empty>Noch keine Rechnungen – nach jeder Lieferung wird eine Rechnung gestellt.</Empty>}
+        </div>
+      )}
+      {tab === 'credit' && (
+        <div className="grid grid-2">
+          <Card title={<><Landmark size={16} /> Bankkredit</>} sub={`Kreditrahmen ${formatMoney(limit)}`}>
+            <div className="field">
+              <label>Betrag (€)</label>
+              <input className="input" type="number" min={5000} step={1000} value={loanAmount} onChange={(e) => setLoanAmount(Number(e.target.value))} />
+            </div>
+            <div className="field">
+              <label>Laufzeit</label>
+              <div className="row wrap" style={{ gap: 6 }}>
+                {LOAN_TERMS.map((m) => (
+                  <button key={m} className={`chip ${loanMonths === m ? 'active' : ''}`} onClick={() => setLoanMonths(m)}>{m} Monate</button>
+                ))}
+              </div>
+            </div>
+            <p className="dim" style={{ fontSize: 12.5 }}>
+              Zins {(rate * 100).toFixed(1).replace('.', ',')} % p. a. · Monatsrate <b>{formatMoney(annuity(loanAmount * 100, rate, loanMonths))}</b>, abgebucht am Monatsersten.
+              Der Rahmen richtet sich nach Fuhrpark und offenen Forderungen. Im Minus verlangt die Bank 2 % Aufschlag.
+            </p>
+            <button className="btn primary" disabled={loanAmount * 100 > limit || loanAmount < 5000} onClick={() => sendCommand({ type: 'takeLoan', amount: loanAmount * 100, months: loanMonths })}>
+              <Landmark size={15} /> Kredit aufnehmen
+            </button>
+            <div className="card-title mt">Laufende Kredite</div>
+            {s.company.loans.length === 0 && <Empty>Keine laufenden Kredite.</Empty>}
+            <div className="list">
+              {s.company.loans.map((l) => (
+                <div key={l.id} className="list-item" style={{ alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <b><Money value={l.principal} /></b> über {l.months} Monate · {(l.ratePa * 100).toFixed(1).replace('.', ',')} %
+                    <div className="dim" style={{ fontSize: 12 }}>Restschuld <Money value={l.remaining} /> · Rate <Money value={l.monthly} /> · seit {formatDate(l.taken)}</div>
+                  </div>
+                  <button className="btn small" onClick={() => sendCommand({ type: 'repayLoan', loanId: l.id })}>Ablösen (+1 %)</button>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card title={<><HandCoins size={16} /> Factoring</>} sub="Rechnungen sofort zu Geld machen">
+            <p className="dim" style={{ fontSize: 12.5 }}>
+              Eine Factoring-Gesellschaft kauft offene Rechnungen und zahlt sofort aus. Gebühr 3 %, bei überfälligen Rechnungen zusätzlich 0,15 % je Verzugstag (höchstens 15 %).
+              Das Ausfallrisiko trägt danach die Factoring-Gesellschaft.
+            </p>
+            <div className="row" style={{ alignItems: 'center' }}>
+              <span style={{ flex: 1 }}>{open.length} offene Rechnungen über <Money value={receivables(s)} /></span>
+              <button className="btn primary" disabled={!open.length} onClick={() => sendCommand({ type: 'factorInvoices' })}>
+                <HandCoins size={15} /> Alle verkaufen ({formatMoney(factorAll)})
+              </button>
+            </div>
+            <p className="dim" style={{ fontSize: 12.5 }}>Einzelne Rechnungen verkaufst du im Reiter „Rechnungen“.</p>
+          </Card>
         </div>
       )}
       {tab === 'ledger' && (

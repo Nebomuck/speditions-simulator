@@ -99,6 +99,21 @@ export interface Company {
   reputation: number;
   /** Kumulierte Kennzahlen für Statistiken. */
   totals: { deliveries: number; lateDeliveries: number; revenue: Money; kmLoaded: number; kmEmpty: number };
+  /** laufende Bankkredite */
+  loans: Loan[];
+}
+
+/** Ratenkredit (Annuität, monatliche Rate am Monatsersten). */
+export interface Loan {
+  id: Id;
+  principal: Money;
+  /** Restschuld */
+  remaining: Money;
+  /** Zinssatz p. a., z. B. 0.075 */
+  ratePa: number;
+  monthly: Money;
+  months: number;
+  taken: GameTime;
 }
 
 export interface Character {
@@ -302,7 +317,8 @@ export interface Trip {
   log: { t: GameTime; text: string }[];
 }
 
-export type InvoiceStatus = 'open' | 'paid' | 'overdue' | 'defaulted';
+/** factored = an Factoring-Gesellschaft verkauft (Geld bereits erhalten, Ausfallrisiko abgegeben) */
+export type InvoiceStatus = 'open' | 'paid' | 'overdue' | 'defaulted' | 'factored';
 
 export interface Invoice {
   id: Id;

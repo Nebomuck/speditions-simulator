@@ -100,6 +100,53 @@ function probe(url: string) {
   });
 }
 
+// ---------- Adress-Vermittlung ----------
+// Die Tunnel-Adresse ändert sich bei jedem Start des Hosts. Die Host-App veröffentlicht sie deshalb in einem
+// geheimen ntfy.sh-Kanal (Name aus Firmen-ID + Einladungscode); Mitspieler fragen dort beim Fortsetzen nach.
+// Übertragen wird nur die Tunnel-Adresse. ntfy.sh hält Nachrichten 12 h vor, daher alle 6 h erneuern.
+
+const RELAY = 'https://ntfy.sh';
+const TUNNEL_URL_RE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
+
+async function relayTopic(gameId: string, code: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`spedsim:${gameId}:${code.toUpperCase()}`));
+  return 'spedsim-' + [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
+}
+
+async function publishAddress(gameId: string, code: string, tunnelUrl: string) {
+  try {
+    await fetch(`${RELAY}/${await relayTopic(gameId, code)}`, { method: 'POST', body: tunnelUrl });
+  } catch {
+    /* Vermittlung ist optional – Einladung funktioniert weiterhin */
+  }
+}
+
+/** Aktuelle Tunnel-Adresse eines Hosts nachschlagen (neueste Nachricht der letzten 12 h). */
+export async function lookupAddress(gameId: string, code: string): Promise<string | null> {
+  try {
+    const r = await fetch(`${RELAY}/${await relayTopic(gameId, code)}/json?poll=1&since=12h`);
+    const lines = (await r.text()).trim().split('\n').filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const msg = JSON.parse(lines[i]).message as string | undefined;
+      if (msg && TUNNEL_URL_RE.test(msg)) return normalizeServerUrl(msg);
+    }
+  } catch {
+    /* nicht erreichbar → gespeicherte Adresse verwenden */
+  }
+  return null;
+}
+
+let republishTimer: ReturnType<typeof setInterval> | undefined;
+/** Adresse der gerade gehosteten Firma veröffentlichen und regelmäßig erneuern. */
+function announceHostedGame() {
+  const { tunnel, host, hosting } = getUi();
+  const h = host as RemoteHost | null;
+  if (!hosting || tunnel.status !== 'ready' || !tunnel.url || !h?.gameId || !h.inviteCode) return;
+  publishAddress(h.gameId, h.inviteCode, tunnel.url);
+  clearInterval(republishTimer);
+  republishTimer = setInterval(announceHostedGame, 6 * 60 * 60 * 1000);
+}
+
 /** Internet-Zugang für die gehostete Firma öffnen (Desktop-App). Läuft im Hintergrund. */
 export async function startTunnel() {
   const cur = getUi().tunnel.status;
@@ -115,6 +162,7 @@ export async function startTunnel() {
     for (let i = 0; i < 5; i++) {
       if (await probe(wss)) {
         setUi({ tunnel: { status: 'ready', url } });
+        announceHostedGame();
         return;
       }
       await sleep(3000);
@@ -139,18 +187,22 @@ export function connect(url: string, hello: Record<string, unknown>, hosted: boo
       if (!started) {
         started = true;
         setUi({ host, page: 'dashboard', hosting: hosted, connection: 'verbunden' });
-        if (hosted) startTunnel();
+        // Tunnel läuft evtl. schon (andere Firma vorher gehostet) → nur neu veröffentlichen
+        if (hosted) getUi().tunnel.status === 'ready' ? announceHostedGame() : startTunnel();
       }
     },
     onError: (m) => toast('danger', m),
     onStatus: (st) => setUi({ connection: st }),
     onWelcome: (w) => {
-      saveSession({ ...w, url, hosted, company: String(hello.companyName ?? ''), lastPlayed: new Date().toISOString() });
+      const prev = loadSessions().find((x) => x.gameId === w.gameId);
+      saveSession({ gameId: w.gameId, playerId: w.playerId, inviteCode: w.inviteCode, token: w.token, url: host.url, hosted, company: String(hello.companyName ?? prev?.company ?? ''), lastPlayed: new Date().toISOString() });
     },
     onCompany: (gameId, company) => {
       const s = loadSessions().find((x) => x.gameId === gameId);
       if (s && s.company !== company) saveSession({ ...s, company });
     },
+    // Mitspieler: hat der Host neu gestartet, steht seine neue Tunnel-Adresse in der Vermittlung
+    resolveUrl: hosted ? undefined : async () => (host.gameId && host.inviteCode ? lookupAddress(host.gameId, host.inviteCode) : null),
   });
   return host;
 }
@@ -165,6 +217,7 @@ export function joinWithCode(url: string, code: string, name: string, character:
 
 /** Gemerkte Firma fortsetzen – startet bei eigenen Firmen vorher den eingebauten Server. */
 export async function resume(s: MpSession) {
-  const url = s.hosted ? await ensureLocalServer() : s.url;
+  // Mitspieler: aktuelle Adresse des Hosts nachschlagen, sonst die zuletzt bekannte versuchen
+  const url = s.hosted ? await ensureLocalServer() : ((await lookupAddress(s.gameId, s.inviteCode)) ?? s.url);
   connect(url, { t: 'join', code: s.inviteCode, playerId: s.playerId, token: s.token }, s.hosted);
 }

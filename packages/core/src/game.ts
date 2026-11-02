@@ -12,7 +12,7 @@ import { newId } from './rng.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player } from './types.ts';
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.15, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -66,6 +66,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
       name: opts.companyName.trim() || 'Meine Spedition',
       hqCityId: hq.id,
       account: { balance: difficulty.startCapital },
+      loans: [],
       founded: startTime,
       locations: [],
       reputation: 30,

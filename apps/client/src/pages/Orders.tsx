@@ -1,9 +1,9 @@
 // Auftragsbörse: dynamische Transportangebote mit Wirtschaftlichkeitsabschätzung.
 
 import { useMemo, useState } from 'react';
-import { MapPin, Check, Send, X } from 'lucide-react';
-import { CARGOS, CITY_BY_ID, TRAILERS, estimateTrip, formatDateTime, haversineKm, type Order, type TrailerType } from '@spedsim/core';
-import { sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
+import { MapPin, Check, Send, Share2, X } from 'lucide-react';
+import { CARGOS, CITY_BY_ID, TRAILERS, estimateTrip, formatDateTime, formatMoney, haversineKm, type Customer, type Order, type TrailerType } from '@spedsim/core';
+import { sendCommand, setUi, toast, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
 import { MapView } from '../ui/MapView.tsx';
 import { cargoName, cityName, km, tons, ORDER_STATUS_LABEL, QUAL_LABEL, trailerName } from '../ui/format.ts';
@@ -13,6 +13,7 @@ type SortKey = 'payment' | 'perKm' | 'distance' | 'pickup' | 'origin' | 'profit'
 export function OrdersPage() {
   const s = useGame();
   const focus = useUi((u) => u.focusOrderId);
+  const remote = useUi((u) => u.host?.mode === 'remote');
   const [originRadius, setOriginRadius] = useState(300);
   const [anchor, setAnchor] = useState<string>(''); // Fahrzeug-ID oder '' = alle Standorte
   const [trailer, setTrailer] = useState<'' | 'fleet' | TrailerType>('fleet');
@@ -149,7 +150,7 @@ export function OrdersPage() {
                   <td>
                     <b>{cityName(o.fromCityId)} → {cityName(o.toCityId)}</b>
                     <div className="dim" style={{ fontSize: 12 }}>
-                      {state(o)}
+                      {orderNo(o.id)} · {state(o)}
                       {est ? ` · Anfahrt ${km(est.emptyKm)}` : ''}
                     </div>
                   </td>
@@ -180,13 +181,25 @@ export function OrdersPage() {
           {rows.length === 0 && <Empty>Keine passenden Angebote. Vergrößere den Radius oder ändere die Filter.</Empty>}
         </div>
         {focused && (
-          <Card title={<><MapPin size={15} />{cityName(focused.fromCityId)} → {cityName(focused.toCityId)}</>} actions={<button className="icon-btn" onClick={() => setUi({ focusOrderId: null })}><X size={15} /></button>}>
+          <Card
+            title={<><MapPin size={15} />{cityName(focused.fromCityId)} → {cityName(focused.toCityId)} <span className="dim">{orderNo(focused.id)}</span></>}
+            actions={
+              <>
+                {remote && (
+                  <button className="btn small" title="Auftrag im Firmenchat teilen" onClick={() => shareOrder(focused)}><Share2 size={13} />Im Team teilen</button>
+                )}
+                <button className="icon-btn" onClick={() => setUi({ focusOrderId: null })}><X size={15} /></button>
+              </>
+            }
+          >
             <div style={{ position: 'relative', height: 300, borderRadius: 8, overflow: 'hidden' }}>
               <MapView />
             </div>
             <dl className="kv mt">
+              <dt>Status</dt><dd><Badge kind={focused.status === 'offered' ? 'info' : 'warning'}>{focused.status === 'offered' ? 'Angebot offen' : ORDER_STATUS_LABEL[focused.status]}</Badge></dd>
               <dt>Auftraggeber</dt><dd>{s.customers[focused.customerId]?.name}</dd>
               <dt>Zahlungsziel</dt><dd>{s.customers[focused.customerId]?.paymentTermDays} Tage</dd>
+              <dt>Zahlungsmoral</dt><dd><PaymentMorale c={s.customers[focused.customerId]} /></dd>
               <dt>Kundenzufriedenheit</dt><dd>{Math.round(s.customers[focused.customerId]?.satisfaction ?? 0)} %</dd>
               <dt>Abholfenster</dt><dd>{formatDateTime(focused.pickupStart)} – {formatDateTime(focused.pickupEnd)}</dd>
               <dt>Vertragsstrafe</dt><dd><Money value={focused.penaltyPerHour} /> je angefangene Std. Verspätung</dd>
@@ -197,6 +210,22 @@ export function OrdersPage() {
       </div>
     </div>
   );
+}
+
+/** Kurze, für alle Spieler gleiche Auftragsnummer (aus der Server-ID). */
+export function orderNo(id: string) {
+  return `Nr. ${id.replace(/^ord/, '').toUpperCase()}`;
+}
+
+function shareOrder(o: Order) {
+  const text = `Auftrag ${orderNo(o.id)}: ${cityName(o.fromCityId)} → ${cityName(o.toCityId)}, ${cargoName(o.cargoId)}, ${formatMoney(o.payment)}, Abholung ab ${formatDateTime(o.pickupStart)} [[ord:${o.id}]]`;
+  sendCommand({ type: 'chat', text }).then((r) => r.ok && toast('success', 'Auftrag im Firmenchat geteilt.'));
+}
+
+function PaymentMorale({ c }: { c?: Customer }) {
+  if (!c) return <>–</>;
+  if (c.deliveries === 0 && c.paymentReliability >= 0.7) return <span className="dim">unbekannt (noch keine Lieferung)</span>;
+  return <Badge kind={c.paymentReliability > 0.85 ? 'success' : c.paymentReliability > 0.7 ? 'warning' : 'danger'}>{c.paymentReliability > 0.85 ? 'gut' : c.paymentReliability > 0.7 ? 'mittel' : 'schlecht'}</Badge>;
 }
 
 function state(o: Order) {

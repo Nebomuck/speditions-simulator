@@ -103,7 +103,8 @@ Stand: 02.11.2026 · Version 0.1.0
 | Anforderung | Status | Anmerkung |
 |---|---|---|
 | Ausgaben: Fahrzeuge, Leasing, Diesel, Maut, Wartung, Reparatur, Versicherung, Löhne + AG-Anteil, Miete, Verwaltung | Getestet | |
-| Kredite & Zinsen | In Entwicklung | Überziehungszins umgesetzt; Kredite geplant |
+| Kredite & Zinsen | Getestet | Ratenkredite (Annuität, Kreditrahmen, Ablöse), Überziehungszins; Factoring offener Rechnungen |
+| In-App-Update (signiert, über GitHub-Releases) | Implementiert | Prüfung im Startbildschirm getestet; Download/Installation erst nach dem ersten Release mit latest.json prüfbar |
 | Steuern, Werbung, Fortbildung, Lager | Geplant | |
 | Einnahmen aus Einzelaufträgen, Expresszuschläge, Spezialtransporte | Implementiert | Festverträge: geplant |
 | Finanzdashboard | Implementiert | Kontostand, Forderungen, Fixkosten, Unternehmenswert, Kategorien, Hauptbuch |
@@ -139,6 +140,8 @@ Stand: 02.11.2026 · Version 0.1.0
 | Firma gründen, Session, Einladungscode, Fortsetzen | Getestet |
 | Server startet automatisch beim Hosten/Fortsetzen (Desktop-App, Sidecar) und speichert beim Beenden | Getestet (Server-EXE: Start, Firma gründen, `quit`, Neustart, Wiederladen per Token; Browser-Ablauf manuell) |
 | Liste aller eigenen/beigetretenen Multiplayer-Firmen, Host-Adresse für Freunde | Implementiert |
+| Wiederbeitritt ohne neue Einladung (Adress-Vermittlung über ntfy.sh) | Getestet (Host-App neu gestartet → neue Tunnel-Adresse; Mitspielerin verbindet sich automatisch neu bzw. per „Fortsetzen“, gleicher Spieler) |
+| Auftrag im Team teilen (Chat-Link öffnet Auftrag bei allen) | Getestet (Mitspielerin teilt, Host öffnet per Klick) |
 | Internet-Multiplayer ohne Portfreigabe (Cloudflare-Tunnel, Einladung einfügen) | Getestet (Desktop-App hostet, zweiter Spieler tritt über wss-Tunneladresse bei und chattet; Prozesse enden beim Schließen) |
 | Echte Netzwerkverbindung & gemeinsame Datenhaltung | Getestet |
 | Rollen/Rechte flexibel, durch Gründer vergeben | Getestet |

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 – 02.11.2026
+
+- Updates direkt im Spiel: Der Startbildschirm meldet neue Versionen und installiert sie per Klick (signiert, Spielstände bleiben erhalten). Ab dieser Version – 0.4.0 muss einmalig von Hand installiert werden.
+- Mitspieler setzen beigetretene Firmen mit „Fortsetzen“ fort, ohne neue Einladung: Die Host-App veröffentlicht ihre aktuelle Internet-Adresse in einem geheimen ntfy.sh-Kanal, die Apps der Mitspieler finden sie dort – auch automatisch, wenn der Host während des Spiels neu startet.
+- Kunden zahlen deutlich zuverlässiger (Normal: ca. 90–96 % pünktlich, Verzug meist nur wenige Tage, Ausfälle selten). Zahlungsmoral des Kunden steht jetzt direkt im Auftrag.
+- Neu: Bankkredite (12–60 Monate, Kreditrahmen nach Fuhrpark und Forderungen, Rate am Monatsersten, vorzeitige Ablöse) und Factoring (offene Rechnungen sofort gegen 3 % Gebühr verkaufen) unter Finanzen → „Kredite & Factoring“.
+- Auftragsbörse: Auftragsnummern und „Im Team teilen“ – postet den Auftrag in den Firmenchat, ein Klick öffnet ihn bei allen Mitspielern. Die Börse kam schon bisher vom Server; Unterschiede entstanden, weil sich das Angebot bei hohem Tempo laufend ändert.
+
 ## 0.3.0 – 02.11.2026
 
 ### Hinzugefügt

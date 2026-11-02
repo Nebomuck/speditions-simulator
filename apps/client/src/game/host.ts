@@ -88,6 +88,8 @@ export class LocalHost implements GameHost {
 type RemoteEvents = HostEvents & {
   onWelcome?(w: { playerId: string; gameId: string; inviteCode: string; token: string }): void;
   onCompany?(gameId: string, company: string): void;
+  /** vor jedem Wiederverbindungsversuch: aktuelle Server-Adresse ermitteln (Tunnel-Adresse kann wechseln) */
+  resolveUrl?(): Promise<string | null>;
 };
 
 /** Multiplayer-Host: Verbindung zum serverautoritativen Spielserver. */
@@ -102,7 +104,8 @@ export class RemoteHost implements GameHost {
   private welcomed = false;
   private companyReported = false;
 
-  private url: string;
+  /** aktuelle Server-Adresse (kann sich bei Wiederverbindung ändern) */
+  url: string;
   private hello: Record<string, unknown>;
   private events: RemoteEvents;
 
@@ -155,7 +158,9 @@ export class RemoteHost implements GameHost {
       this.events.onStatus?.('Verbindung getrennt – neuer Versuch …');
       for (const r of this.pending.values()) r({ ok: false, error: 'Verbindung getrennt.' });
       this.pending.clear();
-      setTimeout(() => {
+      setTimeout(async () => {
+        const fresh = await this.events.resolveUrl?.().catch(() => null);
+        if (fresh) this.url = fresh;
         if (!this.closed) this.ws = this.connect();
       }, 2000);
     };

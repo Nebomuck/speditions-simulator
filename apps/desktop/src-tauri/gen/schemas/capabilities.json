@@ -1,1 +1,1 @@
-{}
+{"default":{"identifier":"default","description":"Hauptfenster: Standardrechte plus Update-Prüfung und Neustart nach dem Update","local":true,"windows":["main"],"permissions":["core:default","updater:default","process:allow-restart"]}}

@@ -1,6 +1,6 @@
 {
   "name": "@spedsim/client",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,6 +11,8 @@
   "dependencies": {
     "@spedsim/core": "*",
     "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.1",
     "lucide-react": "^0.548.0",
     "maplibre-gl": "^5.10.0",
     "react": "^19.2.0",

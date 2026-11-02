@@ -1,9 +1,10 @@
 // Startbildschirm: Firma gründen, Spielstand laden, Multiplayer-Firma erstellen oder beitreten.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server } from 'lucide-react';
+import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server, Download } from 'lucide-react';
 import { CITIES, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type DifficultyId } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
+import { appVersion, checkForUpdate, installUpdate, type Update } from '../game/updater.ts';
 import { connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
 import type { SaveMeta } from '../game/protocol.ts';
 import { localStorageSet, receiveSnapshot, setUi, toast } from '../game/store.ts';
@@ -47,6 +48,25 @@ export function Welcome() {
   const [externalServer, setExternalServer] = useState('');
   const [code, setCode] = useState('');
   const desktop = isDesktop();
+  const [version, setVersion] = useState<string | null>(null);
+  const [update, setUpdate] = useState<Update | null>(null);
+  const [updateProgress, setUpdateProgress] = useState<number | null | undefined>(undefined);
+
+  useEffect(() => {
+    appVersion().then(setVersion);
+    checkForUpdate().then(setUpdate);
+  }, []);
+
+  async function runUpdate() {
+    if (!update) return;
+    setUpdateProgress(null);
+    try {
+      await installUpdate(update, setUpdateProgress);
+    } catch (e) {
+      setUpdateProgress(undefined);
+      toast('danger', `Update fehlgeschlagen: ${(e as Error).message ?? e}`);
+    }
+  }
 
   const cities = useMemo(() => [...CITIES].sort((a, b) => a.country.localeCompare(b.country) || a.name.localeCompare(b.name)), []);
 
@@ -148,6 +168,22 @@ export function Welcome() {
         </div>
 
         <div className="card" style={{ padding: 22 }}>
+          {update && (
+            <div className="card mb" style={{ background: 'var(--accent-soft, var(--panel-2))', borderColor: 'var(--accent)' }}>
+              <div className="row" style={{ alignItems: 'center' }}>
+                <Download size={18} />
+                <div style={{ flex: 1 }}>
+                  <b>Version {update.version} ist verfügbar</b>
+                  {version && <span className="dim"> (installiert: {version})</span>}
+                  {update.body && <div className="dim" style={{ fontSize: 12.5, whiteSpace: 'pre-line', maxHeight: 90, overflow: 'auto' }}>{update.body}</div>}
+                </div>
+                <button className="btn primary" disabled={updateProgress !== undefined} onClick={runUpdate}>
+                  {updateProgress === undefined ? 'Jetzt aktualisieren' : updateProgress === null ? 'Wird geladen …' : updateProgress >= 1 ? 'Wird installiert …' : `${Math.round(updateProgress * 100)} %`}
+                </button>
+              </div>
+              {updateProgress !== undefined && <p className="dim" style={{ fontSize: 12, marginBottom: 0 }}>Das Spiel schließt sich kurz und startet nach der Installation neu. Spielstände bleiben erhalten.</p>}
+            </div>
+          )}
           <div className="tabs">
             <button className={`tab ${tab === 'new' ? 'active' : ''}`} onClick={() => setTab('new')}><Plus size={15} />Neue Firma</button>
             <button className={`tab ${tab === 'load' ? 'active' : ''}`} onClick={() => setTab('load')}><Play size={15} />Laden</button>
@@ -252,7 +288,7 @@ export function Welcome() {
                       <b>{s.company || 'Multiplayer-Firma'}</b>{' '}
                       {s.hosted ? <span className="badge info">auf diesem PC</span> : <span className="badge">beigetreten</span>}
                       <div className="dim" style={{ fontSize: 12 }}>
-                        Code {s.inviteCode} · {s.hosted ? 'Server startet automatisch' : s.url.replace(/^ws:\/\//, '')} · zuletzt {new Date(s.lastPlayed).toLocaleString('de-DE')}
+                        Code {s.inviteCode} · {s.hosted ? 'Server startet automatisch' : /trycloudflare/.test(s.url) ? 'Internet – Adresse des Hosts wird automatisch gesucht' : s.url.replace(/^wss?:\/\//, '')} · zuletzt {new Date(s.lastPlayed).toLocaleString('de-DE')}
                       </div>
                     </div>
                     <button className="btn small primary" disabled={busy} onClick={() => resumeSession(s)}><Play size={14} />Fortsetzen</button>
@@ -323,6 +359,7 @@ export function Welcome() {
               </p>
             </>
           )}
+          {version && <p className="dim" style={{ fontSize: 11.5, textAlign: 'right', marginBottom: 0 }}>Version {version}{!update && ' · aktuell'}</p>}
         </div>
       </div>
     </div>
