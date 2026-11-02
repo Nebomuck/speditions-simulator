@@ -26,7 +26,7 @@ export function Dashboard() {
         <Stat icon={<TrendingUp size={15} />} label="Gewinn/Verlust (30 Tage)" value={<Money value={rev30 - cost30} colored />} hint={<>Einnahmen <Money value={rev30} /> · Ausgaben <Money value={cost30} /></>} />
         <Stat icon={<Truck size={15} />} label="Laufende Aufträge" value={trips.filter((t) => t.orderId).length} hint={`${idle.length} von ${vehicles.length} Fahrzeugen verfügbar`} />
         <Stat icon={<AlertTriangle size={15} />} label="Verspätete Transporte" value={<span className={late.length ? 'neg' : ''}>{late.length}</span>} hint={`${s.company.totals.lateDeliveries} von ${s.company.totals.deliveries} Lieferungen verspätet`} />
-        <Stat icon={<Fuel size={15} />} label="Kraftstoffkosten (30 Tage)" value={<Money value={fuel30} />} hint={`Diesel aktuell ${(s.market.diesel / 100).toFixed(3)} €/l`} />
+        <Stat icon={<Fuel size={15} />} label="Kraftstoffkosten (30 Tage)" value={<Money value={fuel30} />} hint={`Diesel aktuell ${(s.market.diesel / 100).toLocaleString('de-DE', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} €/l`} />
         <Stat icon={<Users size={15} />} label="Mitarbeiter" value={Object.keys(s.drivers).length} hint="Fahrer (weitere Abteilungen ab Phase 6/7)" />
         <Stat icon={<Smile size={15} />} label="Kundenzufriedenheit" value={customers.length ? `${Math.round(avgSat)} %` : '–'} hint={`Reputation ${Math.round(s.company.reputation)} / 100`} />
         <Stat icon={<Receipt size={15} />} label="Angenommene Aufträge" value={accepted.length} hint={accepted.length ? 'warten auf Disposition' : 'Auftragsbörse prüfen'} />

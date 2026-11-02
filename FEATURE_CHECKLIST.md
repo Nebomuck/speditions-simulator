@@ -137,6 +137,8 @@ Stand: 02.11.2026 · Version 0.1.0
 | Anforderung | Status |
 |---|---|
 | Firma gründen, Session, Einladungscode, Fortsetzen | Getestet |
+| Server startet automatisch beim Hosten/Fortsetzen (Desktop-App, Sidecar) und speichert beim Beenden | Getestet (Server-EXE: Start, Firma gründen, `quit`, Neustart, Wiederladen per Token; Browser-Ablauf manuell) |
+| Liste aller eigenen/beigetretenen Multiplayer-Firmen, Host-Adresse für Freunde | Implementiert |
 | Echte Netzwerkverbindung & gemeinsame Datenhaltung | Getestet |
 | Rollen/Rechte flexibel, durch Gründer vergeben | Getestet |
 | Synchronisierung aller Spielinhalte | Getestet (vollständiger Zustand) |

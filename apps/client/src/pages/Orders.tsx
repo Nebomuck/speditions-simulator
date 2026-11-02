@@ -165,7 +165,7 @@ export function OrdersPage() {
                   <td className="nowrap">{formatDateTime(o.pickupStart)}</td>
                   <td className="nowrap">{formatDateTime(o.deliveryEnd)}</td>
                   <td className="num"><Money value={o.payment} /></td>
-                  <td className="num">{(perKm / 100).toFixed(2)}</td>
+                  <td className="num">{(perKm / 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="num">{est ? <Money value={est.profit} colored /> : '–'}{est && est.lateMin > 0 && <div><Badge kind="danger">zu spät</Badge></div>}</td>
                   <td className="num" onClick={(e) => e.stopPropagation()}>
                     <div className="row" style={{ justifyContent: 'flex-end' }}>

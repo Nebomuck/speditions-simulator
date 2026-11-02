@@ -15,7 +15,7 @@
 | 9 | Multiplayer | 🟡 Server, Einladung, Rechte, Synchronisation, Chat, Wiederverbindung, Backups ✅ · interne Nachrichten, Aufgaben, gemeinsame Aktivitäten, Delta-Sync ⏳ |
 | 10 | Erweiterte Simulation (Konkurrenz, Ereignisse, Wetter, Regionen) | ⏳ |
 | 11 | Feinschliff (Tutorial, Musik, Animationen, Balancing) | ⏳ |
-| 12 | Veröffentlichung (Installer, Server-Konfiguration, Abschlusstests) | 🟡 Installer-Grundlage vorhanden |
+| 12 | Veröffentlichung (Installer, Server-Konfiguration, Abschlusstests) | 🟡 Installer mit eingebautem Multiplayer-Server ✅ · Abschlusstests ⏳ |
 
 ## Nächste Schritte (in dieser Reihenfolge)
 
@@ -33,7 +33,7 @@
 5. **Phase 8** – Bedürfnisse über die Zeit, Tagesplanung des Charakters, Wohnungen/Häuser, Freizeit, Beziehungen
 6. **Phase 9** – interne Nachrichten, Aufgabenverteilung, Delta-Synchronisation, Server-Konfiguration für das Internet (TLS-Proxy)
 7. **Phase 10** – KI-Konkurrenz mit eigener Flotte und Finanzen, Ereignisregelwerk, Wetter, Sonntagsfahrverbote, Grenzwartezeiten
-8. **Phase 11/12** – Tutorial, Hilfe, Musik, Balancing-Läufe (automatisierte Langzeitsimulation), Installer mit optionalem Server-Sidecar
+8. **Phase 11/12** – Tutorial, Hilfe, Musik, Balancing-Läufe (automatisierte Langzeitsimulation), Installer-Feinschliff (Signatur, Auto-Update)
 
 ## Arbeitsweise
 

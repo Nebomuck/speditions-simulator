@@ -6,3 +6,5 @@ apps/server/data/
 tools/roadnet/cache/
 src-tauri/target/
 apps/desktop/src-tauri/target/
+apps/server/dist/
+apps/desktop/src-tauri/binaries/

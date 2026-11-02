@@ -79,7 +79,7 @@ Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx,
 
 ## Multiplayer
 
-- **Betriebsmodell:** dedizierter Serverprozess (`npm run server`), lokal, im LAN oder gehostet (VPS/Container). Ein Server verwaltet beliebig viele Firmen (Räume).
+- **Betriebsmodell:** Serverprozess, entweder automatisch von der Desktop-App des Hosts gestartet (Sidecar, siehe unten) oder dediziert (`npm run server`), lokal, im LAN oder gehostet (VPS/Container). Ein Server verwaltet beliebig viele Firmen (Räume).
 - **Protokoll (JSON über WebSocket):**
   - Client → Server: `create`, `join` (Einladungscode + Name oder playerId + Token), `cmd`
   - Server → Client: `welcome` (playerId, inviteCode, Token), `state` (vollständiger Zustand), `result`, `error`
@@ -110,4 +110,10 @@ Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx,
 
 ## Desktop-Build
 
-`apps/desktop/src-tauri` bündelt `apps/client/dist` als native Windows-App (WebView2). Die Simulation läuft im Web Worker der App, Spielstände in IndexedDB des App-Profils. Geplant: Spielstände zusätzlich als Dateien im Benutzerordner (Tauri-fs) und ein optional mitgelieferter Server-Sidecar für LAN-Spiele.
+`apps/desktop/src-tauri` bündelt `apps/client/dist` als native Windows-App (WebView2). Die Simulation läuft im Web Worker der App, Spielstände in IndexedDB des App-Profils. Geplant: Spielstände zusätzlich als Dateien im Benutzerordner (Tauri-fs).
+
+**Eingebauter Multiplayer-Server (Sidecar):** `tools/build-server.ts` bündelt `apps/server` mit esbuild zu einer CommonJS-Datei und baut daraus per `node --build-sea` eine eigenständige `spedsim-server.exe`, die Tauri als `externalBin` mitinstalliert. Der Rust-Teil (`src-tauri/src/main.rs`) stellt die Befehle `start_server`, `stop_server`, `server_running` und `local_address` bereit:
+
+- `start_server` prüft, ob Port 8787 frei ist (belegt → vorhandener Server wird genutzt), startet den Sidecar mit `--port`, `--db <AppData>/server/spedsim.db` und `--parent-stdin` und wartet auf die Zeile `server_started`.
+- Beim Beenden der App schreibt sie `quit` auf stdin; der Server speichert alle Räume und beendet sich (Fallback nach 5 s: Prozess beenden).
+- Der Client (`game/multiplayer.ts`) merkt sich alle Multiplayer-Firmen mit Zugangsdaten. Beim Hosten oder Fortsetzen einer eigenen Firma ruft er zuerst `start_server` auf und verbindet sich dann.

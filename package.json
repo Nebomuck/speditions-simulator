@@ -1,7 +1,7 @@
 {
   "name": "speditions-simulator",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Speditions- und Unternehmenssimulator mit Lebenssimulation und kooperativem Multiplayer",
   "type": "module",
   "workspaces": [
@@ -15,11 +15,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p packages/core && tsc -p apps/server && tsc -p apps/client",
-    "roadnet": "node tools/roadnet/build-roadnet.ts"
+    "roadnet": "node tools/roadnet/build-roadnet.ts",
+    "build:server": "node tools/build-server.ts"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^24.10.1",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

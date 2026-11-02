@@ -3,8 +3,36 @@
 import { useEffect, useRef, useState } from 'react';
 import { Send, Copy, Crown } from 'lucide-react';
 import { ALL_PERMISSIONS, PERMISSION_LABEL, formatDateTime, type Permission } from '@spedsim/core';
+import { DEFAULT_PORT, localAddress } from '../game/multiplayer.ts';
 import { sendCommand, toast, useGame, useUi } from '../game/store.ts';
 import { Avatar, Badge, Card, PageHeader } from '../ui/components.tsx';
+
+/** Für den Host: Adresse und Einladungscode, mit denen Freunde beitreten. */
+function InviteCard({ code }: { code: string }) {
+  const [ip, setIp] = useState<string | null>(null);
+  useEffect(() => {
+    localAddress().then(setIp);
+  }, []);
+  const addr = ip ? `${ip}:${DEFAULT_PORT}` : null;
+  const copy = (t: string) => {
+    navigator.clipboard?.writeText(t);
+    toast('success', 'In die Zwischenablage kopiert.');
+  };
+  return (
+    <Card title="Freunde einladen" className="mb">
+      <div className="row wrap" style={{ gap: 10 }}>
+        {addr && <button className="btn" onClick={() => copy(addr)}><Copy size={15} /> Adresse (Heimnetz): <b>{addr}</b></button>}
+        <button className="btn" onClick={() => copy(code)}><Copy size={15} /> Einladungscode: <b>{code}</b></button>
+      </div>
+      <p className="dim" style={{ fontSize: 12.5, marginBottom: 0 }}>
+        Der Spielserver läuft auf diesem PC, solange das Spiel geöffnet ist; beim Beenden wird gespeichert.
+        Mitspieler im selben Netzwerk geben die Adresse und den Code unter „Multiplayer → Einer Firma beitreten“ ein.
+        Über das Internet brauchst du eine Portfreigabe (TCP {DEFAULT_PORT}) im Router oder ein VPN wie Tailscale/ZeroTier –
+        dann gilt die öffentliche bzw. VPN-Adresse. Fragt die Windows-Firewall beim ersten Start nach, erlaube den Zugriff im privaten Netzwerk.
+      </p>
+    </Card>
+  );
+}
 
 const CAT_LABEL: Record<string, string> = { order: 'Auftrag', trip: 'Fahrt', finance: 'Finanzen', personnel: 'Personal', fleet: 'Fuhrpark', company: 'Firma', market: 'Markt', multiplayer: 'Team', private: 'Privat' };
 
@@ -12,6 +40,7 @@ export function TeamPage() {
   const s = useGame();
   const host = useUi((u) => u.host);
   const pid = useUi((u) => u.playerId);
+  const hosting = useUi((u) => u.hosting);
   const me = s.players[pid];
   const [text, setText] = useState('');
   const [cat, setCat] = useState('');
@@ -28,13 +57,14 @@ export function TeamPage() {
         title="Team & Kommunikation"
         subtitle={host?.mode === 'remote' ? 'Kooperativer Multiplayer – alle Spieler leiten dieselbe Spedition.' : 'Einzelspieler – Multiplayer startest du im Hauptmenü über einen Spielserver.'}
         actions={
-          host?.inviteCode && (
+          !hosting && host?.inviteCode && (
             <button className="btn" onClick={() => { navigator.clipboard?.writeText(host.inviteCode!); toast('success', 'Einladungscode kopiert.'); }}>
               <Copy size={15} /> Einladungscode: <b>{host.inviteCode}</b>
             </button>
           )
         }
       />
+      {hosting && host?.inviteCode && <InviteCard code={host.inviteCode} />}
       <div className="grid" style={{ gridTemplateColumns: '1.1fr 1fr' }}>
         <Card title="Spieler & Rechte">
           {players.map((p) => (

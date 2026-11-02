@@ -55,7 +55,7 @@ export function FinancePage() {
             </div>
           </Card>
           <Card title="Dieselpreis (180 Tage)">
-            <LineChart series={[{ label: 'Diesel €/l netto', color: 'var(--warning)', values: s.market.dieselHistory.map((d) => d.v / 100) }]} format={(v) => `${v.toFixed(3)} €`} />
+            <LineChart series={[{ label: 'Diesel €/l netto', color: 'var(--warning)', values: s.market.dieselHistory.map((d) => d.v / 100) }]} format={(v) => `${v.toLocaleString('de-DE', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} €`} />
           </Card>
         </div>
       )}

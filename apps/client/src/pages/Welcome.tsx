@@ -1,9 +1,10 @@
 // Startbildschirm: Firma gründen, Spielstand laden, Multiplayer-Firma erstellen oder beitreten.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus } from 'lucide-react';
+import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server } from 'lucide-react';
 import { CITIES, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type DifficultyId } from '@spedsim/core';
-import { LocalHost, RemoteHost } from '../game/host.ts';
+import { LocalHost } from '../game/host.ts';
+import { connect, ensureLocalServer, forgetSession, isDesktop, loadSessions, normalizeServerUrl, resume, type MpSession } from '../game/multiplayer.ts';
 import type { SaveMeta } from '../game/protocol.ts';
 import { localStorageSet, receiveSnapshot, setUi, toast } from '../game/store.ts';
 import { Avatar } from '../ui/components.tsx';
@@ -34,14 +35,18 @@ export function Welcome() {
   const [age, setAge] = useState(32);
   const [saves, setSaves] = useState<SaveMeta[]>([]);
   const [busy, setBusy] = useState(false);
-  const [serverUrl, setServerUrl] = useState(() => {
+  const [mpMode, setMpMode] = useState<'list' | 'host' | 'join'>('list');
+  const [sessions, setSessions] = useState<MpSession[]>(() => loadSessions());
+  const [serverAddr, setServerAddr] = useState(() => {
     try {
-      return localStorage.getItem('spedsim.server') ?? 'ws://localhost:8787';
+      return localStorage.getItem('spedsim.joinAddr') ?? '';
     } catch {
-      return 'ws://localhost:8787';
+      return '';
     }
   });
+  const [externalServer, setExternalServer] = useState('');
   const [code, setCode] = useState('');
+  const desktop = isDesktop();
 
   const cities = useMemo(() => [...CITIES].sort((a, b) => a.country.localeCompare(b.country) || a.name.localeCompare(b.name)), []);
 
@@ -83,30 +88,42 @@ export function Welcome() {
     }
   }
 
-  function connect(hello: Record<string, unknown>) {
-    localStorageSet('spedsim.server', serverUrl);
-    let started = false;
-    const host: RemoteHost = new RemoteHost(serverUrl, hello, {
-      onSnapshot: (s) => {
-        receiveSnapshot(s.state, s.at, s.playerId);
-        if (!started) {
-          started = true;
-          setUi({ host, page: 'dashboard' });
-        }
-      },
-      onError: (m) => toast('danger', m),
-      onStatus: (st) => setUi({ connection: st }),
-      onWelcome: (w) => localStorageSet('spedsim.mp', JSON.stringify({ url: serverUrl, ...w })),
-    });
+  const character = { name: player, age, avatar };
+
+  async function hostNew() {
+    setBusy(true);
+    try {
+      const external = externalServer.trim();
+      const url = external ? normalizeServerUrl(external) : await ensureLocalServer();
+      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, name: player, character }, !external);
+    } catch (e) {
+      toast('danger', `Server konnte nicht gestartet werden: ${(e as Error).message ?? e}`);
+      setUi({ connection: '' });
+    }
+    setBusy(false);
   }
 
-  function rejoinLast() {
+  function joinNew() {
+    let url: string;
     try {
-      const last = JSON.parse(localStorage.getItem('spedsim.mp') ?? 'null');
-      if (last) connect({ t: 'join', code: last.inviteCode, playerId: last.playerId, token: last.token });
+      url = normalizeServerUrl(serverAddr);
     } catch {
-      toast('danger', 'Keine gespeicherte Multiplayer-Sitzung gefunden.');
+      toast('danger', 'Ungültige Server-Adresse.');
+      return;
     }
+    localStorageSet('spedsim.joinAddr', serverAddr);
+    connect(url, { t: 'join', code: code.trim(), name: player, character }, false);
+  }
+
+  async function resumeSession(s: MpSession) {
+    setBusy(true);
+    try {
+      await resume(s);
+    } catch (e) {
+      toast('danger', `Server konnte nicht gestartet werden: ${(e as Error).message ?? e}`);
+      setUi({ connection: '' });
+    }
+    setBusy(false);
   }
 
   return (
@@ -134,10 +151,10 @@ export function Welcome() {
           <div className="tabs">
             <button className={`tab ${tab === 'new' ? 'active' : ''}`} onClick={() => setTab('new')}><Plus size={15} />Neue Firma</button>
             <button className={`tab ${tab === 'load' ? 'active' : ''}`} onClick={() => setTab('load')}><Play size={15} />Laden</button>
-            <button className={`tab ${tab === 'mp' ? 'active' : ''}`} onClick={() => setTab('mp')}><Network size={15} />Multiplayer</button>
+            <button className={`tab ${tab === 'mp' ? 'active' : ''}`} onClick={() => { setTab('mp'); setMpMode('list'); setSessions(loadSessions()); }}><Network size={15} />Multiplayer</button>
           </div>
 
-          {(tab === 'new' || tab === 'mp') && (
+          {(tab === 'new' || (tab === 'mp' && mpMode !== 'list')) && (
             <>
               <div className="row" style={{ gap: 14, alignItems: 'flex-start' }}>
                 <Avatar size={64} avatar={avatar} />
@@ -156,7 +173,7 @@ export function Welcome() {
                   </div>
                 </div>
               </div>
-              {tab === 'new' || !code ? (
+              {tab === 'new' || mpMode === 'host' ? (
                 <>
                   <div className="field mt">
                     <label>Firmenname</label>
@@ -220,25 +237,74 @@ export function Welcome() {
             </>
           )}
 
-          {tab === 'mp' && (
+          {tab === 'mp' && mpMode === 'list' && (
+            <>
+              <div className="row">
+                <button className="btn primary" onClick={() => setMpMode('host')}><Server size={15} />Neue Firma hosten</button>
+                <button className="btn" onClick={() => setMpMode('join')}><LogIn size={15} />Einer Firma beitreten</button>
+              </div>
+              <div className="card-title mt">Meine Multiplayer-Firmen</div>
+              {sessions.length === 0 && <div className="empty">Noch keine Multiplayer-Firmen. Hoste eine neue Firma oder tritt mit einem Einladungscode bei.</div>}
+              <div className="list">
+                {sessions.map((s) => (
+                  <div key={s.gameId} className="list-item" style={{ alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <b>{s.company || 'Multiplayer-Firma'}</b>{' '}
+                      {s.hosted ? <span className="badge info">auf diesem PC</span> : <span className="badge">beigetreten</span>}
+                      <div className="dim" style={{ fontSize: 12 }}>
+                        Code {s.inviteCode} · {s.hosted ? 'Server startet automatisch' : s.url.replace(/^ws:\/\//, '')} · zuletzt {new Date(s.lastPlayed).toLocaleString('de-DE')}
+                      </div>
+                    </div>
+                    <button className="btn small primary" disabled={busy} onClick={() => resumeSession(s)}><Play size={14} />Fortsetzen</button>
+                    <button className="icon-btn" title="Aus der Liste entfernen" onClick={() => {
+                      if (!confirm(`„${s.company}“ aus der Liste entfernen? Der Spielstand bleibt auf dem Server, ohne die gemerkten Zugangsdaten kannst du ihn aber nicht mehr als dieser Spieler öffnen.`)) return;
+                      forgetSession(s.gameId);
+                      setSessions(loadSessions());
+                    }}><Trash2 size={16} /></button>
+                  </div>
+                ))}
+              </div>
+              {!desktop && <p className="dim" style={{ fontSize: 12.5 }}>Browser-Version: Zum Hosten muss der Server laufen (<code>npm run server</code>). In der Desktop-App startet er automatisch.</p>}
+            </>
+          )}
+
+          {tab === 'mp' && mpMode === 'host' && (
+            <>
+              <details className="mb">
+                <summary className="dim" style={{ cursor: 'pointer', fontSize: 12.5 }}>Erweitert: auf einem externen Server gründen</summary>
+                <div className="field mt">
+                  <label>Server-Adresse (leer = auf diesem PC hosten)</label>
+                  <input className="input" value={externalServer} onChange={(e) => setExternalServer(e.target.value)} placeholder="z. B. meinserver.de:8787" />
+                </div>
+              </details>
+              <div className="row">
+                <button className="btn" onClick={() => setMpMode('list')}>Zurück</button>
+                <button className="btn primary" style={{ flex: 1, justifyContent: 'center' }} disabled={busy || !company.trim() || !player.trim()} onClick={hostNew}>
+                  <Server size={15} /> {externalServer.trim() ? 'Firma auf Server gründen' : 'Firma gründen & Server starten'}
+                </button>
+              </div>
+              <p className="dim" style={{ fontSize: 12.5 }}>
+                {desktop
+                  ? 'Der Spielserver läuft auf deinem PC, solange das Spiel geöffnet ist. Freunde verbinden sich mit deiner Adresse und dem Einladungscode (siehe „Team & Kommunikation“).'
+                  : 'Browser-Version: Der Server muss bereits laufen (npm run server).'}
+              </p>
+            </>
+          )}
+
+          {tab === 'mp' && mpMode === 'join' && (
             <>
               <div className="field mt">
-                <label>Server-Adresse</label>
-                <input className="input" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="ws://localhost:8787" />
+                <label>Adresse des Hosts</label>
+                <input className="input" value={serverAddr} onChange={(e) => setServerAddr(e.target.value)} placeholder="z. B. 192.168.178.20 oder meinserver.de:8787" />
               </div>
               <div className="field">
-                <label>Einladungscode (zum Beitreten) – leer lassen, um eine neue Multiplayer-Firma zu gründen</label>
+                <label>Einladungscode</label>
                 <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="z. B. K7Q-2MX" />
               </div>
               <div className="row">
-                {code ? (
-                  <button className="btn primary" onClick={() => connect({ t: 'join', code, name: player, character: { name: player, age, avatar } })}><LogIn size={15} />Beitreten</button>
-                ) : (
-                  <button className="btn primary" onClick={() => connect({ t: 'create', companyName: company, hqCityId: hq, difficulty, name: player, character: { name: player, age, avatar } })}><Plus size={15} />Multiplayer-Firma gründen</button>
-                )}
-                <button className="btn" onClick={rejoinLast}>Letzte Sitzung fortsetzen</button>
+                <button className="btn" onClick={() => setMpMode('list')}>Zurück</button>
+                <button className="btn primary" style={{ flex: 1, justifyContent: 'center' }} disabled={!code.trim() || !player.trim()} onClick={joinNew}><LogIn size={15} />Beitreten</button>
               </div>
-              <p className="dim" style={{ fontSize: 12.5 }}>Den Server startest du mit <code>npm run server</code>. Freunde treten mit dem Einladungscode bei.</p>
             </>
           )}
         </div>

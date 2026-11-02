@@ -31,6 +31,8 @@ interface UiState {
   focusOrderId: string | null;
   toasts: Toast[];
   connection: string;
+  /** Multiplayer-Firma wird auf diesem PC gehostet */
+  hosting: boolean;
   theme: 'dark' | 'light';
   sound: boolean;
   dispatchDraft: { orderId?: string; vehicleId?: string } | null;
@@ -47,6 +49,7 @@ let ui: UiState = {
   focusOrderId: null,
   toasts: [],
   connection: '',
+  hosting: false,
   theme: (localStorageGet('spedsim.theme') as 'dark' | 'light') ?? 'dark',
   sound: localStorageGet('spedsim.sound') !== 'off',
   dispatchDraft: null,
@@ -109,7 +112,7 @@ export function receiveSnapshot(state: GameState, at: number, playerId: string) 
 
 export function resetGameUi() {
   lastLogId = -1;
-  setUi({ state: null, host: null, page: 'dashboard', selectedVehicleId: null, dispatchDraft: null, toasts: [] });
+  setUi({ state: null, host: null, page: 'dashboard', selectedVehicleId: null, dispatchDraft: null, toasts: [], hosting: false, connection: '' });
 }
 
 export function toast(level: Toast['level'], text: string) {

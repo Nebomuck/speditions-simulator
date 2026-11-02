@@ -25,7 +25,9 @@ Danach <http://localhost:5173> öffnen. Die Simulation läuft vollständig lokal
 npm run server
 ```
 
-Startet den serverautoritativen Spielserver auf `ws://localhost:8787` (Port per `PORT`, Datenbank per `DB` änderbar). Im Spiel unter **Multiplayer** eine Firma gründen und den Einladungscode an Freunde weitergeben. Für Spiele über das Internet muss der Port erreichbar sein (Portfreigabe oder gehosteter Server, siehe [ARCHITECTURE.md](ARCHITECTURE.md#multiplayer)).
+Startet den serverautoritativen Spielserver auf `ws://localhost:8787` (Port per `PORT` oder `--port`, Datenbank per `DB` oder `--db` änderbar). Nur für die Browser-Version und für dedizierte Server nötig – **die Desktop-App startet ihren mitgelieferten Server automatisch**, sobald du eine Multiplayer-Firma hostest oder fortsetzt, und beendet ihn beim Schließen (vorher wird gespeichert).
+
+Im Spiel unter **Multiplayer → Neue Firma hosten** gründen; Adresse und Einladungscode stehen unter „Team & Kommunikation“. Freunde wählen **Einer Firma beitreten**. Für Spiele über das Internet muss TCP 8787 erreichbar sein (Portfreigabe, VPN wie Tailscale oder gehosteter Server, siehe [ARCHITECTURE.md](ARCHITECTURE.md#multiplayer)).
 
 ### Tests
 
@@ -40,10 +42,14 @@ npm run typecheck
 ### Windows-Anwendung bauen
 
 ```bash
+npm run build:server
+```
+
+```bash
 npm run build -w @spedsim/desktop
 ```
 
-Erzeugt einen NSIS-Installer unter `apps/desktop/src-tauri/target/release/bundle/nsis/`. Der Installer enthält den Einzelspieler-Modus; für den Multiplayer verbindet sich die App mit einem laufenden Server.
+`build:server` bündelt den Multiplayer-Server mit esbuild und erzeugt daraus eine eigenständige `spedsim-server.exe` (Node Single Executable Application), die als Tauri-Sidecar nach `apps/desktop/src-tauri/binaries/` kopiert wird. Danach erzeugt der zweite Befehl einen NSIS-Installer unter `apps/desktop/src-tauri/target/release/bundle/nsis/` mit Einzelspieler und eingebautem Multiplayer-Server.
 
 ### Straßennetz neu erzeugen (optional)
 
