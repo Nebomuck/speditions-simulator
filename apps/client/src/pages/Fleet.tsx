@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Wrench, ShoppingCart, Tag, Truck, Container } from 'lucide-react';
-import { TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, capacity, formatDateTime, vehicleMarketValue, type TrailerType } from '@spedsim/core';
+import { TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, capacity, formatDateTime, vehicleMarketValue, type TrailerType } from '@spedsim/core';
 import { sendCommand, setUi, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
-import { activityLabel, cityName, km, modelName, trailerName } from '../ui/format.ts';
+import { activityLabel, bodyName, cityName, dec, km, modelName, trailerName } from '../ui/format.ts';
 
 export function FleetPage() {
   const s = useGame();
@@ -37,7 +37,7 @@ export function FleetPage() {
                 return (
                   <tr key={v.id}>
                     <td><b>{v.plate}</b></td>
-                    <td>{m.maker} {m.name}<div className="dim">{v.year} · {m.hp} PS · {m.emission} · Ø {m.consumption} l/100 km</div></td>
+                    <td>{m.maker} {m.name}<div className="dim">{kindText(v.modelId)} · {v.year} · {m.hp} PS · {m.emission} · Ø {dec(m.consumption)} l/100 km</div></td>
                     <td><Badge kind={trip ? 'info' : v.status === 'workshop' ? 'warning' : 'success'}>{activityLabel(trip, v.status)}</Badge>{v.busyUntil && <div className="dim" style={{ fontSize: 12 }}>bis {formatDateTime(v.busyUntil)}</div>}</td>
                     <td>{trip ? 'unterwegs' : cityName(v.cityId)}</td>
                     <td><div className="row"><Bar value={v.condition} />{Math.round(v.condition)} %</div></td>
@@ -131,9 +131,9 @@ function NewMarket({ onClose }: { onClose: () => void }) {
           <tbody>
             {TRUCK_MODELS.map((m) => (
               <tr key={m.id}>
-                <td><b>{m.maker} {m.name}</b><div className="dim">{m.emission}</div></td>
+                <td><b>{m.maker} {m.name}</b><div className="dim">{kindText(m.id)} · {m.emission}</div></td>
                 <td>{m.hp} PS</td>
-                <td>{m.consumption} l/100 km</td>
+                <td>{dec(m.consumption)} l/100 km</td>
                 <td>{m.tankL} l</td>
                 <td><Bar value={m.durability * 100} /></td>
                 <td className="num"><Money value={m.price} /></td>
@@ -181,4 +181,11 @@ function TrailerMarket({ onClose }: { onClose: () => void }) {
       <p className="dim">Neue Auflieger werden am Firmensitz bereitgestellt.</p>
     </Modal>
   );
+}
+
+/** Fahrzeugklasse inkl. festem Aufbau, z. B. „Solo-LKW · Koffer 3,2 t“. */
+function kindText(modelId: string) {
+  const m = TRUCK_BY_ID[modelId];
+  if (!m?.body) return VEHICLE_KIND_LABEL.tractor;
+  return `${VEHICLE_KIND_LABEL[m.kind ?? 'rigid']} · ${bodyName(m.body)} ${dec(m.payloadT ?? 0)} t${m.tollFactor === 0 ? ' · mautfrei' : ''}`;
 }

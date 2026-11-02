@@ -49,13 +49,13 @@ Stand: 02.11.2026 · Version 0.1.0
 |---|---|---|
 | Dynamische Transportbörse | Getestet | ca. 320 Angebote |
 | Auftragsarten: Stückgut, Paletten, Lebensmittel, Kühl, Tiefkühl, Baustoffe, Schüttgut, Container, Fahrzeuge, Gefahrgut, Schwertransport, Express, International | Implementiert | 19 Ladungsarten |
-| Sondertransporte, regionale Verteilerfahrten | Geplant | benötigt Solo-LKW/Transporter (Phase 4) |
+| Sondertransporte, regionale Verteilerfahrten | Teilweise | regionale Teilladungen (≤ 650 km Luftlinie) für Solo-LKW/Transporter; Sondertransporte offen |
 | Spezifische Anforderungen (Auflieger, ADR, Schwertransport) | Getestet | |
 | Alle Auftragsinformationen inkl. Strafen, Zeitfenster, Kosten | Implementiert | Schwierigkeitsgrad je Auftrag: geplant |
 | Generierung nach Bevölkerung, Industrie, Region, Saison, Wochentag, Feiertag, Nachfrage | Getestet | |
 | Kundenbeziehungen beeinflussen Angebote | In Entwicklung | Kunden persistent; Einfluss auf Angebotsmenge folgt in Phase 5 |
 | Rückladungen / Leerfahrtvermeidung | Implementiert | Börse filtert nach Fahrzeugstandort, Überführungsfahrten |
-| Mehrere Aufträge kombinieren (Teilladungen) | Geplant | Phase 4 |
+| Mehrere Aufträge kombinieren (Teilladungen) | Teilweise | Teilladungen (0,5–7,5 t) in der Börse, Filter „Ladungsgröße“; nacheinander per Tourenkette, gleichzeitige Mehrfachbeladung offen |
 
 ## 6 · Manuelle Disposition
 | Anforderung | Status | Anmerkung |
@@ -63,12 +63,12 @@ Stand: 02.11.2026 · Version 0.1.0
 | Auftrag/Fahrer/LKW/Auflieger wählen, Route, Kosten, Termine, starten, überwachen | Getestet | |
 | Drag-and-Drop | Implementiert | Plantafel |
 | Listenansicht | Implementiert | |
-| Kalenderansicht (Tag/Woche/Monat) | Geplant | Phase 4 |
+| Kalenderansicht (Tag/Woche/Monat) | Implementiert | Disposition → Kalender: Laden, Lieferung, vorausgeplant, offen, verspätet, Feiertage |
 | Zeitstrahl (Gantt) | Implementiert | 72 h |
 | Kartenansicht | Implementiert | |
 | Fahreransicht | Implementiert | |
 | Konfliktprüfung (Ruhezeit, belegt, Auflieger, Kapazität, Lieferzeit, Qualifikation, Tank, Wartung) | Getestet | |
-| Vorausplanung (Fahrt in der Zukunft starten, Ketten) | Geplant | Phase 4 |
+| Vorausplanung (Fahrt in der Zukunft starten, Ketten) | Getestet | bis zu 5 Folgeaufträge je Fahrzeug, Start automatisch nach der laufenden Fahrt, Verspätungsprognose |
 | Umleitung bei Verkehrsbehinderung | Geplant | Phase 10 |
 
 ## 7 · KI-Disponenten
@@ -91,7 +91,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Anforderung | Status | Anmerkung |
 |---|---|---|
 | Sattelzugmaschinen | Implementiert | 6 fiktive Modelle |
-| Transporter, Klein-LKW, 7,5 t, Verteiler, Spezial | Geplant | Phase 4 |
+| Transporter, Klein-LKW, 7,5 t, Verteiler, Spezial | Getestet | Kastenwagen 3,5 t (mautfrei), 7,5 t Koffer, 12 t Kühlkoffer, 18 t Verteiler; fester Aufbau, eigene Maut-/Tempofaktoren; Spezial offen |
 | 9 Aufliegertypen | Implementiert | |
 | Fahrzeugdaten (alle geforderten) | Implementiert | |
 | Gebraucht/Neu/Leasing/Verkauf | Implementiert | |

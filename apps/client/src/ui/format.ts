@@ -14,6 +14,10 @@ export const modelName = (id: string) => {
 };
 export const km = (v: number) => `${Math.round(v).toLocaleString('de-DE')} km`;
 export const tons = (v: number) => `${v.toLocaleString('de-DE')} t`;
+export const dec = (v: number) => v.toLocaleString('de-DE');
+/** Bezeichnung eines festen Aufbaus (Solo-LKW/Transporter). */
+export const BODY_LABEL: Partial<Record<TrailerType, string>> = { curtain: 'Plane', box: 'Koffer', reefer: 'Kühlkoffer' };
+export const bodyName = (t: TrailerType) => BODY_LABEL[t] ?? trailerName(t);
 export const pct = (v: number) => `${Math.round(v)} %`;
 
 export function tripLabel(state: GameState, trip: Trip): string {

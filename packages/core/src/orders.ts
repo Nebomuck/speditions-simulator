@@ -20,6 +20,11 @@ export const MARKET_TARGET = 320;
 /** Anteil der Aufträge aus dem Einzugsgebiet der eigenen Standorte/Fahrzeuge. */
 const LOCAL_SHARE = 0.45;
 const LOCAL_RADIUS_KM = 450;
+/** Anteil Teilladungen bei Ladungsarten, die auf Solo-LKW/Transporter passen */
+export const PARTIAL_SHARE = 0.3;
+const PARTIAL_TRAILERS = ['curtain', 'box', 'reefer'];
+/** Teilladungen gehen überwiegend in die Region (Verteilerverkehr) */
+const PARTIAL_MAX_KM = 650;
 
 export function orderVolumeFactor(state: GameState): number {
   const wd = weekday(state.time);
@@ -54,12 +59,13 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   }
   const origin = rand.weighted(state, origins, (c) => Math.pow(c.pop, 0.55));
   if (!origin) return null;
+  const partial = PARTIAL_TRAILERS.includes(cargo.trailer) && rand.chance(state, PARTIAL_SHARE);
   const dests = CITIES.filter((c) => c.id !== origin.id && ctx.net.hasCity(c.id));
   const dest = rand.weighted(state, dests, (c) => {
     const match = c.industries.filter((i) => cargo.consumers.includes(i)).length;
     if (match === 0 && !(cargo.consumers.includes('retail') && c.pop > 800)) return 0;
     const d = haversineKm(ll(origin), ll(c));
-    if (d < 60 || d > 2300) return 0;
+    if (d < 60 || d > (partial ? PARTIAL_MAX_KM : 2300)) return 0;
     return ((Math.pow(c.pop, 0.5) * (1 + match)) / Math.pow(d, 1.05)) * 100;
   });
   if (!dest) return null;
@@ -69,7 +75,9 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   const industry = origin.industries.find((i) => cargo.producers.includes(i))!;
   const customer = customerFor(state, origin.id, industry);
   const express = rand.chance(state, cargo.id === 'autoparts' ? 0.35 : 0.08);
-  const weightT = Math.round(rand.float(state, cargo.weight[0], cargo.weight[1]) * 10) / 10;
+  const weightT = partial
+    ? Math.round(rand.weighted(state, [0.6, 1, 2, 3, 5, 7.5], (w) => (w <= 1 ? 2 : w <= 3 ? 3 : 1.5))! * rand.float(state, 0.8, 1) * 10) / 10
+    : Math.round(rand.float(state, cargo.weight[0], cargo.weight[1]) * 10) / 10;
 
   // Zeitfenster
   const half = 30;
@@ -92,6 +100,8 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
     priceFactor *
     rand.float(state, 0.9, 1.12);
   if (express) payment *= 1.3;
+  // Teilladung: weniger Gesamterlös, aber höherer Preis je Tonne
+  if (partial) payment *= 0.5 + 0.5 * Math.min(1, weightT / 24);
   payment = Math.round(payment / 500) * 500;
 
   const id = newId(state, 'ord');
@@ -112,6 +122,7 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
     penaltyPerHour: Math.round((payment * (express ? 0.04 : 0.02)) / 100) * 100,
     express,
     international: origin.country !== dest.country,
+    ...(partial ? { partial: true } : {}),
     status: 'offered',
     offerExpires: Math.min(pickupStart, state.time + rand.int(state, 4, 30) * 60),
     created: state.time,

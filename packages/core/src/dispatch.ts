@@ -1,19 +1,28 @@
 // DispatchSystem: Planung, Kalkulation und Konfliktprüfung von Fahrten.
 
 import { CITY_BY_ID } from './data/cities.ts';
-import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
+import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, loadSpace } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { EMPLOYER_COST_FACTOR, addLog, formatMoney } from './finance.ts';
 import { REST_KIND_LABEL, simulateDriving } from './hos.ts';
 import { newId } from './rng.ts';
+import { tripEta } from './selectors.ts';
 import { MIN_PER_DAY, formatDateTime, formatDuration } from './time.ts';
-import type { GameState, Id, Money, Order, Trip, TripLeg } from './types.ts';
+import type { GameState, HoursOfService, Id, Money, Order, Trip, TripLeg, Vehicle } from './types.ts';
 
 export interface DispatchInput {
   orderId: Id;
   driverId: Id;
   vehicleId: Id;
+  /** leer bei Solo-LKW/Transporter (fester Aufbau) */
   trailerId: Id;
+}
+
+/** Startpunkt einer Planung: jetzt am Standort des Fahrzeugs oder später (Vorausplanung nach laufender Fahrt). */
+export interface PlanStart {
+  cityId: string;
+  time: number;
+  hos?: HoursOfService;
 }
 
 export interface TripEstimate {
@@ -57,19 +66,39 @@ export function penaltyFor(order: Order, lateMin: number): Money {
   return Math.min(Math.ceil(lateMin / 60) * order.penaltyPerHour, Math.round(order.payment * 0.5));
 }
 
+/** Mautanteil und Geschwindigkeit je Fahrzeugklasse (Transporter mautfrei und schneller). */
+export function tollFactor(modelId: string) {
+  return TRUCK_BY_ID[modelId]?.tollFactor ?? 1;
+}
+export function speedFactor(modelId: string) {
+  return TRUCK_BY_ID[modelId]?.speedFactor ?? 1;
+}
+
+/** Beladungsgrad 0–1 für Verbrauch und Verschleiß. */
+export function loadFraction(state: GameState, vehicle: Vehicle, trailerId: Id | undefined, order: Order | undefined): number {
+  if (!order) return 0;
+  const space = loadSpace(vehicle.modelId, trailerId ? state.trailers[trailerId]?.type : order.trailerType);
+  return space && space.payloadT > 0 ? Math.min(1, order.weightT / space.payloadT) : 0;
+}
+
 /** Vollständige Vorkalkulation einer Fahrt inkl. Lenk-/Ruhezeiten, Wartezeit und Kosten. */
-export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchInput): TripEstimate | null {
+export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchInput, from?: PlanStart): TripEstimate | null {
   const order = state.orders[input.orderId];
   const driver = state.drivers[input.driverId];
   const vehicle = state.vehicles[input.vehicleId];
   if (!order || !driver || !vehicle) return null;
-  const toPickup = ctx.net.route(vehicle.cityId, order.fromCityId);
-  const loaded = ctx.net.route(order.fromCityId, order.toCityId);
-  if (!toPickup || !loaded) return null;
+  const startCity = from?.cityId ?? vehicle.cityId;
+  const startTime = from?.time ?? state.time;
+  const toPickupRaw = ctx.net.route(startCity, order.fromCityId);
+  const loadedRaw = ctx.net.route(order.fromCityId, order.toCityId);
+  if (!toPickupRaw || !loadedRaw) return null;
+  const sf = speedFactor(vehicle.modelId);
+  const toPickup = { ...toPickupRaw, driveMin: toPickupRaw.driveMin / sf };
+  const loaded = { ...loadedRaw, driveMin: loadedRaw.driveMin / sf };
   const cargo = CARGO_BY_ID[order.cargoId];
-  const hos = { ...driver.hos };
+  const hos = { ...(from?.hos ?? driver.hos) };
 
-  let t = state.time;
+  let t = startTime;
   let restMin = 0;
   // ausstehende Ruhezeit zuerst
   if (hos.requiredRest > 0) {
@@ -93,16 +122,17 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   t += e2.elapsed;
   restMin += e2.restMin;
   const model = TRUCK_BY_ID[vehicle.modelId];
-  const loadFrac = order.weightT / TRAILER_BY_TYPE[order.trailerType].payloadT;
+  const loadFrac = loadFraction(state, vehicle, input.trailerId || undefined, order);
   const fuelL = toPickup.km * consumptionPerKm(vehicle.modelId, 0, driver.ecoDriving) + loaded.km * consumptionPerKm(vehicle.modelId, loadFrac, driver.ecoDriving);
   const usable = model.tankL * (1 - FUEL_RESERVE);
-  const fuelStops = Math.max(0, Math.ceil((fuelL - (vehicle.fuelL - model.tankL * FUEL_RESERVE)) / usable));
+  const tankNow = from ? model.tankL * 0.6 : vehicle.fuelL; // Vorausplanung: Tankstand unbekannt → Annahme
+  const fuelStops = Math.max(0, Math.ceil((fuelL - (tankNow - model.tankL * FUEL_RESERVE)) / usable));
   t += fuelStops * FUEL_STOP_MIN;
   const deliveryEta = t + Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);
   const lateMin = Math.max(0, deliveryEta - order.deliveryEnd);
-  const durationMin = deliveryEta - state.time;
+  const durationMin = deliveryEta - startTime;
   const fuelCost = Math.round(fuelL * state.market.diesel);
-  const toll = toPickup.toll + loaded.toll;
+  const toll = Math.round((toPickup.toll + loaded.toll) * tollFactor(vehicle.modelId));
   const driverCost = Math.round(((driver.salary * EMPLOYER_COST_FACTOR) / (30 * MIN_PER_DAY)) * durationMin);
   const vehicleDaily = (model.insurance + (vehicle.leaseRate ?? model.price / 72)) / 30;
   const vehicleCost = Math.round((vehicleDaily * durationMin) / MIN_PER_DAY + (toPickup.km + loaded.km) * 6); // 6 ct/km Verschleiß
@@ -128,41 +158,54 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   };
 }
 
-/** Konfliktprüfung. Fehler blockieren die Disposition, Warnungen informieren. */
-export function validateDispatch(state: GameState, ctx: SimContext, input: DispatchInput): { issues: Issue[]; estimate: TripEstimate | null } {
+/** Konfliktprüfung. Fehler blockieren die Disposition, Warnungen informieren.
+ *  Mit `queued` wird ein Folgeauftrag für ein Fahrzeug geprüft, das noch unterwegs ist (Vorausplanung). */
+export function validateDispatch(state: GameState, ctx: SimContext, input: DispatchInput, opts: { queued?: boolean } = {}): { issues: Issue[]; estimate: TripEstimate | null } {
   const issues: Issue[] = [];
   const err = (code: string, text: string) => issues.push({ level: 'error', code, text });
   const warn = (code: string, text: string) => issues.push({ level: 'warning', code, text });
   const order = state.orders[input.orderId];
   const driver = state.drivers[input.driverId];
   const vehicle = state.vehicles[input.vehicleId];
-  const trailer = state.trailers[input.trailerId];
+  const model = vehicle ? TRUCK_BY_ID[vehicle.modelId] : undefined;
+  const solo = !!model?.body;
+  const trailer = input.trailerId ? state.trailers[input.trailerId] : undefined;
   if (!order) err('order_missing', 'Auftrag existiert nicht.');
   if (!driver) err('driver_missing', 'Fahrer existiert nicht.');
   if (!vehicle) err('vehicle_missing', 'Fahrzeug existiert nicht.');
-  if (!trailer) err('trailer_missing', 'Auflieger existiert nicht.');
+  if (!solo && !trailer) err('trailer_missing', 'Bitte einen Auflieger wählen.');
   if (issues.length) return { issues, estimate: null };
 
   if (order.status !== 'offered' && order.status !== 'accepted') err('order_status', 'Auftrag ist nicht mehr disponierbar.');
   if (order.status === 'offered' && state.time >= order.offerExpires) err('order_expired', 'Angebot ist abgelaufen.');
-  if (driver.status !== 'idle') err('driver_busy', `${driver.name} ist nicht verfügbar (bereits verplant oder abwesend).`);
-  if (vehicle.status !== 'idle') err('vehicle_busy', `LKW ${vehicle.plate} ist bereits verplant oder nicht einsatzbereit.`);
-  if (trailer.status !== 'idle') err('trailer_busy', `Auflieger ${trailer.plate} ist bereits verplant.`);
-  if (trailer.type !== order.trailerType)
-    err('trailer_type', `Ungeeigneter Auflieger: benötigt ${TRAILER_BY_TYPE[order.trailerType].name}, vorhanden ${TRAILER_BY_TYPE[trailer.type].name}.`);
-  if (order.weightT > TRAILER_BY_TYPE[trailer.type].payloadT) err('overweight', `Ladung (${order.weightT} t) übersteigt die Nutzlast des Aufliegers.`);
+  if (solo && trailer) err('solo_trailer', `${model!.name} hat einen festen Aufbau und zieht keinen Auflieger.`);
+  if (!opts.queued) {
+    if (driver.status !== 'idle') err('driver_busy', `${driver.name} ist nicht verfügbar (bereits verplant oder abwesend).`);
+    if (vehicle.status !== 'idle') err('vehicle_busy', `LKW ${vehicle.plate} ist bereits unterwegs – Folgeauftrag über „Vorausplanen“ einplanen.`);
+    if (trailer && trailer.status !== 'idle') err('trailer_busy', `Auflieger ${trailer.plate} ist bereits verplant.`);
+    if (driver.cityId !== vehicle.cityId) err('location_driver', `${driver.name} befindet sich nicht am Standort des LKW (${CITY_BY_ID[vehicle.cityId].name}).`);
+    if (trailer && trailer.cityId !== vehicle.cityId) err('location_trailer', `Auflieger steht nicht am Standort des LKW (${CITY_BY_ID[trailer.cityId].name}).`);
+  } else if (vehicle.status !== 'on_trip') err('vehicle_not_busy', `LKW ${vehicle.plate} ist frei – bitte direkt disponieren.`);
+  const space = loadSpace(vehicle.modelId, trailer?.type);
+  if (space && space.type !== order.trailerType)
+    err('trailer_type', `Ungeeigneter Laderaum: benötigt ${TRAILER_BY_TYPE[order.trailerType].name}, vorhanden ${solo ? `Aufbau ${TRAILER_BY_TYPE[space.type].name.replace('auflieger', '')}` : TRAILER_BY_TYPE[space.type].name}.`);
+  if (space && order.weightT > space.payloadT) err('overweight', `Ladung (${order.weightT} t) übersteigt die Nutzlast (${space.payloadT} t).`);
   for (const q of order.qualifications) if (!driver.qualifications.includes(q)) err('qualification', `${driver.name} fehlt die Qualifikation ${q === 'ADR' ? 'ADR-Schein (Gefahrgut)' : q === 'heavy' ? 'Schwertransport' : q}.`);
-  if (driver.cityId !== vehicle.cityId) err('location_driver', `${driver.name} befindet sich nicht am Standort des LKW (${CITY_BY_ID[vehicle.cityId].name}).`);
-  if (trailer.cityId !== vehicle.cityId) err('location_trailer', `Auflieger steht nicht am Standort des LKW (${CITY_BY_ID[trailer.cityId].name}).`);
   if (vehicle.condition < 15) err('vehicle_unsafe', `LKW ${vehicle.plate} ist nicht verkehrssicher (Zustand ${Math.round(vehicle.condition)} %). Bitte zuerst warten.`);
 
-  const estimate = estimateTrip(state, ctx, input);
+  const from = opts.queued ? planEnd(state, ctx, vehicle.id) ?? undefined : undefined;
+  if (opts.queued && !from) err('no_plan', 'Ende der laufenden Fahrt kann nicht bestimmt werden.');
+  const estimate = estimateTrip(state, ctx, input, from);
   if (!estimate) {
     err('no_route', 'Keine Straßenroute gefunden.');
     return { issues, estimate };
   }
-  if (driver.hos.requiredRest > 0)
+  if (opts.queued && from)
+    warn('queued', `Vorausplanung: Start nach der laufenden Fahrt ca. ${formatDateTime(from.time)} in ${CITY_BY_ID[from.cityId].name}. Lenkzeiten und Tankstopps werden beim Start neu berechnet.`);
+  if (!opts.queued && driver.hos.requiredRest > 0)
     warn('driver_rest', `${driver.name} muss zuerst noch ${formatDuration(driver.hos.requiredRest)} ${REST_KIND_LABEL[driver.hos.requiredRestKind]} einhalten.`);
+  if (order.partial && space && space.payloadT > 12)
+    warn('partial_big', `Teilladung (${order.weightT} t) mit großem Fahrzeug – ein Solo-LKW oder Transporter wäre deutlich günstiger.`);
   if (estimate.pickupEta > order.pickupEnd) warn('pickup_late', `Abholfenster wird voraussichtlich verpasst (Ankunft ${formatDateTime(estimate.pickupEta)}).`);
   if (estimate.lateMin > 0)
     warn('delivery_late', `Lieferung voraussichtlich ${formatDuration(estimate.lateMin)} zu spät – Vertragsstrafe ca. ${formatMoney(penaltyFor(order, estimate.lateMin))}.`);
@@ -182,14 +225,14 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
   const order = state.orders[input.orderId];
   const driver = state.drivers[input.driverId];
   const vehicle = state.vehicles[input.vehicleId];
-  const trailer = state.trailers[input.trailerId];
+  const trailer = input.trailerId ? state.trailers[input.trailerId] : undefined;
   const id = newId(state, 'trp');
   const trip: Trip = {
     id,
     orderId: order.id,
     driverId: driver.id,
     vehicleId: vehicle.id,
-    trailerId: trailer.id,
+    ...(trailer ? { trailerId: trailer.id } : {}),
     legs: [leg(ctx, vehicle.cityId, order.fromCityId, false), leg(ctx, order.fromCityId, order.toCityId, true)],
     legIndex: 0,
     progressKm: 0,
@@ -211,8 +254,10 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
   driver.tripId = id;
   vehicle.status = 'on_trip';
   vehicle.tripId = id;
-  trailer.status = 'on_trip';
-  trailer.tripId = id;
+  if (trailer) {
+    trailer.status = 'on_trip';
+    trailer.tripId = id;
+  }
   addLog(state, {
     level: 'info',
     category: 'trip',
@@ -258,4 +303,116 @@ export function createRelocation(state: GameState, ctx: SimContext, driverId: Id
   }
   addLog(state, { level: 'info', category: 'trip', text: `${driver.name} startet Überführungsfahrt nach ${CITY_BY_ID[toCityId].name}.`, ref: { kind: 'trip', id } });
   return trip;
+}
+
+// ---------- Vorausplanung (Tourenketten) ----------
+
+/** Wo und wann ist das Fahrzeug nach laufender Fahrt und allen eingeplanten Folgeaufträgen frei? */
+export function planEnd(state: GameState, ctx: SimContext, vehicleId: Id): PlanStart | null {
+  return vehicleSchedule(state, ctx, vehicleId).at(-1)?.end ?? null;
+}
+
+export interface ScheduleItem {
+  kind: 'trip' | 'queued';
+  orderId?: Id;
+  tripId?: Id;
+  queueId?: Id;
+  start: number;
+  pickup?: number;
+  fromCityId: string;
+  toCityId: string;
+  end: PlanStart;
+  lateMin: number;
+}
+
+/** Laufende Fahrt und Folgeaufträge eines Fahrzeugs mit geschätzten Zeiten (Grundlage für Kalender und Plantafel). */
+export function vehicleSchedule(state: GameState, ctx: SimContext, vehicleId: Id): ScheduleItem[] {
+  const vehicle = state.vehicles[vehicleId];
+  if (!vehicle?.tripId) return [];
+  const trip = state.trips[vehicle.tripId];
+  if (!trip || trip.phase === 'done') return [];
+  const lastLeg = trip.legs[trip.legs.length - 1];
+  const dest = lastLeg.nodes[lastLeg.nodes.length - 1];
+  const order = trip.orderId ? state.orders[trip.orderId] : undefined;
+  const eta = tripEta(state, ctx, trip);
+  const items: ScheduleItem[] = [
+    {
+      kind: 'trip',
+      tripId: trip.id,
+      orderId: trip.orderId,
+      start: trip.startedAt,
+      fromCityId: trip.legs[0].nodes[0],
+      toCityId: dest,
+      end: { cityId: dest, time: eta },
+      lateMin: order ? Math.max(0, eta - order.deliveryEnd) : 0,
+    },
+  ];
+  let cursor: PlanStart = { cityId: dest, time: eta };
+  for (const job of vehicle.queue ?? []) {
+    const o = state.orders[job.orderId];
+    if (!o) continue;
+    const est = estimateTrip(state, ctx, { orderId: o.id, driverId: trip.driverId, vehicleId, trailerId: trip.trailerId ?? '' }, cursor);
+    if (!est) continue;
+    const end: PlanStart = { cityId: o.toCityId, time: est.deliveryEta };
+    items.push({ kind: 'queued', orderId: o.id, queueId: job.id, start: cursor.time, pickup: est.pickupEta, fromCityId: cursor.cityId, toCityId: o.toCityId, end, lateMin: est.lateMin });
+    cursor = end;
+  }
+  return items;
+}
+
+/** Folgeauftrag für ein Fahrzeug einplanen, das gerade unterwegs ist. Fahrer und Auflieger bleiben gleich. */
+export function queueJob(state: GameState, ctx: SimContext, vehicleId: Id, orderId: Id): { ok: true; issues: Issue[] } | { ok: false; error: string; issues: Issue[] } {
+  const vehicle = state.vehicles[vehicleId];
+  const trip = vehicle?.tripId ? state.trips[vehicle.tripId] : undefined;
+  if (!vehicle || !trip) return { ok: false, error: 'Fahrzeug ist nicht unterwegs – bitte direkt disponieren.', issues: [] };
+  if ((vehicle.queue?.length ?? 0) >= 5) return { ok: false, error: 'Höchstens 5 Folgeaufträge je Fahrzeug.', issues: [] };
+  const input: DispatchInput = { orderId, driverId: trip.driverId, vehicleId, trailerId: trip.trailerId ?? '' };
+  const { issues, estimate } = validateDispatch(state, ctx, input, { queued: true });
+  const errors = issues.filter((i) => i.level === 'error');
+  if (errors.length || !estimate) return { ok: false, error: errors[0]?.text ?? 'Einplanung nicht möglich.', issues };
+  const order = state.orders[orderId];
+  order.status = 'planned';
+  (vehicle.queue ??= []).push({ id: newId(state, 'job'), orderId, queuedAt: state.time });
+  addLog(state, {
+    level: 'info',
+    category: 'trip',
+    text: `Folgeauftrag ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name} für ${vehicle.plate} eingeplant (Abholung ca. ${formatDateTime(estimate.pickupEta)}).`,
+    ref: { kind: 'order', id: orderId },
+  });
+  return { ok: true, issues };
+}
+
+/** Folgeauftrag aus der Planung nehmen – der Auftrag bleibt angenommen. */
+export function unqueueJob(state: GameState, vehicleId: Id, orderId: Id): boolean {
+  const vehicle = state.vehicles[vehicleId];
+  const idx = vehicle?.queue?.findIndex((j) => j.orderId === orderId) ?? -1;
+  if (!vehicle || idx < 0) return false;
+  vehicle.queue!.splice(idx, 1);
+  const order = state.orders[orderId];
+  if (order && order.status === 'planned') order.status = 'accepted';
+  return true;
+}
+
+/** Nach Fahrtende: nächsten eingeplanten Folgeauftrag mit aktuellem Stand prüfen und starten. */
+export function startNextQueued(state: GameState, ctx: SimContext, vehicleId: Id, driverId: Id, trailerId: Id | undefined): void {
+  const vehicle = state.vehicles[vehicleId];
+  while (vehicle?.queue?.length) {
+    const job = vehicle.queue.shift()!;
+    const order = state.orders[job.orderId];
+    if (!order || order.status !== 'planned') continue;
+    order.status = 'accepted';
+    const input: DispatchInput = { orderId: order.id, driverId, vehicleId, trailerId: trailerId ?? '' };
+    const { issues, estimate } = validateDispatch(state, ctx, input);
+    const error = issues.find((i) => i.level === 'error');
+    if (!error && estimate) {
+      createTrip(state, ctx, input, estimate);
+      return;
+    }
+    addLog(state, {
+      level: 'danger',
+      category: 'trip',
+      text: `Folgeauftrag ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name} konnte nicht automatisch starten: ${error?.text ?? 'keine Route'} Der Auftrag liegt wieder in der Disposition.`,
+      ref: { kind: 'order', id: order.id },
+    });
+  }
 }

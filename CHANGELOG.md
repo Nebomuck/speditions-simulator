@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 – unveröffentlicht
+
+- **Vorausplanung/Tourenketten:** Aufträge lassen sich auf fahrende LKW ziehen (oder im Dispositionsdialog „Nach laufender Fahrt einplanen“). Bis zu 5 Folgeaufträge je Fahrzeug starten automatisch mit demselben Fahrer, sobald die laufende Fahrt endet. Die Plantafel zeigt sie gestreift mit voraussichtlicher Abholung/Ankunft und Verspätungswarnung; ein Klick auf ✕ nimmt sie wieder heraus.
+- **Kalender** in der Disposition mit Tag-, Wochen- und Monatsansicht: Laden, Lieferung, vorausgeplante und noch offene Aufträge, Verspätungen und Feiertage.
+- **Solo-LKW und Transporter:** Kastenwagen 3,5 t (mautfrei, schneller), 7,5 t Koffer, 12 t Kühlkoffer und 18 t Verteiler mit festem Aufbau. Sie brauchen keinen Auflieger und zahlen weniger Maut.
+- **Teilladungen:** Rund 30 % der Börse sind regionale Teilladungen (0,5–7,5 t) für Planen-, Koffer- und Kühlfahrzeuge. Neuer Filter „Ladungsgröße“; die Gewinnschätzung nimmt automatisch das passendste freie Fahrzeug.
+- Anzeige: Dezimalkomma bei Verbrauch und Nutzlast, „mautfrei“ statt „-0 €“.
+
 ## 0.4.0 – 02.11.2026
 
 - Updates direkt im Spiel: Der Startbildschirm meldet neue Versionen und installiert sie per Klick (signiert, Spielstände bleiben erhalten). Ab dieser Version – 0.4.0 muss einmalig von Hand installiert werden.

@@ -2,9 +2,9 @@
 // unter Berücksichtigung von Straßentyp, Verkehr, Lenk-/Ruhezeiten, Tankstopps, Be-/Entladung und Pannen.
 
 import { CITY_BY_ID } from './data/cities.ts';
-import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
+import { CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
-import { FUEL_RESERVE, FUEL_STOP_MIN, UNLOAD_MIN_FACTOR, consumptionPerKm, penaltyFor } from './dispatch.ts';
+import { FUEL_RESERVE, FUEL_STOP_MIN, UNLOAD_MIN_FACTOR, consumptionPerKm, loadFraction, penaltyFor, speedFactor, startNextQueued, tollFactor } from './dispatch.ts';
 import { addLog, adjustSatisfaction, book, createInvoice, formatMoney } from './finance.ts';
 import { drivableNow, hosDrive, hosRest, hosWork } from './hos.ts';
 import { rand } from './rng.ts';
@@ -102,14 +102,14 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
 
   // Fahren
   const ecoFactor = 0.97 + driver.experience / 1000;
-  const speed = loc.edge.truckKmh * trafficFactor(state, loc.edge.a, loc.edge.b) * ecoFactor;
+  const speed = Math.min(loc.edge.truckKmh * speedFactor(vehicle.modelId), 120) * trafficFactor(state, loc.edge.a, loc.edge.b) * ecoFactor;
   const km = Math.min(speed / 60, leg.km - trip.progressKm);
   trip.speedKmh = Math.round(speed);
   trip.progressKm += km;
   hosDrive(driver.hos, 1);
 
   const order = trip.orderId ? state.orders[trip.orderId] : undefined;
-  const loadFrac = leg.loaded && order ? order.weightT / TRAILER_BY_TYPE[order.trailerType].payloadT : 0;
+  const loadFrac = leg.loaded ? loadFraction(state, vehicle, trip.trailerId, order) : 0;
   vehicle.fuelL = Math.max(0, vehicle.fuelL - km * consumptionPerKm(vehicle.modelId, loadFrac, driver.ecoDriving));
   vehicle.odometerKm += km;
   driver.kmDriven += km;
@@ -117,7 +117,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   else trip.kmEmpty += km;
 
   // Maut anteilig
-  const toll = (loc.edge.toll / Math.max(loc.edge.km, 0.1)) * km;
+  const toll = (loc.edge.toll / Math.max(loc.edge.km, 0.1)) * km * tollFactor(vehicle.modelId);
   trip.costs.toll += toll;
 
   // Verschleiß – abhängig von Haltbarkeit, Beladung und Fahrweise
@@ -176,7 +176,7 @@ function onActivityEnd(state: GameState, ctx: SimContext, trip: Trip) {
       return;
     }
     case 'unloading':
-      completeDelivery(state, trip);
+      completeDelivery(state, ctx, trip);
       return;
     default:
       startDriving(trip);
@@ -195,10 +195,10 @@ function startLoading(state: GameState, trip: Trip) {
     addLog(state, { level: 'warning', category: 'trip', text: `Verzögerte Beladung in ${CITY_BY_ID[order.fromCityId].name} (+${delay} min).`, ref: { kind: 'trip', id: trip.id } });
 }
 
-function onLegEnd(state: GameState, _ctx: SimContext, trip: Trip) {
+function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
   if (trip.phase === 'to_pickup') {
     if (!trip.orderId) {
-      finishTrip(state, trip);
+      finishTrip(state, ctx, trip);
       return;
     }
     const order = state.orders[trip.orderId];
@@ -220,7 +220,7 @@ function onLegEnd(state: GameState, _ctx: SimContext, trip: Trip) {
   }
 }
 
-function completeDelivery(state: GameState, trip: Trip) {
+function completeDelivery(state: GameState, ctx: SimContext, trip: Trip) {
   const order = state.orders[trip.orderId!];
   const customer = state.customers[order.customerId];
   const driver = state.drivers[trip.driverId];
@@ -261,10 +261,10 @@ function completeDelivery(state: GameState, trip: Trip) {
     text: `${driver.name} hat ${CARGO_BY_ID[order.cargoId].name} in ${CITY_BY_ID[order.toCityId].name} ${lateMin > 0 ? 'verspätet' : 'pünktlich'} zugestellt.`,
     ref: { kind: 'order', id: order.id },
   });
-  finishTrip(state, trip);
+  finishTrip(state, ctx, trip);
 }
 
-function finishTrip(state: GameState, trip: Trip) {
+function finishTrip(state: GameState, ctx: SimContext, trip: Trip) {
   const leg = trip.legs[trip.legs.length - 1];
   const dest = leg.nodes[leg.nodes.length - 1];
   trip.phase = 'done';
@@ -294,6 +294,8 @@ function finishTrip(state: GameState, trip: Trip) {
     tr.tripId = undefined;
     tr.cityId = dest;
   }
+  // Vorausplanung: nächsten Folgeauftrag direkt anschließen
+  if (vehicle.queue?.length && driver) startNextQueued(state, ctx, vehicle.id, driver.id, trip.trailerId);
 }
 
 /** Fahrten älter als 30 Tage aus dem Zustand entfernen (Statistik bleibt in company.totals). */

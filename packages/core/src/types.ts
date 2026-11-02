@@ -198,7 +198,16 @@ export interface Vehicle {
   bought: GameTime;
   /** Werkstattaufenthalt bis */
   busyUntil?: GameTime;
+  /** Vorausplanung: Folgeaufträge, die nach der laufenden Fahrt automatisch starten (gleicher Fahrer/Auflieger) */
+  queue?: QueuedJob[];
   history: { t: GameTime; text: string; cost: Money }[];
+}
+
+export interface QueuedJob {
+  id: Id;
+  orderId: Id;
+  /** Zeitpunkt der Einplanung */
+  queuedAt: GameTime;
 }
 
 export interface Trailer {
@@ -262,6 +271,8 @@ export interface Order {
   penaltyPerHour: Money;
   express: boolean;
   international: boolean;
+  /** Teilladung (kleine Sendung, passend für Solo-LKW/Transporter) */
+  partial?: boolean;
   status: OrderStatus;
   offerExpires: GameTime;
   created: GameTime;

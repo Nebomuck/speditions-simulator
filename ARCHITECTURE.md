@@ -31,7 +31,8 @@ packages/core/src
 ├── finance.ts      FinanceSystem: Buchungen, Rechnungen, Zahlungen, Monatsabrechnung, Log
 ├── generate.ts     Bewerber, Kunden, Gebrauchtfahrzeuge, Kennzeichen, Marktwert
 ├── orders.ts       OrderSystem: Warenflussmodell, Auftragsbörse
-├── dispatch.ts     DispatchSystem: Vorkalkulation, Konfliktprüfung, Fahrtanlage
+├── dispatch.ts     DispatchSystem: Vorkalkulation, Konfliktprüfung, Fahrtanlage, Vorausplanung
+│                   (Warteschlange je Fahrzeug, vehicleSchedule, startNextQueued)
 ├── trips.ts        VehicleSystem: minutengenaue Fahrtsimulation
 ├── sim.ts          SimulationEngine: Minuten-Tick, stündliche/tägliche/monatliche Prozesse
 ├── commands.ts     CommandSystem: alle Spieleraktionen + Berechtigungen
@@ -74,6 +75,12 @@ Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed 
 - Performance gemessen: 300 gleichzeitig fahrende LKW, 1 Spieltag (1.440 Ticks) in ca. 0,5–0,6 s. Positionsberechnung für alle Fahrzeuge < 100 ms.
 
 ## Befehle & Berechtigungen
+
+## Disposition: Laderaum und Vorausplanung
+
+- `loadSpace(modelId, trailerType)` liefert den Laderaum: Solo-LKW und Transporter haben einen festen Aufbau (`TruckModel.body`, `payloadT`), Sattelzugmaschinen den des Aufliegers. Maut und Tempo skalieren über `tollFactor`/`speedFactor` des Modells.
+- Vorausplanung: `Vehicle.queue` hält bis zu 5 Folgeaufträge (`queueDispatch`). `estimateTrip` und `validateDispatch` rechnen dafür ab einem `PlanStart` (Ort, Zeit, Lenkzeit) am Ende der vorherigen Fahrt. `vehicleSchedule` verkettet laufende Fahrt (ETA aus `tripEta`) und Warteschlange; Plantafel und Kalender lesen nur daraus.
+- Endet eine Fahrt, startet `startNextQueued` den nächsten Auftrag mit demselben Fahrer und Auflieger. Ist er nicht mehr zulässig, geht er mit Warnung zurück in die angenommenen Aufträge.
 
 Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx, actorId, cmd)` prüft das Recht, validiert die Eingaben und ändert den Zustand atomar. Im Multiplayer führt **nur der Server** Befehle aus, und zwar strikt nacheinander. Doppelte Zuweisungen sind dadurch ausgeschlossen: Der zweite von zwei gleichzeitigen Dispositionsbefehlen scheitert an der Konfliktprüfung (getestet).
 

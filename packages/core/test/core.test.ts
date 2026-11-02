@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CITIES, CITY_BY_ID, CARGO_BY_ID, GameSession, HOS_RULES, PRIVATE_LIVING_COST, TRAILER_BY_TYPE, applyCommand, book,
   deserializeSave, haversineKm, serializeSave, tickMinutes, vehicleMarker, processMonthEnd, generateOrder, SaveError, createInvoice,
+  TRUCK_BY_ID, estimateTrip, vehicleSchedule,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -371,5 +372,114 @@ describe('Liquidität: Zahlungsmoral, Kredite, Factoring', () => {
     const loaded = deserializeSave(text);
     expect(loaded.company.loans).toEqual([]);
     expect(loaded.version).toBe(2);
+  });
+});
+
+describe('Vorausplanung (Tourenketten)', () => {
+  it('Folgeauftrag wird während der Fahrt eingeplant und startet nach der Lieferung automatisch am Zielort', async () => {
+    const s = newGame();
+    const d = first(s.drivers);
+    const v = first(s.vehicles);
+    const t = first(s.trailers);
+    const o1 = addOrder(s, 'leipzig', 'prag');
+    const o2 = addOrder(s, 'prag', 'wien', { pickupStart: s.time + 12 * 60, pickupEnd: s.time + 30 * 60, deliveryEnd: s.time + 4 * 1440 });
+    expect(applyCommand(s, ctx, 'p1', { type: 'queueDispatch', orderId: o2.id, vehicleId: v.id }).ok).toBe(false); // LKW noch frei
+    expect(applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o1.id, driverId: d.id, vehicleId: v.id, trailerId: t.id }).ok).toBe(true);
+    const q = applyCommand(s, ctx, 'p1', { type: 'queueDispatch', orderId: o2.id, vehicleId: v.id });
+    expect(q.ok).toBe(true);
+    expect(o2.status).toBe('planned');
+    const sched = vehicleSchedule(s, ctx, v.id);
+    expect(sched.map((i) => i.kind)).toEqual(['trip', 'queued']);
+    expect(sched[1].fromCityId).toBe('prag');
+    expect(sched[1].pickup!).toBeGreaterThan(sched[0].end.time);
+
+    expect(await runUntil(s, () => o1.status === 'delivered', 3 * 1440)).toBeGreaterThan(0);
+    // direkt nach der Lieferung läuft die Folgefahrt mit demselben Fahrer und Auflieger
+    expect(o2.status === 'planned' || o2.status === 'in_transit').toBe(true);
+    const trip2 = s.trips[v.tripId!];
+    expect(trip2.orderId).toBe(o2.id);
+    expect(trip2.driverId).toBe(d.id);
+    expect(trip2.trailerId).toBe(t.id);
+    expect(v.queue).toEqual([]);
+    expect(await runUntil(s, () => o2.status === 'delivered', 4 * 1440)).toBeGreaterThan(0);
+    expect(v.cityId).toBe('wien');
+  });
+
+  it('Folgeauftrag kann aus der Planung genommen und dann storniert werden', () => {
+    const s = newGame();
+    const [d, v, t] = [first(s.drivers), first(s.vehicles), first(s.trailers)];
+    const o1 = addOrder(s, 'leipzig', 'prag');
+    const o2 = addOrder(s, 'prag', 'wien', { status: 'accepted' });
+    applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o1.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+    applyCommand(s, ctx, 'p1', { type: 'queueDispatch', orderId: o2.id, vehicleId: v.id });
+    expect(applyCommand(s, ctx, 'p1', { type: 'unqueue', orderId: o2.id, vehicleId: v.id }).ok).toBe(true);
+    expect(o2.status).toBe('accepted');
+    applyCommand(s, ctx, 'p1', { type: 'queueDispatch', orderId: o2.id, vehicleId: v.id });
+    expect(applyCommand(s, ctx, 'p1', { type: 'cancelOrder', orderId: o2.id }).ok).toBe(true);
+    expect(o2.status).toBe('cancelled');
+    expect(v.queue).toEqual([]);
+  });
+
+  it('ungeeigneter Folgeauftrag (falscher Auflieger) wird schon bei der Einplanung abgelehnt', () => {
+    const s = newGame();
+    const [d, v, t] = [first(s.drivers), first(s.vehicles), first(s.trailers)];
+    const o1 = addOrder(s, 'leipzig', 'prag');
+    const reefer = addOrder(s, 'prag', 'wien', { cargoId: 'chilled', trailerType: 'reefer' });
+    applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o1.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+    expect(applyCommand(s, ctx, 'p1', { type: 'queueDispatch', orderId: reefer.id, vehicleId: v.id }).ok).toBe(false);
+  });
+});
+
+describe('Solo-LKW, Transporter und Teilladungen', () => {
+  function addRigid(s: ReturnType<typeof newGame>, modelId: string) {
+    const v = { ...first(s.vehicles), id: 'veh_' + modelId, modelId, fuelL: TRUCK_BY_ID[modelId].tankL, condition: 95, status: 'idle' as const, tripId: undefined };
+    s.vehicles[v.id] = v;
+    return v;
+  }
+
+  it('Solo-LKW fährt eine Teilladung ohne Auflieger, Nutzlast und Aufbau werden geprüft', async () => {
+    const s = newGame();
+    const tractorId = first(s.vehicles).id;
+    const v = addRigid(s, 'nordwal-r75');
+    const d = first(s.drivers);
+    const ok = addOrder(s, 'leipzig', 'dresden', { cargoId: 'food', trailerType: 'box', weightT: 2.5, partial: true });
+    const heavy = addOrder(s, 'leipzig', 'dresden', { cargoId: 'food', trailerType: 'box', weightT: 6 });
+    const curtain = addOrder(s, 'leipzig', 'dresden', { weightT: 2 });
+    expect(applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: heavy.id, driverId: d.id, vehicleId: v.id, trailerId: '' }).ok).toBe(false);
+    expect(applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: curtain.id, driverId: d.id, vehicleId: v.id, trailerId: '' }).ok).toBe(false);
+    expect(applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: ok.id, driverId: d.id, vehicleId: v.id, trailerId: first(s.trailers).id }).ok).toBe(false); // kein Auflieger am Solo-LKW
+    expect(applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: ok.id, driverId: d.id, vehicleId: v.id, trailerId: '' }).ok).toBe(true);
+    expect(first(s.trailers).status).toBe('idle');
+    expect(s.vehicles[tractorId].status).toBe('idle');
+    expect(await runUntil(s, () => ok.status === 'delivered', 2 * 1440)).toBeGreaterThan(0);
+    expect(v.cityId).toBe('dresden');
+  });
+
+  it('Transporter zahlt keine Maut und ist bei Teilladungen günstiger als ein Sattelzug', () => {
+    const s = newGame();
+    const tractor = first(s.vehicles);
+    const van = addRigid(s, 'trasko-v35');
+    const d = first(s.drivers);
+    const o = addOrder(s, 'leipzig', 'nuernberg', { cargoId: 'food', trailerType: 'box', weightT: 0.8, partial: true });
+    const eVan = estimateTrip(s, ctx, { orderId: o.id, driverId: d.id, vehicleId: van.id, trailerId: '' })!;
+    const eTruck = estimateTrip(s, ctx, { orderId: o.id, driverId: d.id, vehicleId: tractor.id, trailerId: first(s.trailers).id })!;
+    expect(eVan.toll).toBe(0);
+    expect(eTruck.toll).toBeGreaterThan(0);
+    expect(eVan.totalCost).toBeLessThan(eTruck.totalCost * 0.7);
+  });
+
+  it('der Markt erzeugt Teilladungen: klein, regional, höherer Preis je Tonne', () => {
+    const s = newGame(11);
+    const partial = Object.values(s.orders).filter((o) => o.partial);
+    const full = Object.values(s.orders).filter((o) => !o.partial && ['curtain', 'box', 'reefer'].includes(o.trailerType));
+    expect(partial.length).toBeGreaterThan(20);
+    for (const o of partial) {
+      expect(o.weightT).toBeLessThanOrEqual(8);
+      expect(['curtain', 'box', 'reefer']).toContain(o.trailerType);
+    }
+    const perTonKm = (l: typeof partial) => l.reduce((a, o) => a + o.payment / (o.weightT * o.distanceKm), 0) / l.length;
+    expect(perTonKm(partial)).toBeGreaterThan(perTonKm(full) * 2);
+    const air = (o: (typeof partial)[number]) => haversineKm([CITY_BY_ID[o.fromCityId].lon, CITY_BY_ID[o.fromCityId].lat], [CITY_BY_ID[o.toCityId].lon, CITY_BY_ID[o.toCityId].lat]);
+    expect(Math.max(...partial.map(air))).toBeLessThanOrEqual(650); // Luftlinie: Verteilerverkehr in der Region
   });
 });

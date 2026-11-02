@@ -21,6 +21,16 @@ export interface TruckModel {
   insurance: Money;
   /** Zuverlässigkeit 0–1: verlangsamt Verschleiß */
   durability: number;
+  /** Sattelzugmaschine (Standard), Solo-LKW oder Transporter */
+  kind?: 'tractor' | 'rigid' | 'van';
+  /** Solo-LKW/Transporter: fest eingebauter Aufbau – kein Auflieger nötig */
+  body?: TrailerType;
+  /** Nutzlast des Aufbaus in t */
+  payloadT?: number;
+  /** Mautanteil gegenüber 40-t-Sattelzug (Gewichtsklasse) */
+  tollFactor?: number;
+  /** Reisegeschwindigkeit gegenüber Sattelzug */
+  speedFactor?: number;
 }
 
 export const TRUCK_MODELS: TruckModel[] = [
@@ -30,9 +40,24 @@ export const TRUCK_MODELS: TruckModel[] = [
   { id: 'velkor-s540', maker: 'Velkor', name: 'S 540 Highline', hp: 540, consumption: 27.9, tankL: 900, emission: 'Euro VI', price: 134_000_00, leaseRate: 2_650_00, insurance: 450_00, durability: 0.95 },
   { id: 'brennkraft-k410', maker: 'Brennkraft', name: 'K 410 Eco', hp: 410, consumption: 25.9, tankL: 600, emission: 'Euro VI', price: 99_000_00, leaseRate: 1_980_00, insurance: 380_00, durability: 0.88 },
   { id: 'trasko-m380', maker: 'Trasko', name: 'M 380', hp: 380, consumption: 29.5, tankL: 500, emission: 'Euro V', price: 74_000_00, leaseRate: 1_500_00, insurance: 360_00, durability: 0.75 },
+  // Verteilerverkehr: Solo-LKW und Transporter mit festem Aufbau (für Teilladungen und Regionaltouren)
+  { id: 'trasko-v35', maker: 'Trasko', name: 'Kastenwagen 3,5 t', hp: 170, consumption: 10.5, tankL: 80, emission: 'Euro VI', price: 48_000_00, leaseRate: 850_00, insurance: 120_00, durability: 0.8, kind: 'van', body: 'box', payloadT: 1.2, tollFactor: 0, speedFactor: 1.12 },
+  { id: 'nordwal-r75', maker: 'Nordwal', name: 'R 7,5 t Koffer', hp: 220, consumption: 17, tankL: 150, emission: 'Euro VI', price: 72_000_00, leaseRate: 1_250_00, insurance: 190_00, durability: 0.86, kind: 'rigid', body: 'box', payloadT: 3.2, tollFactor: 0.55, speedFactor: 1.04 },
+  { id: 'velkor-r12k', maker: 'Velkor', name: 'R 12 t Kühlkoffer', hp: 290, consumption: 20, tankL: 200, emission: 'Euro VI', price: 98_000_00, leaseRate: 1_700_00, insurance: 240_00, durability: 0.9, kind: 'rigid', body: 'reefer', payloadT: 5.5, tollFactor: 0.65, speedFactor: 1.02 },
+  { id: 'brennkraft-r18', maker: 'Brennkraft', name: 'Verteiler 18 t Plane', hp: 320, consumption: 23, tankL: 300, emission: 'Euro VI', price: 105_000_00, leaseRate: 1_850_00, insurance: 280_00, durability: 0.88, kind: 'rigid', body: 'curtain', payloadT: 9, tollFactor: 0.8, speedFactor: 1 },
 ];
 
 export const TRUCK_BY_ID: Record<string, TruckModel> = Object.fromEntries(TRUCK_MODELS.map((m) => [m.id, m]));
+
+export const VEHICLE_KIND_LABEL: Record<NonNullable<TruckModel['kind']>, string> = { tractor: 'Sattelzugmaschine', rigid: 'Solo-LKW', van: 'Transporter' };
+
+/** Ladeaufbau eines Fahrzeugs: fester Aufbau (Solo-LKW/Transporter) oder der angehängte Auflieger. */
+export function loadSpace(modelId: string, trailerType?: TrailerType): { type: TrailerType; payloadT: number } | null {
+  const m = TRUCK_BY_ID[modelId];
+  if (m?.body) return { type: m.body, payloadT: m.payloadT ?? 0 };
+  if (!trailerType) return null;
+  return { type: trailerType, payloadT: TRAILER_BY_TYPE[trailerType].payloadT };
+}
 
 export interface TrailerDef {
   type: TrailerType;

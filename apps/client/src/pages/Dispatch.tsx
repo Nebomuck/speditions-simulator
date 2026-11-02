@@ -1,11 +1,13 @@
-// Dispositionsoberfläche: Plantafel mit Drag-and-Drop + Zeitstrahl, Listenansicht, Fahreransicht.
+// Dispositionsoberfläche: Plantafel mit Drag-and-Drop + Zeitstrahl (inkl. vorausgeplanter Folgeaufträge),
+// Kalender (Tag/Woche/Monat), Listenansicht, Fahreransicht.
 
 import { useState } from 'react';
-import { GripVertical, ArrowRight, Send, RotateCcw, CalendarRange, List, Users } from 'lucide-react';
+import { GripVertical, ArrowRight, Send, RotateCcw, CalendarRange, CalendarDays, List, Users, X } from 'lucide-react';
 import {
   CITY_BY_ID, formatDateTime, formatDuration, formatTime, isTripLate, remainingKm, tripEta, dayIndex, MIN_PER_DAY, WEEKDAY_SHORT, weekday,
-  drivableNow, REST_KIND_LABEL, CITIES,
+  drivableNow, REST_KIND_LABEL, CITIES, vehicleSchedule,
 } from '@spedsim/core';
+import { CalendarView } from './Calendar.tsx';
 import { navigate, sendCommand, setUi, useGame, world } from '../game/store.ts';
 import { Badge, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
 import { activityLabel, cargoName, cityName, km, trailerName, tripLabel } from '../ui/format.ts';
@@ -13,20 +15,22 @@ import { activityLabel, cargoName, cityName, km, trailerName, tripLabel } from '
 const HOURS = 72;
 
 export function DispatchPage() {
-  const [tab, setTab] = useState<'board' | 'list' | 'drivers'>('board');
+  const [tab, setTab] = useState<'board' | 'calendar' | 'list' | 'drivers'>('board');
   return (
     <div className="page">
       <PageHeader
         title="Disposition"
-        subtitle="Aufträge per Drag-and-Drop auf ein Fahrzeug ziehen oder über den Dispositionsdialog planen."
+        subtitle="Aufträge per Drag-and-Drop auf ein Fahrzeug ziehen – auf freie LKW für den sofortigen Start, auf fahrende LKW als Folgeauftrag (Vorausplanung)."
         actions={<button className="btn primary" onClick={() => setUi({ dispatchDraft: {} })}><Send size={15} />Neue Fahrt planen</button>}
       />
       <div className="tabs">
         <button className={`tab ${tab === 'board' ? 'active' : ''}`} onClick={() => setTab('board')}><CalendarRange size={15} />Plantafel & Zeitstrahl</button>
+        <button className={`tab ${tab === 'calendar' ? 'active' : ''}`} onClick={() => setTab('calendar')}><CalendarDays size={15} />Kalender</button>
         <button className={`tab ${tab === 'list' ? 'active' : ''}`} onClick={() => setTab('list')}><List size={15} />Listenansicht</button>
         <button className={`tab ${tab === 'drivers' ? 'active' : ''}`} onClick={() => setTab('drivers')}><Users size={15} />Fahreransicht</button>
       </div>
       {tab === 'board' && <Board />}
+      {tab === 'calendar' && <CalendarView />}
       {tab === 'list' && <TripList />}
       {tab === 'drivers' && <DriverView />}
     </div>
@@ -76,7 +80,7 @@ function Board() {
             <div className="route"><GripVertical size={14} className="dim" />{cityName(o.fromCityId)} <ArrowRight size={13} /> {cityName(o.toCityId)}</div>
             <div className="meta">
               <span>{cargoName(o.cargoId)}</span>
-              <span>{trailerName(o.trailerType)}</span>
+              <span>{trailerName(o.trailerType)}{o.partial ? ` · Teilladung ${o.weightT.toLocaleString('de-DE')} t` : ''}</span>
               <span>{km(o.distanceKm)}</span>
               <span><Money value={o.payment} /></span>
             </div>
@@ -98,7 +102,8 @@ function Board() {
         {vehicles.map((v) => {
           const trip = v.tripId ? s.trips[v.tripId] : undefined;
           const driver = trip ? s.drivers[trip.driverId] : Object.values(s.drivers).find((d) => d.status === 'idle' && d.cityId === v.cityId);
-          const canDrop = !trip && v.status === 'idle';
+          const canDrop = (!trip && v.status === 'idle') || (!!trip && v.status === 'on_trip' && (v.queue?.length ?? 0) < 5);
+          const schedule = vehicleSchedule(s, world, v.id).filter((i) => i.kind === 'queued');
           const recent = Object.values(s.trips).filter((t) => t.vehicleId === v.id && t.phase === 'done' && (t.finishedAt ?? 0) > start);
           return (
             <div
@@ -147,7 +152,35 @@ function Board() {
                     </div>
                   );
                 })()}
-                {!trip && canDrop && dragOrder && <div className="dim" style={{ position: 'absolute', left: 12, top: 14, fontSize: 12 }}>Auftrag hier ablegen</div>}
+                {schedule.map((q) => {
+                  const o = s.orders[q.orderId!];
+                  return (
+                    <div
+                      key={q.queueId}
+                      className={`gantt-bar queued ${q.lateMin > 0 ? 'late' : ''}`}
+                      style={{ left: `${pct(q.start)}%`, width: `${Math.max(1, pct(q.end.time) - pct(q.start))}%` }}
+                      title={`Folgeauftrag ${cityName(o.fromCityId)} → ${cityName(o.toCityId)} · Abholung ca. ${formatDateTime(q.pickup!)} · Ankunft ca. ${formatDateTime(q.end.time)}${q.lateMin > 0 ? ` · voraussichtlich ${formatDuration(q.lateMin)} zu spät` : ''}`}
+                    >
+                      <span>geplant: {cityName(o.fromCityId)} → {cityName(o.toCityId)}</span>
+                      <button
+                        className="icon-btn"
+                        title="Aus der Planung nehmen"
+                        style={{ marginLeft: 4, padding: 0, height: 16, width: 16, display: 'inline-flex' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          sendCommand({ type: 'unqueue', orderId: o.id, vehicleId: v.id });
+                        }}
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  );
+                })}
+                {canDrop && dragOrder && (
+                  <div className="dim" style={{ position: 'absolute', left: trip ? 'auto' : 12, right: trip ? 12 : 'auto', top: 14, fontSize: 12 }}>
+                    {trip ? 'als Folgeauftrag einplanen' : 'Auftrag hier ablegen'}
+                  </div>
+                )}
               </div>
             </div>
           );

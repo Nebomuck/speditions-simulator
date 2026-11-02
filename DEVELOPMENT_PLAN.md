@@ -7,8 +7,8 @@
 | 1 | Projektfundament: Technik, Struktur, Desktop-App, Navigation, Design, Speicher, Zeit, Zustand | ✅ abgeschlossen |
 | 2 | Europakarte: Städte, echtes Routing, Routenanzeige, fahrender LKW, Live-Position, Filter, Detailfenster | ✅ abgeschlossen |
 | 3 | Speditionsgrundsystem: Gründung, Kapital, Fahrzeugkauf, Fahrer, Aufträge, Disposition, Durchführung, Erlöse/Kosten | ✅ abgeschlossen |
-| 4 | Umfangreiche Disposition | 🟡 teilweise: Zeitstrahl, Fahreransicht, Konfliktprüfung, Ladungsarten, Rückladungssuche, Überführung ✅ · Kalender, Vorausplanung/Tourenketten, Teilladungen, Solo-LKW ⏳ |
-| 5 | Wirtschaft & Management | 🟡 teilweise: Rechnungen, Mahnungen, Ausfälle, Leasing, Wartung, Reparaturen ✅ · Kredite, Verträge, Personalgespräche/Schulungen/Urlaub ⏳ |
+| 4 | Umfangreiche Disposition | 🟢 weitgehend: Zeitstrahl, Fahreransicht, Konfliktprüfung, Ladungsarten, Rückladungssuche, Überführung, Kalender (Tag/Woche/Monat), Vorausplanung/Tourenketten, Solo-LKW/Transporter, Teilladungen ✅ · Mehrfachbeladung (mehrere Teilladungen gleichzeitig), Umleitung bei Störungen ⏳ |
+| 5 | Wirtschaft & Management | 🟡 teilweise: Rechnungen, Mahnungen, Ausfälle, Leasing, Wartung, Reparaturen, Kredite, Factoring ✅ · Verträge, Personalgespräche/Schulungen/Urlaub ⏳ |
 | 6 | Unternehmensausbau | 🟡 Standortstufen mit Kapazität ✅ · Niederlassungen, Werkstatt, Lager, Abteilungen, Stufen ⏳ |
 | 7 | Automatisierung (KI-Disponenten) | ⏳ |
 | 8 | Lebenssimulation | 🟡 Charakter, Privatkonto, GF-Gehalt ✅ · Bedürfnisse, Wohnen, Freizeit, Beziehungen ⏳ |
@@ -19,13 +19,11 @@
 
 ## Nächste Schritte (in dieser Reihenfolge)
 
-1. **Phase 4 vervollständigen**
-   - Vorausplanung: Fahrten mit Startzeitpunkt und Tourenketten (Folgeauftrag ab Zielort), damit Rückladungen schon während der Fahrt gebucht werden können
-   - Kalenderansicht Tag/Woche/Monat
-   - Solo-LKW (7,5 t, 12 t, Verteiler) und Transporter mit eingebautem Aufbau, regionale Verteilertouren, Teilladungen
+1. **Phase 4 – Rest**
+   - Mehrfachbeladung: mehrere Teilladungen gleichzeitig auf einem Fahrzeug (Multi-Stopp-Touren mit Lade-/Entladereihenfolge)
    - Umleitung bei Störungen (setzt Ereignisse aus Phase 10 voraus; Grundlage: Routing mit gesperrten Kanten)
 2. **Phase 5**
-   - Kredite (Annuitätendarlehen, Bonität aus Kennzahlen), Fahrzeugfinanzierung, Inzahlungnahme
+   - Fahrzeugfinanzierung, Inzahlungnahme (Kredite/Factoring ✅ seit 0.4.0)
    - Rahmenverträge mit Stammkunden (Mindestkapazität, regelmäßige Touren, Vertragsstrafen); Kundenzufriedenheit beeinflusst Angebotsmenge und -qualität
    - Personal: Urlaub, Krankheit, Schulungen (ADR-Kurs), Gehaltsanpassung, Kündigungen bei Unzufriedenheit
 3. **Phase 6** – Niederlassungen in anderen Städten, eigene Werkstatt (günstigere Wartung), Tankanlage, Lager, Abteilungen, Unternehmensstufen
@@ -45,6 +43,6 @@
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 19/19 bestanden)
+1. `npm install`, dann `npm test` (erwartet: 33/33 bestanden)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
-3. Mit Punkt 1 (Phase-4-Vorausplanung) fortfahren. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` (Oberfläche).
+3. Mit Punkt 2 (Phase 5: Verträge, Personal) fortfahren; Mehrfachbeladung aus Phase 4 bei Bedarf. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

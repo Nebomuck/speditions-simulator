@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { MapPin, Check, Send, Share2, X } from 'lucide-react';
-import { CARGOS, CITY_BY_ID, TRAILERS, estimateTrip, formatDateTime, formatMoney, haversineKm, type Customer, type Order, type TrailerType } from '@spedsim/core';
+import { CARGOS, CITY_BY_ID, TRAILERS, TRUCK_BY_ID, estimateTrip, loadSpace, formatDateTime, formatMoney, haversineKm, type Customer, type Order, type TrailerType } from '@spedsim/core';
 import { sendCommand, setUi, toast, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
 import { MapView } from '../ui/MapView.tsx';
@@ -19,21 +19,35 @@ export function OrdersPage() {
   const [trailer, setTrailer] = useState<'' | 'fleet' | TrailerType>('fleet');
   const [cargo, setCargo] = useState('');
   const [intl, setIntl] = useState<'' | 'yes' | 'no'>('');
+  const [size, setSize] = useState<'' | 'partial' | 'full'>('');
   const { key, dir, th } = useSort<SortKey>('profit');
 
   const fleetTrailers = new Set(Object.values(s.trailers).map((t) => t.type));
+  // Solo-LKW/Transporter: fester Aufbau mit eigener Nutzlast
+  const soloSpaces = Object.values(s.vehicles).flatMap((v) => (TRUCK_BY_ID[v.modelId]?.body ? [loadSpace(v.modelId)!] : []));
+  const fitsFleet = (o: Order) => fleetTrailers.has(o.trailerType) || soloSpaces.some((sp) => sp.type === o.trailerType && sp.payloadT >= o.weightT);
   const anchors = anchor
     ? [s.vehicles[anchor]?.cityId].filter(Boolean)
     : [...new Set([...s.company.locations.map((l) => l.cityId), ...Object.values(s.vehicles).filter((v) => v.status === 'idle').map((v) => v.cityId)])];
 
   // Für die Gewinnschätzung: freies Fahrzeug, Fahrer und Auflieger nahe der Ladestelle
-  const idleVehicle = Object.values(s.vehicles).find((v) => (anchor ? v.id === anchor : v.status === 'idle'));
-  const idleDriver = Object.values(s.drivers).find((d) => d.status === 'idle' && d.cityId === idleVehicle?.cityId) ?? Object.values(s.drivers)[0];
+  const idleVehicles = Object.values(s.vehicles).filter((v) => (anchor ? v.id === anchor : v.status === 'idle'));
+  // je Auftrag das passendste freie Fahrzeug: Solo-LKW/Transporter, wenn die Ladung hineinpasst, sonst Sattelzug
+  const vehicleFor = (o: Order) => {
+    const solo = idleVehicles.find((v) => {
+      const sp = TRUCK_BY_ID[v.modelId]?.body ? loadSpace(v.modelId) : null;
+      return sp && sp.type === o.trailerType && sp.payloadT >= o.weightT;
+    });
+    return solo ?? idleVehicles.find((v) => !TRUCK_BY_ID[v.modelId]?.body) ?? idleVehicles[0];
+  };
+  const driverAt = (cityId?: string) => Object.values(s.drivers).find((d) => d.status === 'idle' && d.cityId === cityId) ?? Object.values(s.drivers)[0];
 
   const rows = useMemo(() => {
     const list = Object.values(s.orders).filter((o) => {
       if (o.status !== 'offered') return false;
-      if (trailer === 'fleet' && !fleetTrailers.has(o.trailerType)) return false;
+      if (trailer === 'fleet' && !fitsFleet(o)) return false;
+      if (size === 'partial' && !o.partial) return false;
+      if (size === 'full' && o.partial) return false;
       if (trailer && trailer !== 'fleet' && o.trailerType !== trailer) return false;
       if (cargo && o.cargoId !== cargo) return false;
       if (intl === 'yes' && !o.international) return false;
@@ -43,7 +57,9 @@ export function OrdersPage() {
     });
     return list
       .map((o) => {
-        const est = idleVehicle && idleDriver ? estimateTrip(s, world, { orderId: o.id, driverId: idleDriver.id, vehicleId: idleVehicle.id, trailerId: '' }) : null;
+        const veh = vehicleFor(o);
+        const drv = veh ? driverAt(veh.cityId) : undefined;
+        const est = veh && drv ? estimateTrip(s, world, { orderId: o.id, driverId: drv.id, vehicleId: veh.id, trailerId: '' }) : null;
         return { o, est, perKm: o.payment / o.distanceKm };
       })
       .sort((a, b) => {
@@ -53,7 +69,7 @@ export function OrdersPage() {
       })
       .slice(0, 150);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s, originRadius, anchor, trailer, cargo, intl, key, dir]);
+  }, [s, originRadius, anchor, trailer, cargo, intl, size, key, dir]);
 
   const mine = Object.values(s.orders).filter((o) => o.status === 'accepted' || o.status === 'planned' || o.status === 'in_transit');
   const focused = focus ? s.orders[focus] : undefined;
@@ -95,6 +111,14 @@ export function OrdersPage() {
               <option value="">National & international</option>
               <option value="no">Nur national</option>
               <option value="yes">Nur international</option>
+            </select>
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label>Ladungsgröße</label>
+            <select className="input" value={size} onChange={(e) => setSize(e.target.value as typeof size)}>
+              <option value="">Komplett- & Teilladungen</option>
+              <option value="full">Nur Komplettladungen</option>
+              <option value="partial">Nur Teilladungen</option>
             </select>
           </div>
         </div>
@@ -158,6 +182,7 @@ export function OrdersPage() {
                     {cargoName(o.cargoId)} <span className="dim">{tons(o.weightT)}</span>
                     <div className="row wrap" style={{ gap: 4, marginTop: 3 }}>
                       <Badge>{trailerName(o.trailerType)}</Badge>
+                      {o.partial && <Badge kind="violet">Teilladung</Badge>}
                       {o.express && <Badge kind="warning">Express</Badge>}
                       {o.qualifications.map((q) => <Badge key={q} kind="danger">{QUAL_LABEL[q]}</Badge>)}
                     </div>

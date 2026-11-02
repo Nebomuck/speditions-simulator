@@ -6,7 +6,7 @@
 import { CITY_BY_ID } from './data/cities.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
-import { createRelocation, createTrip, validateDispatch, type Issue } from './dispatch.ts';
+import { createRelocation, createTrip, queueJob, unqueueJob, validateDispatch, type Issue } from './dispatch.ts';
 import { addLog, book, factorInvoices, formatMoney, repayLoan, takeLoan } from './finance.ts';
 import { plate, vehicleMarketValue } from './generate.ts';
 import { freshHos } from './hos.ts';
@@ -20,6 +20,8 @@ export type Command =
   | { type: 'acceptOrder'; orderId: Id }
   | { type: 'cancelOrder'; orderId: Id }
   | { type: 'dispatch'; orderId: Id; driverId: Id; vehicleId: Id; trailerId: Id }
+  | { type: 'queueDispatch'; orderId: Id; vehicleId: Id }
+  | { type: 'unqueue'; orderId: Id; vehicleId: Id }
   | { type: 'relocate'; driverId: Id; vehicleId: Id; trailerId?: Id; toCityId: string }
   | { type: 'buyUsedVehicle'; offerId: Id }
   | { type: 'buyNewVehicle'; modelId: string; financing: 'cash' | 'lease' }
@@ -45,6 +47,8 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   acceptOrder: 'dispatch',
   cancelOrder: 'dispatch',
   dispatch: 'dispatch',
+  queueDispatch: 'dispatch',
+  unqueue: 'dispatch',
   relocate: 'dispatch',
   buyUsedVehicle: 'purchase',
   buyNewVehicle: 'purchase',
@@ -122,6 +126,8 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
     }
     case 'cancelOrder': {
       const o = state.orders[cmd.orderId];
+      // eingeplante Folgeaufträge vorher aus der Planung nehmen
+      if (o?.status === 'planned' && !o.tripId) for (const v of Object.values(state.vehicles)) unqueueJob(state, v.id, o.id);
       if (!o || o.status !== 'accepted') return fail('Nur angenommene, noch nicht disponierte Aufträge können storniert werden.');
       const fee = Math.round(o.payment * 0.15);
       o.status = 'cancelled';
@@ -140,6 +146,19 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       if (order.status === 'offered') order.status = 'accepted';
       const trip = createTrip(state, ctx, cmd, estimate);
       return { ok: true, id: trip.id, warnings: issues };
+    }
+    case 'queueDispatch': {
+      const order = state.orders[cmd.orderId];
+      const wasOffered = order?.status === 'offered';
+      const r = queueJob(state, ctx, cmd.vehicleId, cmd.orderId);
+      if (!r.ok) return fail(r.error, r.issues);
+      if (wasOffered) addLog(state, { level: 'info', category: 'order', text: 'Angebot angenommen und direkt eingeplant.', ref: { kind: 'order', id: cmd.orderId } });
+      return { ok: true, warnings: r.issues };
+    }
+    case 'unqueue': {
+      if (!unqueueJob(state, cmd.vehicleId, cmd.orderId)) return fail('Folgeauftrag nicht gefunden.');
+      addLog(state, { level: 'info', category: 'trip', text: 'Folgeauftrag aus der Planung genommen – er liegt wieder bei den angenommenen Aufträgen.', ref: { kind: 'order', id: cmd.orderId } });
+      return { ok: true };
     }
     case 'relocate': {
       const d = state.drivers[cmd.driverId];

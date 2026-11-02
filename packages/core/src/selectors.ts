@@ -3,7 +3,7 @@
 import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
-import { UNLOAD_MIN_FACTOR } from './dispatch.ts';
+import { UNLOAD_MIN_FACTOR, speedFactor } from './dispatch.ts';
 import { haversineKm, type LonLat } from './geo.ts';
 import { hosRest, simulateDriving } from './hos.ts';
 import type { GameState, Id, Trip } from './types.ts';
@@ -79,7 +79,7 @@ export function tripEta(state: GameState, ctx: SimContext, trip: Trip): number {
   for (let li = trip.legIndex; li < trip.legs.length; li++) {
     const leg = trip.legs[li];
     const from = li === trip.legIndex ? trip.progressKm : 0;
-    t += simulateDriving(hos, remainingDriveMin(ctx, leg.nodes, from)).elapsed;
+    t += simulateDriving(hos, remainingDriveMin(ctx, leg.nodes, from) / speedFactor(state.vehicles[trip.vehicleId]?.modelId ?? '')).elapsed;
     if (order && cargo && li === 0 && trip.phase === 'to_pickup') {
       if (t < order.pickupStart) t = order.pickupStart;
       t += cargo.loadMin;
