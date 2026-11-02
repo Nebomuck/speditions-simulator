@@ -4,6 +4,8 @@
   "version": "0.2.0",
   "identifier": "de.spedsim.desktop",
   "build": {
+    "beforeBuildCommand": "npm run build:server --prefix ../.. && npm run build --prefix ../../apps/client",
+    "beforeDevCommand": "",
     "frontendDist": "../../client/dist",
     "devUrl": "http://localhost:5173"
   },

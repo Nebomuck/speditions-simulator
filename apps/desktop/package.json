@@ -4,7 +4,7 @@
   "private": true,
   "description": "Windows-Desktop-Anwendung (Tauri 2) – bündelt den Client als native App",
   "scripts": {
-    "build": "npm run build -w @spedsim/client && tauri build",
+    "build": "tauri build",
     "dev": "tauri dev"
   }
 }

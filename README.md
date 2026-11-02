@@ -42,14 +42,10 @@ npm run typecheck
 ### Windows-Anwendung bauen
 
 ```bash
-npm run build:server
-```
-
-```bash
 npm run build -w @spedsim/desktop
 ```
 
-`build:server` bündelt den Multiplayer-Server mit esbuild und erzeugt daraus eine eigenständige `spedsim-server.exe` (Node Single Executable Application), die als Tauri-Sidecar nach `apps/desktop/src-tauri/binaries/` kopiert wird. Danach erzeugt der zweite Befehl einen NSIS-Installer unter `apps/desktop/src-tauri/target/release/bundle/nsis/` mit Einzelspieler und eingebautem Multiplayer-Server.
+Baut automatisch Oberfläche und Server mit (`beforeBuildCommand`). `npm run build:server` bündelt den Multiplayer-Server mit esbuild und erzeugt daraus eine eigenständige `spedsim-server.exe` (Node Single Executable Application), die als Tauri-Sidecar nach `apps/desktop/src-tauri/binaries/` kopiert wird. Ergebnis ist ein NSIS-Installer unter `apps/desktop/src-tauri/target/release/bundle/nsis/` mit Einzelspieler und eingebautem Multiplayer-Server.
 
 ### Straßennetz neu erzeugen (optional)
 

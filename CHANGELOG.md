@@ -13,7 +13,8 @@
 
 ### Behoben
 - Dieselpreis und €/km wurden mit Dezimalpunkt statt -komma angezeigt
-- Verbindungsfehler vor dem Beitritt führten zu endlosen Wiederverbindungsversuchen
+- Verbindungsfehler vor dem Beitritt führten zu endlosen Wiederverbindungsversuchen; jetzt erscheint eine klare Fehlermeldung („Server … nicht erreichbar“)
+- Erster 0.2.0-Installer enthielt noch die Oberfläche von 0.1.0 („Firma gründen“ reagierte nicht). Der Tauri-Build baut Client und Server jetzt immer selbst mit (`beforeBuildCommand`)
 
 ## 0.1.0 – 02.11.2026
 

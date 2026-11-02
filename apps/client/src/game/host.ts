@@ -145,7 +145,14 @@ export class RemoteHost implements GameHost {
     };
     ws.onclose = () => {
       if (this.closed) return;
-      this.events.onStatus?.(this.welcomed ? 'Verbindung getrennt – neuer Versuch …' : 'Server nicht erreichbar – neuer Versuch …');
+      // Erstverbindung gescheitert → melden statt still endlos zu wiederholen
+      if (!this.welcomed) {
+        this.close();
+        this.events.onStatus?.('');
+        this.events.onError(`Server ${this.url.replace(/^wss?:\/\//, '')} nicht erreichbar. Läuft das Spiel beim Host und ist die Adresse richtig?`);
+        return;
+      }
+      this.events.onStatus?.('Verbindung getrennt – neuer Versuch …');
       for (const r of this.pending.values()) r({ ok: false, error: 'Verbindung getrennt.' });
       this.pending.clear();
       setTimeout(() => {
