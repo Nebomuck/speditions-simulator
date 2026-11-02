@@ -1,0 +1,11 @@
+{
+  "name": "@spedsim/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Gemeinsame, UI-unabhängige Simulationslogik (Client-Einzelspieler und Multiplayer-Server)",
+  "exports": {
+    ".": "./src/index.ts",
+    "./roadnet.json": "./src/data/roadnet.json"
+  }
+}

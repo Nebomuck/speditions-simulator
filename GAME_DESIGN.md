@@ -1,0 +1,151 @@
+# Game Design Document – Speditions-Simulator
+
+## 1. Vision
+
+Der Spieler beginnt als Einzelunternehmer mit einem gebrauchten LKW, einem Fahrer und knappem Kapital und baut über viele Spielstunden ein internationales Logistikunternehmen auf. Der Reiz entsteht nicht aus „möglichst vielen LKW“, sondern aus **wirtschaftlich guten Entscheidungen**: welche Aufträge, welche Rückladung, wann investieren, wen einstellen, wie viel Gehalt sich selbst auszahlen.
+
+Leitsätze:
+
+1. **Alles hängt zusammen.** Jede Aktion verändert die Simulation, z. B. Auftrag → Fahrt → Position → Kosten → Rechnung → Liquidität → Investitionsspielraum.
+2. **Das Geld ist knapp, aber fair.** Zufall erzeugt Abwechslung, keine Willkür. Ereignisse haben Ursachen (Zustand, Fahrer, Saison).
+3. **Professionelles Werkzeug, Spielgefühl.** Die Oberfläche erinnert an Transportmanagement-Software, belohnt aber mit Fortschritt, Klängen und einer lebendigen Karte.
+4. **Delegation als Fortschritt.** Anfangs macht der Spieler alles selbst. Später übernehmen Mitarbeiter, und der Spieler gewinnt Zeit für Strategie und Privatleben.
+
+## 2. Spielablauf (Core Loop)
+
+```
+Auftragsbörse prüfen → Auftrag kalkulieren → Disponieren (Fahrer + LKW + Auflieger)
+   → Fahrt läuft live (Pausen, Ruhezeiten, Tanken, Pannen)
+   → Lieferung → Rechnung (Zahlungsziel) → Zahlungseingang
+   → Rückladung suchen / Fahrzeug überführen → investieren / einstellen
+```
+
+Mittelfristig: Fuhrpark und Personal erweitern, Standorte ausbauen, Stammkunden gewinnen.
+Langfristig: Niederlassungen, Abteilungen, KI-Disponenten, Konzernsteuerung, gemeinsames Spiel mit Freunden.
+
+## 3. Zeit
+
+- Simulationszeit in Minuten. Spielbeginn ist Montag, 4. Januar 2027, 06:00.
+- Geschwindigkeit in Spielminuten pro Echtsekunde: 1×, 2×, 5×, 10×, 30×, 60×. Bei 60× dauert ein Spieltag 24 Sekunden, eine Fahrt Leipzig–Madrid gut eine Minute.
+- Die Simulation läuft in festen 1-Minuten-Schritten, unabhängig von der Geschwindigkeit. Dadurch werden Pausen und Ruhezeiten auch bei Beschleunigung exakt eingehalten.
+- Kalender: Wochentage, Monate, Jahreszeiten und europaweit einheitliche Feiertage (Neujahr, Karfreitag, Ostermontag, 1. Mai, Christi Himmelfahrt, Pfingstmontag, Weihnachten, Silvester). Am Wochenende und an Feiertagen gibt es deutlich weniger Aufträge.
+- Monatsabrechnung am Monatsersten um 00:00.
+
+## 4. Welt & Karte
+
+- 161 europäische Städte in 29 Ländern mit Einwohnerzahl und Branchenprofil (Hafen, Chemie, Automobil, Lebensmittel, Landwirtschaft, Stahl, Handel, Logistik, Elektronik, Pharma, Maschinenbau, Holz, Bau).
+- **Straßennetz:** 384 echte Straßenverbindungen zwischen benachbarten Städten, einmalig aus OpenStreetMap-Routen erzeugt (OSRM) und als Geometrie gespeichert. Im Spiel wird offline per Dijkstra geroutet (schnellste LKW-Route).
+- Die LKW-Geschwindigkeit je Abschnitt ergibt sich aus der echten Durchschnittsgeschwindigkeit der Straße (Autobahn vs. Landstraße), ist auf 80 km/h begrenzt und wird durch Berufsverkehr in Ballungsräumen sowie die Erfahrung des Fahrers beeinflusst.
+- Fährverbindungen sind nur an definierten Übergängen erlaubt (Calais–Dover). Auf der Fähre gilt die Zeit als Ruhezeit.
+- Grundkarte (Vektorkacheln) mit Ländergrenzen, Städten und Straßen. Fällt sie aus (offline), bleibt das spieleigene Straßennetz sichtbar.
+
+## 5. Aufträge – Warenflussmodell
+
+Aufträge sind nicht zufällig. Sie entstehen so:
+
+1. Eine Ladungsart wird gewählt, gewichtet nach Häufigkeit und **Saison**: Getreide zur Ernte, Baustoffe im Sommer, Konsumgüter vor Weihnachten.
+2. Der Ursprung ist eine Stadt, deren Branchen diese Ware **erzeugen**, gewichtet nach Größe. 45 % der Aufträge entstehen im Einzugsgebiet (450 km) der eigenen Standorte und Fahrzeuge.
+3. Das Ziel wird nach einem **Gravitationsmodell** gewählt: Städte, deren Branchen die Ware **benötigen**, gewichtet mit Größe ÷ Entfernung^1,05, bei 60–2.300 km.
+4. Der Auftraggeber ist ein persistentes Kundenunternehmen der passenden Branche in der Ursprungsstadt.
+5. **Vergütung** = Satz je Ladungsart × km × Kurzstreckenzuschlag × Dieselzuschlag + Ladepauschale, multipliziert mit Schwierigkeit, Marktnachfrage, Preissensibilität des Kunden und ±10 % Verhandlungsspielraum. Express-Aufträge bringen +30 %.
+6. **Zeitfenster:** Abholung in 4–48 h (Express 2–10 h) mit einem 2–8-h-Fenster. Die Lieferfrist ergibt sich aus der echten Fahrzeit inklusive Lenk- und Ruhezeiten × Puffer (1,2–1,7, Express 1,08–1,2).
+7. **Vertragsstrafe:** 2 % (Express 4 %) der Vergütung je angefangene Verspätungsstunde, gedeckelt auf 50 %.
+
+19 Ladungsarten mit eigenem Aufliegertyp, z. B. Paletten und Stückgut (Plane), Kühl- und Tiefkühlware sowie Pharma (Kühlauflieger), Baustoffe, Stahlcoils, Getreide und Kies (Kipper), Hackschnitzel (Schubboden), See- und Exportcontainer, Neufahrzeuge (Autotransporter), Chemikalien und Mineralöl (Tank, **ADR** erforderlich), Industriemaschinen (Tieflader, **Schwertransport-Qualifikation**), Autoteile (JIT, häufig Express) und Elektronik.
+
+Die Börse hält etwa 320 offene Angebote. Angebote verfallen, neue entstehen stündlich.
+
+## 6. Disposition
+
+Eine Fahrt besteht aus Fahrer, Zugmaschine und Auflieger, die am selben Ort stehen müssen. Sie läuft in Phasen: Leerfahrt zur Ladestelle → ggf. Warten auf das Ladefenster → Beladung → Lastfahrt → Entladung.
+
+**Konfliktprüfung.** Fehler blockieren die Disposition:
+- Fahrer, LKW oder Auflieger bereits verplant
+- falscher Aufliegertyp
+- Nutzlast überschritten
+- fehlende Qualifikation (ADR, Schwertransport)
+- unterschiedliche Standorte
+- Fahrzeug nicht verkehrssicher (Zustand < 15 %)
+- Angebot abgelaufen
+
+**Warnungen** erlauben die Disposition trotzdem:
+- Fahrer braucht zuerst noch Ruhe
+- Abhol- oder Lieferfenster wird voraussichtlich verpasst (mit Strafe)
+- Tankstopps nötig
+- kritischer Wartungszustand
+- Fahrt voraussichtlich unwirtschaftlich
+
+**Vorkalkulation:** Leer- und Last-km, reine Fahrzeit, Pausen und Ruhezeiten, Ankunftszeiten, Diesel, Maut, anteilige Fahrer- und Fahrzeugkosten, Erlös nach Strafe, Ergebnis.
+
+**Ansichten:** Plantafel mit Drag-and-Drop (Auftrag auf eine Fahrzeugzeile ziehen) samt 72-h-Zeitstrahl (Gantt), Listenansicht, Fahreransicht (Lenkzeiten), Kartenansicht. Überführungsfahrten (leer) sind jederzeit möglich.
+
+## 7. Lenk- und Ruhezeiten (vereinfachte VO (EG) 561/2006)
+
+| Regel | Umsetzung |
+|---|---|
+| Fahrtunterbrechung | nach 4,5 h Lenkzeit 45 min |
+| Tageslenkzeit | max. 9 h, danach 11 h Tagesruhe |
+| Wochenlenkzeit | max. 56 h bzw. nach 6 Tageslenkzeiten 45 h Wochenruhe |
+| Ruhe im Stand | Standzeit ohne Arbeit zählt als Ruhe; Be-/Entladen und Tanken zählen als Arbeit |
+
+**Bewusste Vereinfachungen** (später erweiterbar): keine Aufteilung 15 + 30 min, keine 10-h-Tage, keine verkürzten Ruhezeiten, keine Doppelwochen-Grenze von 90 h, keine 13-h-Schichtregel, keine Doppelbesatzung, kein Sonntagsfahrverbot (geplant für Phase 10).
+
+## 8. Fahrzeuge
+
+Sechs fiktive Zugmaschinen von vier Herstellern (Nordwal, Velkor, Brennkraft, Trasko) mit Leistung, Verbrauch, Tank, Emissionsklasse, Preis, Leasingrate, Versicherung und Haltbarkeit, dazu neun Aufliegertypen.
+
+- **Verbrauch** = Basis × (1 + 0,35 × Beladungsgrad) × Fahrweise-Faktor (sparsame Fahrer −16 %).
+- **Verschleiß** je km, abhängig von Haltbarkeit, Beladung und Fahrweise. Unter 45 % Zustand steigt die Pannenwahrscheinlichkeit pro km. Eine Panne dauert 3–8 h und kostet 450–2.400 € Pannenhilfe.
+- **Werkstatt:** Wartung auf 100 %; Dauer und Kosten hängen vom Zustand ab.
+- **Tanken** automatisch unter 15 % Tankinhalt, 25 min, Länderpreisfaktor (LU/PL/CZ/SK/HU günstiger, CH/NO teurer).
+- **Beschaffung:** Gebrauchtmarkt mit wechselnden Angeboten, Neukauf, Leasing (erste Rate sofort), Verkauf zu 90 % des Marktwerts, vorzeitige Leasingrückgabe mit 3 Raten Ablöse.
+- **Marktwert** = Neupreis × 0,86^Alter × Laufleistungs- und Zustandsfaktor.
+
+## 9. Personal
+
+Fahrer haben Name, Alter, Heimatort, Erfahrung, Führerscheinklassen, Qualifikationen (ADR, Schwertransport, Kühltransport), Gehaltsvorstellung, Zuverlässigkeit, Sparsamkeit, Belastbarkeit und Zufriedenheit. Erfahrung wächst mit gefahrenen Last-km und erhöht das Tempo leicht. Täglich gehen neue Bewerbungen ein. Eine Einstellung kostet 350 €, eine Entlassung ein Monatsgehalt Abfindung und senkt die Zufriedenheit der Kollegen.
+
+## 10. Wirtschaft & Finanzen
+
+- **Firmenkonto** mit Kontokorrentrahmen 10.000 € und 12 % p. a. Überziehungszins.
+- **Rechnungen:** Nach jeder Lieferung entsteht eine Forderung mit dem Zahlungsziel des Kunden (14–60 Tage). Wann und ob gezahlt wird, hängt von der Zahlungsmoral ab: pünktlich, verspätet (+2–35 Tage, dazu Mahnungen) oder Ausfall (Abschreibung nach 60 Tagen). Gewinn heißt daher noch lange nicht Liquidität.
+- **Laufende Kosten (monatlich):** Löhne + 21 % Arbeitgeberanteil, Miete, Versicherung je Fahrzeug und Auflieger, Leasing, Geschäftsführergehalt, Verwaltung.
+- **Variable Kosten:** Diesel (beim Tanken), Maut (je Land, bei Fahrtende abgerechnet), Werkstatt, Pannen, Strafen.
+- **Dieselpreis:** Random Walk um 1,55 €/l netto. **Nachfrageindex** saisonal mit Konjunkturrauschen.
+
+## 11. Kunden
+
+Persistente Unternehmen mit Branche, Größe, Zahlungsmoral, Zahlungsziel, Zufriedenheit und Preissensibilität. Pünktliche Lieferungen bringen +3 Zufriedenheit (Express +4), Verspätungen −5 bis −25. Die Firmen-Reputation (0–100) bewegt sich mit. Rahmenverträge folgen in Phase 5.
+
+## 12. Standorte
+
+Kleines Büro (2 Stellplätze) → Büro mit Betriebshof (8) → großer Betriebshof (25). Stellplätze begrenzen den Fuhrpark tatsächlich.
+
+## 13. Lebenssimulation (Grundlage)
+
+Jeder Spieler hat einen Charakter mit 2D-Avatar, Alter, Privatkonto, Wohnung und Bedürfnissen. **Privat- und Firmenvermögen sind getrennt.** Das Geschäftsführergehalt geht am Monatsersten von der Firma aufs Privatkonto, Miete und Lebenshaltung (1.450 €) vom Privatkonto ab. Ein höheres Gehalt erhöht den privaten Wohlstand und belastet die Firma. Bedürfnisse, Aktivitäten, Immobilien und Beziehungen folgen in Phase 8.
+
+## 14. Schwierigkeitsgrade
+
+| | Einfach | Normal | Realistisch |
+|---|---|---|---|
+| Startkapital | 60.000 € | 25.000 € | 12.000 € |
+| Frachtraten | +15 % | ±0 | −8 % |
+| Pannen/Verzögerungen | ×0,5 | ×1 | ×1,4 |
+| Zahlungsrisiko | ×0,5 | ×1 | ×1,6 |
+| Start-LKW | gekauft | geleast | geleast |
+
+Ein benutzerdefinierter Schwierigkeitsgrad ist im Datenmodell vorhanden (`custom` + Einzelwerte); die Oberfläche dafür folgt.
+
+## 15. Multiplayer (kooperativ)
+
+Mehrere Spieler leiten **dieselbe** Firma. Der Server simuliert allein (serverautoritativ), Clients senden Befehle.
+
+- **Rechte:** Disposition, Fuhrpark, Beschaffung, Fahrzeugverkauf, Einstellen, Entlassen, Finanzen, Kredite, Standorte, Spielleitung. Der Gründer hat alle Rechte und vergibt sie. Neue Spieler starten mit Disposition und Fuhrpark.
+- **Gemeinsame Spielzeit:** Nur Spieler mit dem Recht „Spielleitung“ ändern Tempo und Pause. Die Zeit läuft nur, solange mindestens ein Spieler verbunden ist.
+- **Kommunikation:** Firmenchat, Ereignisprotokoll und Benachrichtigungen.
+- **Eigene Charaktere:** Jeder Spieler hat ein eigenes Privatkonto, das Firmenkonto ist gemeinsam.
+
+## 16. Spielfortschritt (geplant, Phase 6/7)
+
+Die Stufen 1 bis 6 (Kleinstunternehmen bis Logistikkonzern) ergeben sich aus Kennzahlen wie Fuhrpark, Umsatz, Standorten und Reputation. Freischaltungen blockieren nicht künstlich: Wer genug Kapital und die Voraussetzungen hat, darf früher wachsen.

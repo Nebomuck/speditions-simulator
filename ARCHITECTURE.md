@@ -1,0 +1,113 @@
+# Architektur
+
+## Technologiewahl (begründet)
+
+| Bereich | Wahl | Begründung |
+|---|---|---|
+| Sprache | TypeScript (strikt, nur „erasable syntax“) | Eine Sprache für Client, Server und Simulation. Der Simulationskern läuft unverändert im Browser-Worker und auf dem Server. Node 26 führt `.ts` direkt aus, der Server braucht keinen Build-Schritt. |
+| Oberfläche | React 19 + Vite 7 | Etablierte, schnelle Toolchain für eine umfangreiche 2D-Management-Oberfläche |
+| Karte | MapLibre GL JS 5 (WebGL) | Open Source (BSD-3), Vektorkacheln, performant mit tausenden Punkten, GeoJSON-Layer für Fahrzeuge und Routen |
+| Grundkarte | OpenFreeMap (OSM/OpenMapTiles) | Kostenlos ohne API-Schlüssel; per Umgebungsvariable gegen selbst gehostete PMTiles austauschbar |
+| Straßenrouting | **Vorberechnetes Straßennetz** aus OSRM-Routen + Dijkstra im Spiel | Keine Abhängigkeit von öffentlichen Routingservern zur Laufzeit (Nutzungsbedingungen), offline-fähig, deterministisch, schnell. Ein eigener OSRM- oder Valhalla-Server ist nur zum (Neu-)Erzeugen nötig. |
+| Desktop | Tauri 2 | Kleiner Installer (WebView2 statt gebündeltem Chromium), Rust ist vorhanden, MIT/Apache-2.0 |
+| Multiplayer | Node.js + `ws` (WebSocket) | Gleiche Simulationslogik serverseitig, einfache Echtzeit-Synchronisation |
+| Persistenz Server | SQLite über `node:sqlite` | Eingebaut, transaktional, keine externe Datenbank nötig. Für gehostete Großinstallationen ist PostgreSQL später möglich (Spielstände sind ein JSON-Dokument je Firma). |
+| Persistenz Einzelspieler | IndexedDB (im Worker) | In Browser und Tauri-WebView verfügbar, großzügige Limits |
+| Tests | Vitest | Schnell, versteht TypeScript direkt |
+
+## Module
+
+```
+packages/core/src
+├── types.ts        Datenmodelle (GameState, Company, Driver, Vehicle, Order, Trip, Invoice, Player …)
+├── data/           Weltdaten: cities.ts (161 Städte), catalog.ts (LKW, Auflieger, Ladungen, Maut, Standorte),
+│                   names.ts (Namensbausteine), roadnet.json (erzeugtes Straßennetz)
+├── geo.ts          Geometrie (Haversine, Polyline, Douglas-Peucker, Position entlang Linie)
+├── time.ts         TimeSystem: Kalender, Wochentage, Jahreszeiten, Feiertage, Formatierung
+├── rng.ts          deterministischer Zufall (Zustand im Spielstand)
+├── routing.ts      RoutingSystem: RoadNetwork, Dijkstra, Positionsberechnung entlang echter Geometrie
+├── context.ts      SimContext (unveränderliche Weltdaten zur Laufzeit)
+├── hos.ts          DriverSystem: Lenk- und Ruhezeiten
+├── finance.ts      FinanceSystem: Buchungen, Rechnungen, Zahlungen, Monatsabrechnung, Log
+├── generate.ts     Bewerber, Kunden, Gebrauchtfahrzeuge, Kennzeichen, Marktwert
+├── orders.ts       OrderSystem: Warenflussmodell, Auftragsbörse
+├── dispatch.ts     DispatchSystem: Vorkalkulation, Konfliktprüfung, Fahrtanlage
+├── trips.ts        VehicleSystem: minutengenaue Fahrtsimulation
+├── sim.ts          SimulationEngine: Minuten-Tick, stündliche/tägliche/monatliche Prozesse
+├── commands.ts     CommandSystem: alle Spieleraktionen + Berechtigungen
+├── game.ts         GameCore: neues Spiel, Spieler hinzufügen, Schwierigkeitsgrade
+├── save.ts         PersistenceSystem: Speicherformat, Prüfsumme, Migrationen
+├── session.ts      GameSession: Echtzeit → Spielminuten, Befehlsausführung
+└── selectors.ts    abgeleitete Ansichten (Fahrzeugposition, ETA, Verspätung)
+
+apps/client/src
+├── worker/         Einzelspieler-Host (GameSession im Web Worker) + IndexedDB-Speicher
+├── game/           GameHost-Abstraktion (LocalHost / RemoteHost), Client-Store, Protokoll
+├── ui/             MapView (MapSystem), DispatchDialog, Shell, Komponenten, Klänge
+└── pages/          Dashboard, Karte, Disposition, Börse, Personal, Fuhrpark, Finanzen, Kunden,
+                    Standorte, Privatleben, Team, Statistiken, Einstellungen
+
+apps/server/src     MultiplayerServer (Räume, Authentifizierung per Token, SQLite, Backups)
+```
+
+Die Abhängigkeiten zeigen nur in eine Richtung: `types/data/geo/time/rng` → `routing/hos/finance/generate` → `orders/dispatch/trips` → `sim/commands/game` → `save/session/selectors`. Die Oberfläche und der Server hängen nur von `@spedsim/core` ab.
+
+## Zustand & Determinismus
+
+- Der gesamte Spielzustand ist **ein JSON-Objekt** (`GameState`): serialisierbar, synchronisierbar, speicherbar.
+- Geld in ganzen Cent, Zeit in ganzen Spielminuten.
+- Zufall nur über `rng.ts` mit Zustand im Spielstand. Gleicher Spielstand + gleiche Befehle ergeben den gleichen Verlauf; der Speichertest prüft das.
+- Fahrten speichern nur Knotenfolgen und km-Fortschritt. Die Geometrie kommt aus dem Straßennetz, deshalb bleiben Spielstände klein.
+
+## Simulationsschleife
+
+```
+Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed ─► tickMinute() × n
+                                                       │
+     tickMinute: Fahrten (Fahren/Pausen/Tanken/Laden/Pannen) → Fahrer-Ruhe → Werkstatt
+                 + stündlich: Auftragsbörse, Rechnungen
+                 + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Statistik, Monatsabrechnung
+```
+
+- Die Simulation läuft unabhängig von der Darstellung: im Worker (Einzelspieler) bzw. auf dem Server (Multiplayer).
+- Der Client bekommt alle 200–250 ms einen Schnappschuss und **interpoliert die Fahrzeugpositionen pro Animationsframe** (~30 fps). Dafür rechnet er die aktuelle Geschwindigkeit × die seit dem Schnappschuss vergangene Spielzeit entlang der echten Straßengeometrie hoch.
+- Performance gemessen: 300 gleichzeitig fahrende LKW, 1 Spieltag (1.440 Ticks) in ca. 0,5–0,6 s. Positionsberechnung für alle Fahrzeuge < 100 ms.
+
+## Befehle & Berechtigungen
+
+Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx, actorId, cmd)` prüft das Recht, validiert die Eingaben und ändert den Zustand atomar. Im Multiplayer führt **nur der Server** Befehle aus, und zwar strikt nacheinander. Doppelte Zuweisungen sind dadurch ausgeschlossen: Der zweite von zwei gleichzeitigen Dispositionsbefehlen scheitert an der Konfliktprüfung (getestet).
+
+## Multiplayer
+
+- **Betriebsmodell:** dedizierter Serverprozess (`npm run server`), lokal, im LAN oder gehostet (VPS/Container). Ein Server verwaltet beliebig viele Firmen (Räume).
+- **Protokoll (JSON über WebSocket):**
+  - Client → Server: `create`, `join` (Einladungscode + Name oder playerId + Token), `cmd`
+  - Server → Client: `welcome` (playerId, inviteCode, Token), `state` (vollständiger Zustand), `result`, `error`
+- **Synchronisation:** vollständige Zustandsschnappschüsse (~160 KB unkomprimiert, WebSocket-Deflate aktiv) alle 250 ms bei Änderungen und sofort nach erfolgreichen Befehlen. *Optimierung geplant:* Delta-Updates und getrennte Positionskanäle für sehr große Flotten.
+- **Wiederverbindung:** Der Client speichert playerId und Token und verbindet sich bei Abbruch automatisch neu. Die Simulation bleibt unbeschädigt, weil sie serverseitig liegt.
+- **Gemeinsame Zeit:** Der Raum simuliert nur, solange Spieler verbunden sind. Ohne Spieler wird gespeichert (mit Backup) und der Raum entladen.
+- **Persistenz:** Autosave alle 30 s bei Änderungen, Backup alle 10 min (die letzten 10 je Firma), beim Beenden und beim Verlassen des letzten Spielers. Ist der Spielstand beschädigt, wird das letzte Backup geladen.
+- **Sicherheit:** Nachrichten maximal 64 KB, Eingaben werden bereinigt, Berechtigungen serverseitig geprüft, Spieler-Token mit 144 Bit Zufall. TLS (wss://) übernimmt ein vorgeschalteter Reverse Proxy (z. B. Caddy).
+
+## Speicherformat
+
+```json
+{ "format": "spedsim-save", "version": 1, "savedAt": "…", "name": "…", "checksum": "fnv1a32",
+  "meta": { "company": "…", "time": 0, "balance": 0 }, "state": { … GameState … } }
+```
+
+- Die Prüfsumme läuft über den exakten JSON-Text von `state`. Beschädigte Dateien werden erkannt; dann wird die Sicherungskopie geladen.
+- `MIGRATIONS[n]` hebt Spielstände von Version n auf n+1. Neuere Spielstände werden abgelehnt.
+- Einzelspieler: Autosave bei jedem Tageswechsel in drei rotierenden Slots plus manuelles Speichern. Beim Überschreiben bleibt `.bak` erhalten. Export und Import als Datei sind möglich.
+
+## Kartendaten – Lizenzen & Betrieb
+
+| Dienst | Nutzung | Hinweise / Alternative |
+|---|---|---|
+| OSRM-Demoserver | nur einmalig beim Erzeugen des Straßennetzes (~400 Anfragen, 1/s gedrosselt) | Für Regenerierung eigenen OSRM per Docker (`osrm/osrm-backend`, Europe-Extract von Geofabrik) |
+| OpenFreeMap-Kacheln | Grundkarte zur Laufzeit | Kostenlos, ohne Schlüssel, Spenden-finanziert. Für Produktion eigene PMTiles (Protomaps) auf einem statischen Host bereitstellen und `VITE_MAP_STYLE_*` setzen. |
+| OpenStreetMap-Daten | Straßengeometrie | ODbL 1.0 – Namensnennung ist im Spiel (Kartenattribution, Einstellungen) und in der README hinterlegt |
+
+## Desktop-Build
+
+`apps/desktop/src-tauri` bündelt `apps/client/dist` als native Windows-App (WebView2). Die Simulation läuft im Web Worker der App, Spielstände in IndexedDB des App-Profils. Geplant: Spielstände zusätzlich als Dateien im Benutzerordner (Tauri-fs) und ein optional mitgelieferter Server-Sidecar für LAN-Spiele.

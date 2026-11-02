@@ -1,0 +1,154 @@
+// GameHost-Abstraktion: Die Oberfläche spricht immer mit einem Host – entweder dem lokalen
+// Simulations-Worker (Einzelspieler) oder dem Multiplayer-Server über WebSocket.
+// Beide liefern Zustandsschnappschüsse und führen Befehle aus.
+
+import type { Command, CommandResult, NewGameOptions } from '@spedsim/core';
+import type { HostRequest, HostResponse, SaveMeta, Snapshot } from './protocol.ts';
+
+export interface HostEvents {
+  onSnapshot(s: Snapshot): void;
+  onError(message: string): void;
+  onStatus?(status: string): void;
+}
+
+export interface GameHost {
+  readonly mode: 'local' | 'remote';
+  command(cmd: Command): Promise<CommandResult>;
+  save?(name: string): Promise<void>;
+  exportSave?(): Promise<string>;
+  close(): void;
+  /** Multiplayer: Einladungscode */
+  inviteCode?: string;
+}
+
+export class LocalHost implements GameHost {
+  readonly mode = 'local' as const;
+  private worker: Worker;
+  private seq = 0;
+  private pending = new Map<number, (r: HostResponse) => void>();
+
+  constructor(events: HostEvents) {
+    this.worker = new Worker(new URL('../worker/sim.worker.ts', import.meta.url), { type: 'module' });
+    this.worker.onmessage = (ev) => {
+      const m = ev.data;
+      if (m.type === 'snapshot') events.onSnapshot(m.snapshot);
+      else if (m.type === 'error') events.onError(m.message);
+      else if (m.type === 'response') {
+        this.pending.get(m.id)?.(m.res);
+        this.pending.delete(m.id);
+      }
+    };
+  }
+
+  request(req: HostRequest): Promise<HostResponse> {
+    const id = ++this.seq;
+    return new Promise((resolve) => {
+      this.pending.set(id, resolve);
+      this.worker.postMessage({ id, req });
+    });
+  }
+
+  private async ok(req: HostRequest) {
+    const r = await this.request(req);
+    if (!r.ok) throw new Error(r.error);
+    return r;
+  }
+
+  newGame(options: NewGameOptions) {
+    return this.ok({ kind: 'new', options });
+  }
+  load(name: string) {
+    return this.ok({ kind: 'load', name });
+  }
+  importSave(text: string) {
+    return this.ok({ kind: 'import', text });
+  }
+  async listSaves(): Promise<SaveMeta[]> {
+    return (await this.ok({ kind: 'listSaves' })).saves ?? [];
+  }
+  async deleteSave(name: string) {
+    await this.ok({ kind: 'deleteSave', name });
+  }
+  async save(name: string) {
+    await this.ok({ kind: 'save', name });
+  }
+  async exportSave() {
+    return (await this.ok({ kind: 'export' })).text!;
+  }
+  async command(cmd: Command): Promise<CommandResult> {
+    const r = await this.request({ kind: 'command', cmd });
+    if (!r.ok) return { ok: false, error: r.error };
+    return r.result!;
+  }
+  close() {
+    this.request({ kind: 'close' });
+  }
+}
+
+type RemoteEvents = HostEvents & { onWelcome?(w: { playerId: string; gameId: string; inviteCode: string; token: string }): void };
+
+/** Multiplayer-Host: Verbindung zum serverautoritativen Spielserver. */
+export class RemoteHost implements GameHost {
+  readonly mode = 'remote' as const;
+  private ws: WebSocket;
+  private seq = 0;
+  private pending = new Map<number, (r: CommandResult) => void>();
+  inviteCode?: string;
+  private closed = false;
+
+  private url: string;
+  private hello: Record<string, unknown>;
+  private events: RemoteEvents;
+
+  constructor(url: string, hello: Record<string, unknown>, events: RemoteEvents) {
+    this.url = url;
+    this.hello = hello;
+    this.events = events;
+    this.ws = this.connect();
+  }
+
+  private connect(): WebSocket {
+    const ws = new WebSocket(this.url);
+    ws.onopen = () => {
+      this.events.onStatus?.('verbunden');
+      ws.send(JSON.stringify(this.hello));
+    };
+    ws.onmessage = (ev) => {
+      const m = JSON.parse(ev.data);
+      if (m.t === 'welcome') {
+        this.inviteCode = m.inviteCode;
+        // bei Wiederverbindung als bestehender Spieler beitreten
+        this.hello = { t: 'join', code: m.inviteCode, playerId: m.playerId, token: m.token };
+        this.events.onWelcome?.(m);
+      } else if (m.t === 'state') this.events.onSnapshot({ state: m.state, at: Date.now(), playerId: m.playerId });
+      else if (m.t === 'result') {
+        this.pending.get(m.id)?.(m.result);
+        this.pending.delete(m.id);
+      } else if (m.t === 'error') this.events.onError(m.message);
+    };
+    ws.onclose = () => {
+      if (this.closed) return;
+      this.events.onStatus?.('Verbindung getrennt – neuer Versuch …');
+      for (const r of this.pending.values()) r({ ok: false, error: 'Verbindung getrennt.' });
+      this.pending.clear();
+      setTimeout(() => {
+        if (!this.closed) this.ws = this.connect();
+      }, 2000);
+    };
+    return ws;
+  }
+
+  command(cmd: Command): Promise<CommandResult> {
+    const id = ++this.seq;
+    return new Promise((resolve) => {
+      if (this.ws.readyState !== WebSocket.OPEN) return resolve({ ok: false, error: 'Nicht verbunden.' });
+      this.pending.set(id, resolve);
+      this.ws.send(JSON.stringify({ t: 'cmd', id, cmd }));
+    });
+  }
+
+  close() {
+    this.closed = true;
+    this.ws.close();
+  }
+}

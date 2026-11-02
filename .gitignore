@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+.vite/
+apps/server/data/
+tools/roadnet/cache/
+src-tauri/target/
+apps/desktop/src-tauri/target/
