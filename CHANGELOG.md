@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 – unveröffentlicht
+## 0.6.0 – 03.11.2026
 
 - **Beiladung:** Weitere Aufträge können in eine laufende Fahrt aufgenommen werden (Auftrag auf den fahrenden LKW ziehen → „Zuladen“). Das Spiel fügt Laden und Entladen an der günstigsten Stelle ein, prüft die Nutzlast über die ganze Tour und warnt, wenn bereits geladene Aufträge dadurch zu spät kämen. Das Fahrzeugfenster auf der Karte zeigt alle Halte mit voraussichtlichen Zeiten; noch nicht abgeholte Beiladungen lassen sich wieder herausnehmen.
 - **Verkehrsstörungen:** Sperrungen und Staus entstehen laufend in ganz Europa, häufiger auf den Strecken der eigenen LKW. Sie erscheinen auf der Karte und in der Liste „Verkehrslage“. LKW werden um Sperrungen automatisch umgeleitet, Staus kosten Zeit. Planung und Ankunftsprognosen berücksichtigen die aktuelle Lage.
