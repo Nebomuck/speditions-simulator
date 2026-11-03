@@ -11,11 +11,15 @@ import { updateOrderMarket } from './orders.ts';
 import { defaultAutoDispatch } from './autodispatch.ts';
 import { BACKGROUNDS } from './life.ts';
 import { TEAM_ROLES } from './team.ts';
+import { updateWeather } from './world.ts';
+import { defaultEconomy } from './economy.ts';
+import { seedCompetitors } from './competition.ts';
+import { defaultEvents } from './events.ts';
 import { newId } from './rng.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, TeamRole } from './types.ts';
 
-export const STATE_VERSION = 8;
+export const STATE_VERSION = 9;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.15, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -106,6 +110,10 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     contracts: {},
     autoDispatch: defaultAutoDispatch(),
     team: { messages: [], tasks: [], activities: [], votes: [] },
+    weather: {},
+    economy: defaultEconomy(startTime),
+    competitors: {},
+    events: defaultEvents(),
   };
 
   const founderId = opts.founder.id ?? newId(state, 'pl');
@@ -149,6 +157,8 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     const o = makeVehicleOffer(state, hq.id);
     state.vehicleOffers[o.id] = o;
   }
+  updateWeather(state, ctx);
+  seedCompetitors(state);
   updateOrderMarket(state, ctx, true);
 
   addLog(state, {

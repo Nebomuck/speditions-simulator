@@ -125,11 +125,11 @@ Fahrer haben Name, Alter, Heimatort, Erfahrung, Führerscheinklassen, Qualifikat
 - **Rechnungen:** Nach jeder Lieferung entsteht eine Forderung mit dem Zahlungsziel des Kunden (14–60 Tage). Wann und ob gezahlt wird, hängt von der Zahlungsmoral ab: pünktlich, verspätet (+2–35 Tage, dazu Mahnungen) oder Ausfall (Abschreibung nach 60 Tagen). Gewinn heißt daher noch lange nicht Liquidität.
 - **Laufende Kosten (monatlich):** Löhne + 21 % Arbeitgeberanteil, Miete, Versicherung je Fahrzeug und Auflieger, Leasing, Geschäftsführergehalt, Verwaltung.
 - **Variable Kosten:** Diesel (beim Tanken), Maut (je Land, bei Fahrtende abgerechnet), Werkstatt, Pannen, Strafen.
-- **Dieselpreis:** Random Walk um 1,55 €/l netto. **Nachfrageindex** saisonal mit Konjunkturrauschen.
+- **Dieselpreis:** Random Walk um 1,55 €/l netto. **Nachfrageindex** = Saison × Konjunktur (siehe Abschnitt 17).
 
 ## 11. Kunden
 
-Persistente Unternehmen mit Branche, Größe, Zahlungsmoral, Zahlungsziel, Zufriedenheit und Preissensibilität. Pünktliche Lieferungen bringen +3 Zufriedenheit (Express +4), Verspätungen −5 bis −25. Die Firmen-Reputation (0–100) bewegt sich mit. Zufriedene Stammkunden zahlen in der Börse bis zu 5 % mehr.
+Persistente Unternehmen mit Branche, Größe, Zahlungsmoral, Zahlungsziel, Zufriedenheit und Preissensibilität. Pünktliche Lieferungen bringen +3 Zufriedenheit (Express +4), Verspätungen −5 bis −25. Die Firmen-Reputation (0–100) bewegt sich mit. Zufriedene Stammkunden zahlen in der Börse bis zu 5 % mehr. Sinkt die Zufriedenheit unter 40 % und läuft kein Rahmenvertrag, kann der Kunde zur Konkurrenz wechseln (siehe Abschnitt 17).
 
 **Rahmenverträge:** Stammkunden (ab 2 Lieferungen und Zufriedenheit 55) und Ausschreibungen aus der Region bieten Verträge an: feste Strecke, 1–3 Touren pro Woche an festen Wochentagen, 4–12 Wochen, fester Preis je Tour, 30 % Strafe bei Ausfall. Die Touren erscheinen am Vortag als angenommene Aufträge. Nicht disponierte Touren gelten 6 h nach Ende des Ladefensters als verpasst (Strafe, −8 Zufriedenheit). Wer mindestens 85 % pünktlich erfüllt, bekommt eine Verlängerung zu +4 % angeboten. Vorzeitige Kündigung kostet 3 Ausfallstrafen.
 
@@ -209,3 +209,29 @@ Mehrere Spieler leiten **dieselbe** Firma. Der Server simuliert allein (serverau
 | 6 | Europäischer Logistikkonzern | 50 | 3.000 | 70 | 6 | 3 | 15 |
 
 Der Aufstieg wird täglich geprüft, bringt +2 Reputation und geht nicht wieder verloren. Stufe 2 schaltet Werkstatt und Tankstelle frei, Stufe 3 den Großen Betriebshof und die Lagerhalle.
+
+## 17. Erweiterte Simulation
+
+### Wetter
+Jedes Land hat eigenes Wetter (Klar, Regen, Nebel, Schneefall, Glätte, Sturm, Hitze), das alle 4–12 Stunden wechselt. Die Wahrscheinlichkeiten hängen von Jahreszeit und Breitengrad ab: Norwegen hat im Winter oft Schnee, Spanien kaum. Wetter wirkt auf das Tempo (Schnee −28 %, Glätte −40 %) und das Unfallrisiko (bis ×5 bei Glätte). Bei Unwetter entstehen gelegentlich wetterbedingte Sperrungen (2–5 h) mit automatischer Umleitung. Die Fahrzeitschätzung rechnet das aktuelle Wetter mit ein.
+
+### Unfälle und Reifenschäden
+Unfälle sind selten (etwa einer je 400.000 km bei klarem Wetter, erfahrene Fahrer seltener): 2–5 h Stillstand, 1.500–6.500 € Kosten, −15 bis −30 % Fahrzeugzustand, unzufriedener Kunde. Reifenschäden (etwa je 90.000 km) kosten 40–100 min und 280–750 €.
+
+### Fahrverbote
+LKW über 7,5 t dürfen zu bestimmten Zeiten nicht fahren: Deutschland und Slowakei sonn- und feiertags 0–22 Uhr, Österreich ab Samstag 15 Uhr, Schweiz sonntags und nachts 22–5 Uhr, Frankreich und Ungarn Samstag 22 Uhr bis Sonntag 22 Uhr, Italien sonntags 9–22 Uhr, Tschechien sonntags 13–22 Uhr, Polen an Feiertagen. Ausgenommen sind Transporter, leichte Solo-LKW und beladene Kühltransporte. Der LKW wartet am Rand der Verbotszone; die Disposition warnt vorher.
+
+### Grenzen
+An Grenzen zu Nicht-EU-Ländern (Schweiz, Norwegen, Großbritannien, Serbien, Bosnien und Herzegowina, Nordmazedonien) wird kontrolliert und verzollt: im Schnitt 35 min, am Westbalkan 2 h, mit Streuung. Die Vorkalkulation plant die erwartete Wartezeit ein.
+
+### Konjunktur und Regionen
+Die Wirtschaft kennt drei Lagen: **Normal**, **Aufschwung** (Nachfrage +14 %) und **Krise** (Nachfrage −18 %, Kunden zahlen schleppender). Ein Wechsel ist frühestens 120 Tage nach dem letzten möglich und kündigt sich über die Nachrichten an. Dazu hat jede Region einen eigenen Nachfragefaktor, den Ereignisse verschieben (Messe, Werksschließung, Erntesaison). Er bestimmt, wo Ladungen entstehen und wie gut sie bezahlt werden.
+
+### KI-Konkurrenz
+Fünf bis sieben fiktive Speditionen mit Strategie (Preisbrecher −8 %, Premium +4 %, Regional), Flotte, Kasse, Ruf und Standorten. Jede hat eine Kapazität in LKW-Stunden und übernimmt Aufträge aus der Börse im Umkreis von 450 km ihrer Standorte – Angebote stehen aber zuerst 90 Minuten nur dem Spieler zur Verfügung, Ausschreibungen nie. Erlöse stehen echten Kosten gegenüber (Fahrzeug-Tagessatz, km-Kosten, Entnahmen). Bei Gewinn und hoher Auslastung wächst eine Konkurrenz und eröffnet Standorte; bei Verlusten gerät sie in Schwierigkeiten, verkauft LKW und geht schließlich in Konkurs. Dafür werden neue gegründet. Viele Konkurrenten in einem Land drücken dort die Frachtraten um bis zu 4 %.
+
+Unzufriedene Kunden können abwandern; ihre Aufträge gehen dann direkt an den Konkurrenten. Ein Vertriebsbesuch (1.500 €, alle 14 Tage) holt sie mit einer Chance nach eigenem Ruf, Ruf des Konkurrenten und dessen Lage zurück. Geht der Konkurrent in Konkurs, kehren seine Kunden zurück.
+
+### Ereignisregelwerk
+Ereignisse entstehen aus Regeln mit Bedingung, Wahrscheinlichkeit und Abklingzeit, nicht aus reinem Zufall: Großkunde, Ausschreibung (gut bezahlt, 12 h verfügbar), Dieselpreissprung oder -rückgang, Marktchance oder Einbruch in einer Region, Kündigung eines Rahmenvertrags (nur bei vielen verpassten oder verspäteten Touren), Kundenänderungen (Lieferung verschoben oder eilig mit 8 % Aufschlag) sowie private Ereignisse. **Fairness:** Negative Firmenereignisse kommen höchstens alle 4 Tage und nie, solange das Firmenkonto im Minus ist; positive werden in schwierigen Lagen wahrscheinlicher. Der Ereignisfaktor des Schwierigkeitsgrads skaliert alles.
+

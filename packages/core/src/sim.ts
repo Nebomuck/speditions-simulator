@@ -16,6 +16,10 @@ import { dailyContracts, hourlyContracts } from './contracts.ts';
 import { dailyPersonnel, hourlyPersonnel } from './personnel.ts';
 import { dailyCompany, hourlyCompany, monthlyCompany } from './company.ts';
 import { runAutoDispatch } from './autodispatch.ts';
+import { updateWeather } from './world.ts';
+import { dailyEconomy } from './economy.ts';
+import { dailyCompetition, hourlyCompetition, monthlyCompetition } from './competition.ts';
+import { dailyEvents, hourlyEvents } from './events.ts';
 import type { GameState } from './types.ts';
 
 /** Simuliert genau eine Spielminute. */
@@ -43,9 +47,12 @@ export function tickMinutes(state: GameState, ctx: SimContext, minutes: number):
 }
 
 function hourly(state: GameState, ctx: SimContext) {
+  updateWeather(state, ctx);
+  hourlyCompetition(state);
   updateOrderMarket(state, ctx);
   processInvoices(state);
   updateDisruptions(state, ctx);
+  hourlyEvents(state, ctx);
   hourlyPersonnel(state);
   hourlyContracts(state);
   hourlyCompany(state);
@@ -65,9 +72,10 @@ function daily(state: GameState, ctx: SimContext) {
   m.diesel = Math.round(Math.max(110, Math.min(240, m.diesel + (mean - m.diesel) * 0.03 + rand.normal(state, 0, 1.6))) * 10) / 10;
   m.dieselHistory.push({ t: state.time, v: m.diesel });
   if (m.dieselHistory.length > 180) m.dieselHistory.shift();
-  // Nachfrage: saisonal + Konjunkturrauschen
-  const seasonal = [0.92, 0.94, 1.0, 1.02, 1.03, 1.02, 0.97, 0.95, 1.03, 1.06, 1.08, 1.0][month(state.time)];
-  m.demand = Math.max(0.7, Math.min(1.3, m.demand + (seasonal - m.demand) * 0.1 + rand.normal(state, 0, 0.01)));
+  // Nachfrage: Saison × Konjunktur, regionale Nachfrage, Konkurrenz und Ereignisse
+  dailyEconomy(state);
+  dailyCompetition(state);
+  dailyEvents(state, ctx);
 
   const hq = state.company.hqCityId;
   // Bewerber und Gebrauchtfahrzeuge
@@ -98,6 +106,7 @@ function daily(state: GameState, ctx: SimContext) {
   if (dayOfMonth(state.time) === 1) {
     processMonthEnd(state);
     monthlyCompany(state);
+    monthlyCompetition(state);
   }
 
   if (state.company.account.balance < -25_000_00) {

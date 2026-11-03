@@ -33,7 +33,11 @@ packages/core/src
 ├── orders.ts       OrderSystem: Warenflussmodell, Auftragsbörse
 ├── dispatch.ts     DispatchSystem: Vorkalkulation, Konfliktprüfung, Fahrtanlage, Vorausplanung
 │                   (Warteschlange je Fahrzeug, vehicleSchedule, startNextQueued), Beiladung (planCoLoad)
-├── disruptions.ts  Verkehrsstörungen (Sperrung/Stau), Routing nach Verkehrslage, Umleitung
+├── disruptions.ts  Verkehrsstörungen (Sperrung/Stau, wetterbedingte Sperrungen), Routing nach Verkehrslage, Umleitung
+├── world.ts        Wetter je Land, Fahrverbote, Zollgrenzen und Grenzwartezeiten
+├── economy.ts      Konjunktur (Normal/Aufschwung/Krise), regionale Nachfrage, Saison
+├── competition.ts  KI-Konkurrenz: Kapazität, Auftragsübernahme, Kosten, Wachstum, Konkurs, Abwerbung, Rückgewinnung
+├── events.ts       Ereignisregelwerk (Bedingung, Chance, Abklingzeit, Fairness) für Firma, Markt und Privatleben
 ├── team.ts         Multiplayer-Zusammenarbeit: Rollen, Grenzen, Nachrichten, Aufgaben, gemeinsame Aktivitäten, Abstimmungen
 ├── delta.ts        Delta-Synchronisation (diffState/applyPatch)
 ├── contracts.ts    Rahmenverträge: Angebote, Touren je Wochentag, Strafen, Verlängerung
@@ -54,7 +58,7 @@ apps/client/src
 ├── game/           GameHost-Abstraktion (LocalHost / RemoteHost), Client-Store, Protokoll
 ├── ui/             MapView (MapSystem), DispatchDialog, Shell, Komponenten, Klänge
 └── pages/          Dashboard, Karte, Disposition, Börse, Personal, Fuhrpark, Finanzen, Kunden,
-                    Standorte, Privatleben, Team, Statistiken, Einstellungen
+                    Standorte, Markt & Wettbewerb, Privatleben, Team, Statistiken, Einstellungen
 
 apps/server/src     MultiplayerServer (Räume, Authentifizierung per Token, SQLite, Backups)
 ```
@@ -74,13 +78,13 @@ Die Abhängigkeiten zeigen nur in eine Richtung: `types/data/geo/time/rng` → `
 Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed ─► tickMinute() × n
                                                        │
      tickMinute: Fahrten (Fahren/Pausen/Tanken/Laden/Pannen) → Fahrer-Ruhe → Werkstatt
-                 + stündlich: Auftragsbörse, Rechnungen, Verkehrsstörungen, Rückkehr/Austritt Personal, verpasste Vertragstouren, automatische Wartung, KI-Disposition, Team (Einladungen, Abstimmungen)
-                 + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Zufriedenheit/Krankheit, Vertragstouren für morgen, Miete, Unternehmensstufe, Lagerauslastung, Lebenssimulation, Statistik, Monatsabrechnung (inkl. Lagererlöse)
+                 + stündlich: Wetter, KI-Konkurrenz, Auftragsbörse, Rechnungen, Verkehrsstörungen, Rückkehr/Austritt Personal, verpasste Vertragstouren, automatische Wartung, KI-Disposition, Team (Einladungen, Abstimmungen), stündliche Ereignisse
+                 + täglich:   Diesel, Konjunktur/Regionen, Konkurrenz (Kosten, Abwerbung), Ereignisregelwerk, Bewerber, Gebrauchtmarkt, Zufriedenheit/Krankheit, Vertragstouren für morgen, Miete, Unternehmensstufe, Lagerauslastung, Lebenssimulation, Statistik, Monatsabrechnung (inkl. Lagererlöse, Monatsabschluss der Konkurrenz)
 ```
 
 - Die Simulation läuft unabhängig von der Darstellung: im Worker (Einzelspieler) bzw. auf dem Server (Multiplayer).
 - Der Client bekommt alle 200–250 ms einen Schnappschuss und **interpoliert die Fahrzeugpositionen pro Animationsframe** (~30 fps). Dafür rechnet er die aktuelle Geschwindigkeit × die seit dem Schnappschuss vergangene Spielzeit entlang der echten Straßengeometrie hoch.
-- Performance gemessen: 300 gleichzeitig fahrende LKW, 1 Spieltag (1.440 Ticks) in ca. 0,5–0,6 s. Positionsberechnung für alle Fahrzeuge < 100 ms.
+- Performance gemessen: 300 gleichzeitig fahrende LKW, 1 Spieltag (1.440 Ticks) in ca. 0,9 s (mit Wetter, Konkurrenz und Ereignissen). Positionsberechnung für alle Fahrzeuge < 100 ms.
 
 ## Befehle & Berechtigungen
 
@@ -102,6 +106,19 @@ Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed 
 - Entsteht eine Sperrung auf dem weiteren Weg einer laufenden Fahrt, leitet `rerouteAffected` sie ab dem nächsten Knoten um. Steht ein LKW schon auf der gesperrten Kante, wartet er (`blocked`).
 
 Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx, actorId, cmd)` prüft das Recht, validiert die Eingaben und ändert den Zustand atomar. Im Multiplayer führt **nur der Server** Befehle aus, und zwar strikt nacheinander. Doppelte Zuweisungen sind dadurch ausgeschlossen: Der zweite von zwei gleichzeitigen Dispositionsbefehlen scheitert an der Konfliktprüfung (getestet).
+
+## Wetter, Fahrverbote, Grenzen
+
+- `state.weather[land]` hält Wetterlage und Dauer; `updateWeather` würfelt stündlich abgelaufene Lagen neu (`weatherWeights` nach Monat und Breitengrad). `edgeWeather` liefert das Wetter einer Straßenkante über das Land ihres Startknotens.
+- `trips.ts` multipliziert das Tempo mit `WEATHER[kind].speed`; Unfälle und Reifenschäden werden je gefahrenem km mit einem gemeinsamen Zufallswert gewürfelt (`ACCIDENT_PER_KM` × Wetterrisiko × Erfahrung × Ereignisfaktor).
+- `banUntil(land, t)` gibt das Ende eines laufenden Fahrverbots zurück; `banApplies` prüft Fahrzeug und Ladung. Vor jeder neuen Kante prüft die Fahrt das Verbot im Land dieser Kante (Aktivität `ban`, zählt als Ruhe).
+- `isCustomsBorder` erkennt Zollgrenzen; beim ersten Befahren der Grenzkante würfelt `rollBorderWait` die Wartezeit (Aktivität `border`, gemerkt in `trip.borderEdge`). `routeBorderMin` plant den Erwartungswert in `estimateTrip` und `remainingDriveMin` ein.
+
+## Wirtschaft, Konkurrenz und Ereignisse
+
+- `state.economy` hält Konjunkturphase, Index (`cycle`) und regionale Faktoren (`regions[land] = {factor, target, reason, until}`). `dailyEconomy` bewegt sie träge auf ihr Ziel zu und setzt `market.demand = Saison × cycle`. `orders.ts` gewichtet die Herkunft mit `regionFactor^1.5` und den Preis mit Region und `competitionPriceFactor`.
+- `state.competitors` hält die KI-Speditionen. Das Modell rechnet mit LKW-Stunden statt einzelnen Fahrten: `hourlyCompetition` fügt Kapazität hinzu (`trucks × 0,55` je Stunde) und übernimmt passende Börsenangebote (Status `expired` mit `takenBy`) gegen `km/62 + 3` Stunden. Kosten fallen täglich an, der Monatsabschluss entscheidet über Wachstum, Schwierigkeiten und Konkurs.
+- `state.events` hält je Regel den letzten Auslösezeitpunkt und einen Verlauf (max. 60). `dailyEvents`/`hourlyEvents` prüfen die Regeln in fester Reihenfolge; jede hat `when` (Bedingung), Chance und Abklingzeit. Abklingzeiten und Fairness prüft zentral `allowed`.
 
 ## Multiplayer
 

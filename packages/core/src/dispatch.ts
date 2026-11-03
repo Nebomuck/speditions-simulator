@@ -11,6 +11,8 @@ import { depotRefuel } from './company.ts';
 import { tripStopEtas } from './selectors.ts';
 import { MIN_PER_DAY, formatDateTime, formatDuration } from './time.ts';
 import type { GameState, HoursOfService, Id, Money, Order, Trip, TripLeg, TripStop, Vehicle } from './types.ts';
+import { BAN_RULES, banApplies, banOnRoute, routeBorderMin, routeCountries } from './world.ts';
+import { COUNTRY_NAMES } from './data/catalog.ts';
 
 export interface DispatchInput {
   orderId: Id;
@@ -45,6 +47,10 @@ export interface TripEstimate {
   profit: Money;
   /** Tankstopps unterwegs */
   fuelStops: number;
+  /** erwartete Wartezeit an Zollgrenzen (min) */
+  borderMin: number;
+  /** Länder entlang der Route (Anfahrt und Lastfahrt) */
+  countries: string[];
 }
 
 export interface Issue {
@@ -136,6 +142,8 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   const e1 = simulateDriving(hos, toPickup.driveMin);
   t += e1.elapsed;
   restMin += e1.restMin;
+  const border1 = routeBorderMin(ctx, toPickupRaw.nodes);
+  t += border1;
   if (t < order.pickupStart) {
     // Wartezeit zählt als Ruhe (vereinfacht)
     const wait = order.pickupStart - t;
@@ -148,6 +156,8 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   const e2 = simulateDriving(hos, loaded.driveMin);
   t += e2.elapsed;
   restMin += e2.restMin;
+  const border2 = routeBorderMin(ctx, loadedRaw.nodes);
+  t += border2;
   const model = TRUCK_BY_ID[vehicle.modelId];
   const loadFrac = loadFraction(state, vehicle, input.trailerId || undefined, order);
   const fuelL = toPickup.km * consumptionPerKm(vehicle.modelId, 0, driver.ecoDriving) + loaded.km * consumptionPerKm(vehicle.modelId, loadFrac, driver.ecoDriving);
@@ -182,6 +192,8 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
     revenue,
     profit: revenue - totalCost,
     fuelStops,
+    borderMin: border1 + border2,
+    countries: routeCountries([...toPickupRaw.nodes, ...loadedRaw.nodes]),
   };
 }
 
@@ -237,6 +249,12 @@ export function validateDispatch(state: GameState, ctx: SimContext, input: Dispa
   if (estimate.lateMin > 0)
     warn('delivery_late', `Lieferung voraussichtlich ${formatDuration(estimate.lateMin)} zu spät – Vertragsstrafe ca. ${formatMoney(penaltyFor(order, estimate.lateMin))}.`);
   if (estimate.fuelStops > 0) warn('fuel', `Tankfüllung reicht nicht – ${estimate.fuelStops} Tankstopp(s) eingeplant.`);
+  if (estimate.borderMin > 0) warn('border', `Route mit Zollgrenze – ca. ${formatDuration(estimate.borderMin)} Wartezeit an der Grenze eingeplant.`);
+  if (banApplies(state, vehicle) && CARGO_BY_ID[order.cargoId]?.trailer !== 'reefer') {
+    const ban = banOnRoute(estimate.countries, from?.time ?? state.time, estimate.deliveryEta);
+    if (ban)
+      warn('driving_ban', `Fahrverbot in ${COUNTRY_NAMES[ban.country] ?? ban.country} (${BAN_RULES[ban.country]}) ab ${formatDateTime(ban.at)} – die Ankunft kann sich bis zu ${formatDuration(ban.until - ban.at)} verzögern.`);
+  }
   if (vehicle.condition < 40) warn('maintenance', `LKW ${vehicle.plate} hat einen kritischen Wartungszustand (${Math.round(vehicle.condition)} %) – erhöhtes Pannenrisiko.`);
   if (estimate.profit < 0) warn('unprofitable', `Fahrt ist voraussichtlich unwirtschaftlich (${formatMoney(estimate.profit)}).`);
   return { issues, estimate };

@@ -9,6 +9,7 @@ import { TRAILER_BY_TYPE, TRUCK_BY_ID, LOCATION_DEFS } from './data/catalog.ts';
 import { rand, newId } from './rng.ts';
 import { MIN_PER_DAY, formatDate } from './time.ts';
 import type { Customer, GameState, Id, Invoice, LedgerAccount, LedgerCategory, Loan, LogEntry, Money, Order } from './types.ts';
+import { crisisPaymentFactor } from './economy.ts';
 
 export const EMPLOYER_COST_FACTOR = 1.21; // Arbeitgeberanteil Sozialversicherung (Spielwert)
 export const OVERDRAFT_INTEREST_PA = 0.12;
@@ -56,7 +57,7 @@ export function createInvoice(state: GameState, order: Order, amount: Money): vo
   const cust = state.customers[order.customerId];
   const term = cust.paymentTermDays;
   const due = state.time + term * MIN_PER_DAY;
-  const reliability = Math.max(0.05, Math.min(0.99, cust.paymentReliability));
+  const reliability = Math.max(0.05, Math.min(0.99, cust.paymentReliability * crisisPaymentFactor(state)));
   const risk = state.difficulty.paymentRiskFactor;
   let willPayAt: number | null;
   // Balancing 0.4.0: Die meisten Kunden zahlen fristgerecht (Normal ≈ 90–96 %), Verzug meist nur einige Tage,

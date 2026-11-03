@@ -10,6 +10,7 @@ import { PersonnelPage } from './pages/Personnel.tsx';
 import { FleetPage } from './pages/Fleet.tsx';
 import { FinancePage } from './pages/Finance.tsx';
 import { CustomersPage, LocationsPage } from './pages/Business.tsx';
+import { MarketPage } from './pages/Market.tsx';
 import { PrivatePage } from './pages/Private.tsx';
 import { TeamPage } from './pages/Team.tsx';
 import { StatsPage } from './pages/Stats.tsx';
@@ -28,6 +29,7 @@ const PAGES = {
   finance: FinancePage,
   customers: CustomersPage,
   locations: LocationsPage,
+  market: MarketPage,
   private: PrivatePage,
   multiplayer: TeamPage,
   stats: StatsPage,

@@ -2,6 +2,8 @@
 
 import { STATE_VERSION } from './game.ts';
 import { defaultAutoDispatch } from './autodispatch.ts';
+import { defaultEconomy } from './economy.ts';
+import { defaultEvents } from './events.ts';
 import type { GameState } from './types.ts';
 
 export const SAVE_FORMAT = 'spedsim-save';
@@ -93,6 +95,14 @@ export const MIGRATIONS: Record<number, Migration> = {
       c.furniture ??= 0;
       c.relations ??= [];
     }
+    return s;
+  },
+  // 0.10.0: Wetter, Konjunktur, Konkurrenz, Ereignisse (Startwerte; Wetter und Konkurrenz entstehen beim ersten Stundentakt)
+  8: (s) => {
+    s.weather ??= {};
+    s.economy ??= defaultEconomy(s.time as number);
+    s.competitors ??= {};
+    s.events ??= defaultEvents();
     return s;
   },
   // 0.9.0: Multiplayer-Zusammenarbeit

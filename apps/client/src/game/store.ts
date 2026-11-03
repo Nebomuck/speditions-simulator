@@ -12,7 +12,7 @@ export const world = createSimContext(roadnet as RoadNetData);
 
 export type Page =
   | 'dashboard' | 'map' | 'dispatch' | 'orders' | 'personnel' | 'fleet' | 'finance'
-  | 'customers' | 'locations' | 'private' | 'multiplayer' | 'stats' | 'settings';
+  | 'customers' | 'market' | 'locations' | 'private' | 'multiplayer' | 'stats' | 'settings';
 
 export interface Toast {
   id: number;

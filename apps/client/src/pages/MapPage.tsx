@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Crosshair, X, Navigation, PackagePlus, MapPin, TriangleAlert } from 'lucide-react';
 import {
   CARGO_BY_ID, TRUCK_BY_ID, CITY_BY_ID, drivableNow, formatDateTime, formatDuration, formatHours, nearestCity, remainingKm, vehicleSchedule, vehicleMarker, isTripLate, ordersOnBoard,
-  REST_KIND_LABEL, loadSpace, disruptionLabel,
+  REST_KIND_LABEL, loadSpace, disruptionLabel, WEATHER, BAN_RULES, weatherIn, banUntil, banApplies,
 } from '@spedsim/core';
 import { sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Bar, Money } from '../ui/components.tsx';
@@ -112,13 +112,18 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
         <button className="icon-btn" onClick={() => setUi({ selectedVehicleId: null, followVehicle: false })}><X size={16} /></button>
       </div>
       <div className="row wrap mt">
-        <Badge kind={trip ? (trip.activity === 'breakdown' ? 'danger' : 'info') : 'success'}>{activityLabel(trip, v.status)}</Badge>
+        <Badge kind={trip ? (trip.activity === 'breakdown' || trip.activity === 'accident' ? 'danger' : trip.activity === 'ban' || trip.activity === 'border' ? 'warning' : 'info') : 'success'}>{activityLabel(trip, v.status)}</Badge>
         {late && <Badge kind="danger">Verspätet</Badge>}
         {trip && <Badge>{trip.legs[trip.legIndex].loaded ? 'Beladen' : 'Leer'}</Badge>}
       </div>
       <dl className="kv mt">
         <dt>Fahrer</dt><dd>{driver?.name ?? '–'}</dd>
         <dt>Position</dt><dd>{near.km < 15 ? cityName(near.id) : `${Math.round(near.km)} km bei ${cityName(near.id)}`} ({countryName(CITY_BY_ID[near.id].country)})</dd>
+        <dt>Wetter</dt><dd>{WEATHER[weatherIn(s, CITY_BY_ID[near.id].country)].name}{(() => {
+          const c = CITY_BY_ID[near.id].country;
+          const ban = banUntil(c, s.time);
+          return ban !== null && banApplies(s, v, trip) ? <span className="dim" title={BAN_RULES[c]}> · Fahrverbot bis {formatDateTime(ban).slice(-5)}</span> : null;
+        })()}</dd>
         <dt>Geschwindigkeit</dt><dd>{trip ? `${trip.speedKmh} km/h` : '0 km/h'}</dd>
         {trip && (
           <>

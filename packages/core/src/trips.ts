@@ -11,10 +11,12 @@ import { onContractDelivery } from './contracts.ts';
 import { addLog, adjustSatisfaction, book, createInvoice, formatMoney } from './finance.ts';
 import { drivableNow, hosDrive, hosRest, hosWork } from './hos.ts';
 import { rand } from './rng.ts';
-import { formatDuration, hourOfDay } from './time.ts';
+import { formatDateTime, formatDuration, hourOfDay } from './time.ts';
+import { COUNTRY_NAMES } from './data/catalog.ts';
+import { WEATHER, edgeCountry, edgeWeather, isCustomsBorder, rollBorderWait, tripBan, weatherIn } from './world.ts';
 import type { GameState, Order, Trip, TripActivity } from './types.ts';
 
-export const STATIONARY_REST: TripActivity[] = ['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked'];
+export const STATIONARY_REST: TripActivity[] = ['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked', 'ban'];
 const BIG_CITY_POP = 1000;
 
 export const ACTIVITY_LABEL: Record<TripActivity, string> = {
@@ -29,6 +31,9 @@ export const ACTIVITY_LABEL: Record<TripActivity, string> = {
   blocked: 'Wartet an Sperrung',
   ferry: 'Fähre',
   breakdown: 'Defekt',
+  accident: 'Unfall',
+  ban: 'Fahrverbot',
+  border: 'Grenzkontrolle',
   done: 'Abgeschlossen',
 };
 
@@ -87,6 +92,31 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
     return;
   }
 
+  // Grenzkontrolle beim Befahren einer Zollgrenze (einmal je Grenzkante)
+  if (trip.borderEdge !== loc.edge.index) {
+    const from = edgeCountry(loc.edge, loc.reverse);
+    const to = edgeCountry(loc.edge, !loc.reverse);
+    if (isCustomsBorder(from, to)) {
+      trip.borderEdge = loc.edge.index;
+      trip.activity = 'border';
+      trip.activityLeft = Math.max(5, rollBorderWait(state, from, to));
+      trip.speedKmh = 0;
+      tlog(state, trip, `Grenzkontrolle ${COUNTRY_NAMES[from] ?? from} → ${COUNTRY_NAMES[to] ?? to}: Wartezeit ca. ${formatDuration(trip.activityLeft)}`);
+      return;
+    }
+  }
+
+  // Sonntags-/Feiertagsfahrverbot im aktuellen Land
+  const here = edgeCountry(loc.edge, loc.reverse);
+  const ban = tripBan(state, trip, here);
+  if (ban !== null) {
+    trip.activity = 'ban';
+    trip.activityLeft = Math.max(1, ban - state.time);
+    trip.speedKmh = 0;
+    tlog(state, trip, `Fahrverbot in ${COUNTRY_NAMES[here] ?? here} – Weiterfahrt ab ${formatDateTime(ban)}`);
+    return;
+  }
+
   // Lenkzeit erschöpft → Pause/Ruhezeit
   if (drivableNow(driver.hos) <= 0) {
     const kind = driver.hos.requiredRestKind;
@@ -116,7 +146,8 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
 
   // Fahren
   const ecoFactor = 0.97 + driver.experience / 1000;
-  const speed = Math.min(loc.edge.truckKmh * speedFactor(vehicle.modelId), 120) * trafficFactor(state, loc.edge.a, loc.edge.b) * ecoFactor * (dis?.speedFactor ?? 1);
+  const wx = edgeWeather(state, loc.edge, loc.reverse);
+  const speed = Math.min(loc.edge.truckKmh * speedFactor(vehicle.modelId), 120) * trafficFactor(state, loc.edge.a, loc.edge.b) * ecoFactor * (dis?.speedFactor ?? 1) * wx.speed;
   const km = Math.min(speed / 60, leg.km - trip.progressKm);
   trip.speedKmh = Math.round(speed);
   trip.progressKm += km;
@@ -144,8 +175,60 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   // Panne bei schlechtem Zustand
   if (vehicle.condition < 45) {
     const p = ((45 - vehicle.condition) / 45) * 0.0005 * km * state.difficulty.eventFactor * fleetBreakdownFactor(state);
-    if (rand.chance(state, p)) breakdown(state, trip);
+    if (rand.chance(state, p)) {
+      breakdown(state, trip);
+      return;
+    }
   }
+
+  // Unfall (Wetter, Erfahrung) und Reifenpanne – selten; ein Zufallswurf für beide
+  const ef = state.difficulty.eventFactor;
+  const pAccident = km * ACCIDENT_PER_KM * wx.risk * (1.4 - driver.experience / 100) * ef;
+  const pTire = km * TIRE_PER_KM * ef;
+  if (rand.chance(state, pAccident + pTire)) {
+    if (rand.chance(state, pAccident / (pAccident + pTire))) accident(state, trip, weatherIn(state, here));
+    else tireDamage(state, trip);
+  }
+}
+
+/** Unfallrisiko je km bei klarem Wetter und durchschnittlichem Fahrer (≈ 1 Unfall je 400.000 km) */
+export const ACCIDENT_PER_KM = 1 / 400_000;
+/** Reifenpanne ≈ alle 90.000 km */
+export const TIRE_PER_KM = 1 / 90_000;
+
+function accident(state: GameState, trip: Trip, weather: keyof typeof WEATHER) {
+  const vehicle = state.vehicles[trip.vehicleId];
+  const duration = rand.int(state, 2, 5) * 60;
+  const cost = Math.round(rand.float(state, 1500, 6500)) * 100;
+  const damage = rand.int(state, 15, 30);
+  trip.activity = 'accident';
+  trip.activityLeft = duration;
+  trip.speedKmh = 0;
+  vehicle.condition = Math.max(5, vehicle.condition - damage);
+  vehicle.history.push({ t: state.time, text: `Unfall${weather !== 'clear' ? ` bei ${WEATHER[weather].name}` : ''} – Schaden und Selbstbeteiligung`, cost });
+  book(state, 'company', -cost, 'repair', `Unfallschaden ${vehicle.plate}`);
+  const order = trip.legs[trip.legIndex]?.loaded ? state.orders[trip.stops?.[trip.legIndex]?.orderId ?? trip.orderId ?? ''] : undefined;
+  if (order) adjustSatisfaction(state.customers[order.customerId], -6);
+  tlog(state, trip, `Unfall! Aufnahme und Bergung (${formatDuration(duration)}, ${formatMoney(cost)})`);
+  addLog(state, {
+    level: 'danger',
+    category: 'fleet',
+    text: `Unfall${weather !== 'clear' ? ` bei ${WEATHER[weather].name}` : ''}: LKW ${vehicle.plate} ist beschädigt (−${damage} % Zustand). Schaden und Selbstbeteiligung ${formatMoney(cost)}, Weiterfahrt in ca. ${formatDuration(duration)}.`,
+    ref: { kind: 'trip', id: trip.id },
+  });
+}
+
+function tireDamage(state: GameState, trip: Trip) {
+  const vehicle = state.vehicles[trip.vehicleId];
+  const duration = rand.int(state, 40, 100);
+  const cost = Math.round(rand.float(state, 280, 750)) * 100;
+  trip.activity = 'breakdown';
+  trip.activityLeft = duration;
+  trip.speedKmh = 0;
+  vehicle.history.push({ t: state.time, text: 'Reifenpanne – Reifenwechsel durch Pannendienst', cost });
+  book(state, 'company', -cost, 'repair', `Reifenpanne ${vehicle.plate}`);
+  tlog(state, trip, `Reifenpanne – Reifenwechsel (${formatDuration(duration)}, ${formatMoney(cost)})`);
+  addLog(state, { level: 'warning', category: 'fleet', text: `Reifenpanne bei LKW ${vehicle.plate}: Reifenwechsel dauert ca. ${formatDuration(duration)} und kostet ${formatMoney(cost)}.`, ref: { kind: 'trip', id: trip.id } });
 }
 
 function breakdown(state: GameState, trip: Trip) {
@@ -247,8 +330,19 @@ function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
   }
   trip.phase = 'unloading';
   trip.activity = 'unloading';
-  trip.activityLeft = Math.round(CARGO_BY_ID[order.cargoId].loadMin * UNLOAD_MIN_FACTOR);
-  tlog(state, trip, `Ankunft Empfänger ${CITY_BY_ID[order.toCityId].name} – Entladung`);
+  // verzögerte Entladung, selten Probleme an der Lieferstelle
+  const ef = state.difficulty.eventFactor;
+  const problem = rand.chance(state, 0.025 * ef);
+  const delay = problem ? rand.int(state, 120, 300) : rand.chance(state, 0.1 * ef) ? rand.int(state, 20, 90) : 0;
+  trip.activityLeft = Math.round(CARGO_BY_ID[order.cargoId].loadMin * UNLOAD_MIN_FACTOR) + delay;
+  tlog(state, trip, `Ankunft Empfänger ${CITY_BY_ID[order.toCityId].name} – Entladung${delay ? ` (${problem ? 'Problem an der Lieferstelle' : 'verzögert'}, +${formatDuration(delay)})` : ''}`);
+  if (delay >= 60)
+    addLog(state, {
+      level: 'warning',
+      category: 'trip',
+      text: `${problem ? 'Problem an der Lieferstelle' : 'Verzögerte Entladung'} in ${CITY_BY_ID[order.toCityId].name} (+${formatDuration(delay)})${problem ? ' – Rampe belegt, Ware muss umgeladen werden' : ''}.`,
+      ref: { kind: 'trip', id: trip.id },
+    });
 }
 
 function completeDelivery(state: GameState, trip: Trip, order: Order) {

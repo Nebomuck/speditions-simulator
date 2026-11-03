@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.10.0 – 03.11.2026
+
+- **Wetter:** Jedes Land hat eigenes Wetter nach Jahreszeit und Lage – Regen, Nebel, Schnee, Glätte, Sturm, Hitze. Schlechtes Wetter bremst die LKW (Schnee −28 %, Glätte −40 %), erhöht das Unfallrisiko und führt gelegentlich zu wetterbedingten Sperrungen. Das Fahrzeugfenster zeigt das Wetter am Standort.
+- **Unfälle und Reifenschäden:** selten, aber spürbar (Stillstand, Kosten, Fahrzeugzustand, Kundenzufriedenheit); erfahrene Fahrer haben weniger Unfälle.
+- **Fahrverbote** für LKW über 7,5 t in Deutschland, Österreich, der Schweiz, Frankreich, Italien, Tschechien, der Slowakei, Ungarn und Polen (Sonn- und Feiertage, teils samstags und nachts). Transporter, leichte Solo-LKW und beladene Kühltransporte sind ausgenommen. Die Disposition warnt vorher.
+- **Zollgrenzen:** An den Grenzen zur Schweiz, zu Norwegen, Großbritannien und zum Westbalkan wird kontrolliert (im Schnitt 35 min, am Westbalkan 2 h). Die Vorkalkulation plant die Wartezeit ein.
+- **Konjunktur:** Normale Lage, Aufschwung und Krise wechseln sich über Monate ab. In der Krise gibt es weniger Aufträge und Kunden zahlen schleppender.
+- **Regionen:** Jede Region hat eine eigene Nachfrage, die Ereignisse wie Messen, Werksschließungen oder Erntesaison verschieben. Sie bestimmt, wo Ladungen entstehen und wie gut sie bezahlt werden.
+- **KI-Konkurrenz:** Fünf bis sieben fiktive Speditionen mit eigener Flotte, Kasse, Strategie und Ruf übernehmen Aufträge aus der Börse, wachsen, eröffnen Standorte – oder gehen in Konkurs, und neue kommen hinzu. Angebote stehen zuerst 90 Minuten nur dir zur Verfügung.
+- Unzufriedene Kunden können zur Konkurrenz wechseln. Mit einem Vertriebsbesuch lassen sie sich zurückgewinnen.
+- **Ereignisse** nach einem Regelwerk: Großkunden, Ausschreibungen mit guten Preisen, Dieselpreissprünge, Marktchancen, Kundenänderungen, Vertragskündigungen bei schlechter Erfüllung, private Ereignisse. Negative Ereignisse kommen höchstens alle 4 Tage und nicht, solange das Firmenkonto im Minus ist.
+- Neue Seite **Markt & Wettbewerb** mit Konjunktur, Regionen und Wetter, Fahrverboten, Konkurrenz und allen Ereignissen. In der Börse sind Ausschreibungen markiert.
+
 ## 0.9.1 – 03.11.2026
 
 - Updates erscheinen beim Start als Fenster mit den Neuerungen („Jetzt aktualisieren“ oder „Später“). Nach „Später“ bleibt ein Hinweis in der Fußzeile.

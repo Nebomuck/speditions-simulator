@@ -143,6 +143,20 @@ function makeDisruption(state: GameState, edge: RoadEdge, closure: boolean, extr
   };
 }
 
+/** Sperrung durch Unwetter (Wetter-Modul): 2–5 h, betroffene Fahrten werden umgeleitet. */
+export function weatherClosure(state: GameState, ctx: SimContext, edge: RoadEdge, cause: string): Disruption | null {
+  state.disruptions ??= [];
+  if (edge.ferry || disruptionOnEdge(state, edge) || state.disruptions.length >= MAX_DISRUPTIONS + 6) return null;
+  const d: Disruption = { id: newId(state, 'dis'), kind: 'closure', a: edge.a, b: edge.b, cause, from: state.time, until: state.time + rand.int(state, 2, 5) * 60, speedFactor: 0 };
+  state.disruptions.push(d);
+  const affects = Object.values(state.trips).some((t) => t.phase !== 'done' && edgesAhead(ctx, t).includes(edge));
+  if (affects) {
+    addLog(state, { level: 'warning', category: 'trip', text: `Verkehr: ${disruptionLabel(d)} bis ca. ${formatDateTime(d.until)}.` });
+    rerouteAffected(state, ctx);
+  }
+  return d;
+}
+
 /** Kanten in Fahrtrichtung bis `maxKm` voraus (ohne die gerade befahrene) mit Abstand zum LKW. */
 function edgesWithin(ctx: SimContext, trip: Trip, maxKm: number): { edge: RoadEdge; km: number }[] {
   const out: { edge: RoadEdge; km: number }[] = [];

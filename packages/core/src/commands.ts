@@ -21,6 +21,7 @@ import type {
   TrainingCourse, Vehicle,
 } from './types.ts';
 import { acceptSuggestion, dismissSuggestion, setAutoDispatch } from './autodispatch.ts';
+import { winBackCustomer } from './competition.ts';
 import {
   cancelJoint, castVote, closeVote, createTask, createVote, deleteTask, mayManageLocation, proposeJoint, readMessage, respondJoint, sendMessage, setPlayerLimits, setRole, updateTask,
 } from './team.ts';
@@ -81,7 +82,8 @@ export type Command =
   | { type: 'cancelJoint'; activityId: Id }
   | { type: 'createVote'; question: string; options: string[]; hours: number }
   | { type: 'castVote'; voteId: Id; option: number }
-  | { type: 'closeVote'; voteId: Id };
+  | { type: 'closeVote'; voteId: Id }
+  | { type: 'winBackCustomer'; customerId: Id };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -142,11 +144,12 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   createVote: null,
   castVote: null,
   closeVote: null,
+  winBackCustomer: 'dispatch',
 };
 
 /** Befehle, die Geld vom Firmenkonto ausgeben können (unterliegen dem Ausgabenlimit eines Spielers) */
 const SPENDING: ReadonlySet<Command['type']> = new Set<Command['type']>([
-  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff',
+  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'winBackCustomer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff',
 ]);
 
 /** Standort, den ein Befehl verwaltet (für die Beschränkung auf zugewiesene Niederlassungen); null = neuer Standort */
@@ -609,6 +612,10 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       return castVote(state, actorId, cmd.voteId, cmd.option);
     case 'closeVote':
       return closeVote(state, actorId, cmd.voteId);
+    case 'winBackCustomer': {
+      const r = winBackCustomer(state, cmd.customerId);
+      return r.ok ? { ok: true } : r;
+    }
   }
 }
 

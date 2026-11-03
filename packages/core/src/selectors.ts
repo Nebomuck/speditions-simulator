@@ -5,6 +5,7 @@ import { CARGO_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { UNLOAD_MIN_FACTOR, speedFactor } from './dispatch.ts';
 import { disruptionOnEdge } from './disruptions.ts';
+import { WEATHER, expectedBorderWait, weatherIn } from './world.ts';
 import { haversineKm, type LonLat } from './geo.ts';
 import { hosRest, hosWork, simulateDriving } from './hos.ts';
 import type { GameState, Id, Trip } from './types.ts';
@@ -63,9 +64,11 @@ function remainingDriveMin(state: GameState, ctx: SimContext, nodes: string[], f
     acc += e.km;
     if (acc <= fromKm) continue;
     const part = (acc - Math.max(start, fromKm)) / e.km;
-    // Stau verlangsamt, Sperrung kostet die Wartezeit bis zur Freigabe
+    // Stau verlangsamt, Sperrung kostet die Wartezeit bis zur Freigabe; Wetter verlangsamt, Zollgrenzen kosten Wartezeit
     const d = disruptionOnEdge(state, e);
-    min += (e.truckMin * part) / (d?.kind === 'jam' ? d.speedFactor : 1) + (d?.kind === 'closure' ? Math.max(0, d.until - state.time) : 0);
+    const wx = WEATHER[weatherIn(state, CITY_BY_ID[e.a].country)].speed;
+    min += (e.truckMin * part) / (d?.kind === 'jam' ? d.speedFactor : 1) / wx + (d?.kind === 'closure' ? Math.max(0, d.until - state.time) : 0);
+    if (start >= fromKm) min += expectedBorderWait(CITY_BY_ID[e.a].country, CITY_BY_ID[e.b].country);
   }
   return min;
 }
@@ -81,7 +84,7 @@ export function tripStopEtas(state: GameState, ctx: SimContext, trip: Trip): { e
   const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry';
   if (stationary) {
     t += trip.activityLeft;
-    if (['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked'].includes(trip.activity)) hosRest(hos, trip.activityLeft);
+    if (['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked', 'ban'].includes(trip.activity)) hosRest(hos, trip.activityLeft);
   }
   const atStop = trip.phase === 'loading' || trip.phase === 'unloading';
   const etas: number[] = [];

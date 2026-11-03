@@ -13,14 +13,14 @@
 | 7 | Automatisierung (KI-Disponenten) | ✅ abgeschlossen: Disponenten mit Kompetenz (Einsteiger/Erfahren/Profi), manuelle, teil- und vollautomatische Disposition, Regeln (Mindestgewinn, Leer-km, Ladungsarten, Länder, Stammkunden, sichere Termine, nächstes Fahrzeug, Rückladungen, Rückführung), Reaktion auf Verspätungen |
 | 8 | Lebenssimulation | ✅ abgeschlossen: Hintergrund und Fähigkeiten, Bedürfnisse mit Erschöpfung, Work-Life-Balance (Arbeitsstil bestimmt eigene Disposition), Freizeit, Urlaub, Wohnungen/Haus/Villa mit Immobilienkredit, Ferienhaus, Privatwagen, Einrichtung, Freundschaften, Partnerschaft, Familie, Hobbys, Ziele, Gewinnausschüttung |
 | 9 | Multiplayer | ✅ abgeschlossen: Server, Einladung, Rollen und Rechte mit Ausgabenlimit und Niederlassungsbeschränkung, Delta-Synchronisation, Firmenchat, interne Nachrichten, Aufgabenverteilung, gemeinsame Aktivitäten, Abstimmungen, Benachrichtigungen, Wiederverbindung, Backups, TLS-Proxy-Anleitung |
-| 10 | Erweiterte Simulation (Konkurrenz, Ereignisse, Wetter, Regionen) | ⏳ |
+| 10 | Erweiterte Simulation | ✅ abgeschlossen: Wetter je Land, Unfälle und Reifenschäden, Fahrverbote, Zollgrenzen mit Wartezeiten, Konjunktur und regionale Nachfrage, wirtschaftlich simulierte KI-Konkurrenz (Abwerbung, Rückgewinnung, Konkurs), Ereignisregelwerk mit Fairnessregeln, Seite „Markt & Wettbewerb“ |
 | 11 | Feinschliff (Tutorial, Musik, Animationen, Balancing) | ⏳ |
 | 12 | Veröffentlichung (Installer, Server-Konfiguration, Abschlusstests) | 🟡 Installer mit eingebautem Multiplayer-Server ✅ · Abschlusstests ⏳ |
 
 ## Nächste Schritte (in dieser Reihenfolge)
 
-1. **Phase 10** – KI-Konkurrenz mit eigener Flotte und Finanzen, Ereignisregelwerk (Grundlage: Verkehrsstörungen aus Phase 4), Wetter, Sonntagsfahrverbote, Grenzwartezeiten
-2. **Phase 11/12** – Tutorial, Hilfe, Musik, Balancing-Läufe (automatisierte Langzeitsimulation), Installer-Feinschliff (Signatur, Auto-Update)
+1. **Phase 11** – Feinschliff: Tutorial, Hilfe, Musik, Animationen, Balancing-Läufe (automatisierte Langzeitsimulation, Grundlage: `packages/core/test/measure-world.ts`)
+2. **Phase 12** – Veröffentlichung: Abschlusstests, Installer-Feinschliff (Signatur), Server-Konfiguration
 
 ## Arbeitsweise
 
@@ -32,6 +32,6 @@
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 78/78 bestanden)
+1. `npm install`, dann `npm test` (erwartet: 86/86 bestanden)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
-3. Mit Punkt 1 (Phase 10: Erweiterte Simulation) fortfahren. Ereignisse bauen auf `packages/core/src/disruptions.ts` auf, stündliche/tägliche Hooks in `sim.ts`, Auftragsmarkt in `orders.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).
+3. Mit Punkt 1 (Phase 11: Feinschliff) fortfahren. Langzeitmessungen mit `node packages/core/test/measure-world.ts [Tage]` und `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

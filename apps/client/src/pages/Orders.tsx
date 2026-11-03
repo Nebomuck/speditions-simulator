@@ -185,6 +185,7 @@ export function OrdersPage() {
                       <Badge>{trailerName(o.trailerType)}</Badge>
                       {o.partial && <Badge kind="violet">Teilladung</Badge>}
                       {o.express && <Badge kind="warning">Express</Badge>}
+                      {o.tender && <Badge kind="success" title="Ausschreibung: besser bezahlt, nur kurz verfügbar">Ausschreibung</Badge>}
                       {o.qualifications.map((q) => <Badge key={q} kind="danger">{QUAL_LABEL[q]}</Badge>)}
                     </div>
                   </td>

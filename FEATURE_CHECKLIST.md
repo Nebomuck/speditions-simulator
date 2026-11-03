@@ -27,13 +27,13 @@ Stand: 02.11.2026 · Version 0.1.0
 | Werkstätten, Tankstellen, Rastplätze | Geplant | Phase 10 (POI-Layer) |
 | Liefer-/Abholorte | Implementiert | Routenvorschau in der Börse |
 | Lagerhäuser/Logistikzentren | Getestet | Lagerhalle je Standort (ab Stufe 3): Lagererlöse nach Auslastung, zieht Aufträge an |
-| Verkehrsmeldungen & Ereignisse auf der Karte | Teilweise | Sperrungen und Staus auf der Karte und in der Liste „Verkehrslage“; weitere Ereignisse Phase 10 |
+| Verkehrsmeldungen & Ereignisse auf der Karte | Implementiert | Sperrungen (auch wetterbedingt) und Staus auf der Karte und in „Verkehrslage“; Wetter, Fahrverbote und Ereignisse unter „Markt & Wettbewerb“ |
 | Fahrerpositionen in Echtzeit | Implementiert | Interpolation pro Frame |
 | Aktuelle Fahrzeugrouten | Implementiert | beladen/leer/verspätet farbig |
 | Bewegung entlang echter Straßengeometrie (nicht linear) | Getestet | Route-Test + Transporttest |
 | Einfluss Straßentyp | Implementiert | Durchschnittsgeschwindigkeit je Abschnitt |
 | Einfluss Verkehr | Implementiert | Berufsverkehr in Ballungsräumen |
-| Einfluss Wetter | Geplant | Phase 10 |
+| Einfluss Wetter | Getestet | Wetter je Land nach Jahreszeit und Breitengrad: Tempo, Unfallrisiko, wetterbedingte Sperrungen; im Fahrzeugfenster angezeigt |
 | Pausen/Ruhezeiten/Tanken/Laden/Pannen | Getestet | |
 | Spielgeschwindigkeit | Implementiert | 1×–60× |
 | Fahrzeug-Infofenster (alle geforderten Felder) | Implementiert | |
@@ -110,7 +110,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Einnahmen aus Einzelaufträgen, Expresszuschläge, Spezialtransporte | Implementiert | Festverträge: Rahmenverträge (Phase 5) |
 | Finanzdashboard | Implementiert | Kontostand, Forderungen, Fixkosten, Unternehmenswert, Kategorien, Hauptbuch |
 | Rechnungen, Zahlungsziele, Verzug, Mahnungen, Bonität, Ausfälle | Getestet | |
-| Dynamischer Dieselpreis und Nachfrage | Implementiert | Krisen/Konkurrenzdruck: Phase 10 |
+| Dynamischer Dieselpreis und Nachfrage | Getestet | Konjunktur (Normal/Aufschwung/Krise) mit Zahlungsmoral, regionale Nachfrage, Konkurrenzdruck auf die Frachtraten |
 
 ## 11 · Kunden, Verträge, Konkurrenz
 | Anforderung | Status |
@@ -118,7 +118,8 @@ Stand: 02.11.2026 · Version 0.1.0
 | Kunden mit Branche, Größe, Zahlungsmoral, Zufriedenheit, Preissensibilität | Implementiert |
 | Zufriedenheit durch Pünktlichkeit/Verspätung | Getestet |
 | Stammkunden, Langzeitverträge mit Mindestkapazität | Getestet (Rahmenverträge: feste Touren je Woche, Strafe bei Ausfall, Verlängerung bei guter Erfüllung; zufriedene Stammkunden zahlen in der Börse besser) |
-| KI-Konkurrenz (wirtschaftlich simuliert) | Geplant (Phase 10) |
+| KI-Konkurrenz (wirtschaftlich simuliert) | Getestet (Flotte, Kasse, Kosten, Kapazität in LKW-Stunden, übernimmt Börsenaufträge, wirbt unzufriedene Kunden ab, wächst, eröffnet Standorte, gerät in Schwierigkeiten, Konkurs, Neugründungen) |
+| Kunden zurückgewinnen | Getestet (Vertriebsbesuch, Chance nach Ruf und Lage des Konkurrenten) |
 
 ## 12 · Unternehmensausbau
 | Anforderung | Status |
@@ -172,13 +173,14 @@ Stand: 02.11.2026 · Version 0.1.0
 | Anforderung | Status |
 |---|---|
 | Pannen, verzögerte Beladung | Implementiert |
-| Staus, Unfälle, Sperrungen, Wetter, Grenzwartezeiten, Kundenänderungen, Unternehmens- und private Ereignisse | Geplant (Phase 10) |
+| Staus, Unfälle, Sperrungen, Wetter, Grenzwartezeiten, Kundenänderungen, Unternehmens- und private Ereignisse | Getestet (Ereignisregelwerk mit Bedingungen und Abklingzeiten, Fairnessregeln) |
+| Sonntags- und Feiertagsfahrverbote | Getestet (DE, AT, CH, FR, IT, CZ, SK, HU, PL; Ausnahmen Transporter, Solo-LKW bis 7,5 t, beladene Kühltransporte) |
 
 ## 19 · Dynamische Wirtschaft
 | Anforderung | Status |
 |---|---|
 | Abstraktes Warenflussmodell (Häfen, Industrie, Landwirtschaft, Städte) | Getestet |
-| Regionale Nachfrageänderung durch Ereignisse/Entwicklung | Geplant (Phase 10) |
+| Regionale Nachfrageänderung durch Ereignisse/Entwicklung | Getestet |
 
 ## 20 · Oberfläche
 | Anforderung | Status |

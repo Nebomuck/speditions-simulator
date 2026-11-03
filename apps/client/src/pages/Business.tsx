@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Building2, ArrowUpCircle, FileSignature, ArrowRight, Award, Wrench, Fuel, Warehouse, MapPin, Briefcase, UserPlus, UserMinus } from 'lucide-react';
 import {
   BRANCH_SETUP_COST, CARGO_BY_ID, CITIES, COMPANY_LEVELS, DEPARTMENTS, STAFF_GRADES, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, VEHICLES_PER_DISPATCHER,
-  capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, warehouseIncome,
+  MIN_PER_DAY, WIN_BACK_COST, capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, warehouseIncome, winBackChance, formatMoney,
   type Contract, type Department, type FacilityKind, type Location, type StaffGrade,
 } from '@spedsim/core';
 import { sendCommand, useGame } from '../game/store.ts';
@@ -33,12 +33,15 @@ export function CustomersPage() {
         <div className="table-wrap" style={{ border: 'none', maxHeight: 'calc(100vh - 260px)' }}>
           <table className="table">
             <thead>
-              <tr>{th('name', 'Unternehmen')}<th>Branche</th><th>Größe</th><th>Standort</th>{th('satisfaction', 'Zufriedenheit')}<th>Zahlungsziel</th><th>Zahlungsmoral</th>{th('deliveries', 'Lieferungen', 'num')}</tr>
+              <tr>{th('name', 'Unternehmen')}<th>Branche</th><th>Größe</th><th>Standort</th>{th('satisfaction', 'Zufriedenheit')}<th>Zahlungsziel</th><th>Zahlungsmoral</th>{th('deliveries', 'Lieferungen', 'num')}<th /></tr>
             </thead>
             <tbody>
               {customers.map((c) => (
                 <tr key={c.id}>
-                  <td><b>{c.name}</b></td>
+                  <td>
+                    <b>{c.name}</b>
+                    {c.lostTo && <div><Badge kind="warning">zu {s.competitors[c.lostTo]?.name ?? 'Konkurrenz'} gewechselt</Badge></div>}
+                  </td>
                   <td>{INDUSTRY[c.industry] ?? c.industry}</td>
                   <td>{SIZE[c.size]}</td>
                   <td>{cityLabel(c.cityId)}</td>
@@ -46,15 +49,35 @@ export function CustomersPage() {
                   <td>{c.paymentTermDays} Tage</td>
                   <td>{c.deliveries > 0 || c.paymentReliability < 0.7 ? <Badge kind={c.paymentReliability > 0.85 ? 'success' : c.paymentReliability > 0.7 ? 'warning' : 'danger'}>{c.paymentReliability > 0.85 ? 'gut' : c.paymentReliability > 0.7 ? 'mittel' : 'schlecht'}</Badge> : <span className="dim">unbekannt</span>}</td>
                   <td className="num">{c.deliveries}</td>
+                  <td>{c.lostTo && <WinBack id={c.id} />}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {customers.length === 0 && <Empty>Noch keine Kunden.</Empty>}
         </div>
-        <p className="dim" style={{ fontSize: 12.5 }}>Zufriedene Stammkunden zahlen in der Börse etwas besser und bieten Rahmenverträge an.</p>
+        <p className="dim" style={{ fontSize: 12.5 }}>
+          Zufriedene Stammkunden zahlen in der Börse etwas besser und bieten Rahmenverträge an. Sinkt die Zufriedenheit unter 40 %, kann ein Kunde ohne laufenden Vertrag zur Konkurrenz wechseln –
+          seine Aufträge erscheinen dann nicht mehr in deiner Börse.
+        </p>
       </Card>
     </div>
+  );
+}
+
+function WinBack({ id }: { id: string }) {
+  const s = useGame();
+  const c = s.customers[id];
+  const wait = c.winBackAt !== undefined ? c.winBackAt + 14 * MIN_PER_DAY - s.time : 0;
+  if (wait > 0) return <span className="dim" style={{ fontSize: 12 }}>nächster Besuch in {Math.ceil(wait / MIN_PER_DAY)} Tagen</span>;
+  return (
+    <button
+      className="btn small"
+      title={`Vertriebsbesuch für ${formatMoney(WIN_BACK_COST)} – Erfolgschance etwa ${Math.round(winBackChance(s, c) * 100)} %`}
+      onClick={() => sendCommand({ type: 'winBackCustomer', customerId: id })}
+    >
+      Zurückgewinnen ({Math.round(winBackChance(s, c) * 100)} %)
+    </button>
   );
 }
 

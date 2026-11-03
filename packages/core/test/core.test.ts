@@ -10,6 +10,8 @@ import {
   monthlyPrivateCosts, LIVING_BASE, CHILD_COST, DIVIDEND_TAX,
   addPlayer, TEAM_ROLES, playerView, unreadMessages, openTasksFor, pendingInvitesFor, JOINT_ACTIVITIES, meetingBonus, hourlyTeam, voteCounts,
   diffState, applyPatch, sameJson,
+  weatherWeights, tickTrip, banUntil, banApplies, validateDispatch, isCustomsBorder, startPhase, dailyEconomy, crisisPaymentFactor, setRegionalTrend, regionFactor,
+  activeCompetitors, hourlyCompetition, dailyCompetition, monthlyCompetition, foundCompetitor, dailyEvents, type Trip,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -1410,5 +1412,217 @@ describe('Multiplayer-Zusammenarbeit (Phase 9)', () => {
     const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":7'));
     expect(loaded.team).toEqual({ messages: [], tasks: [], activities: [], votes: [] });
     expect(loaded.players.p1.role).toBe('ceo');
+  });
+});
+
+describe('Erweiterte Simulation (Phase 10)', () => {
+  const SUNDAY_10 = 6 * MIN_PER_DAY + 10 * 60; // So 10.01.2027 10:00
+
+  it('Wetter hängt von Land und Jahreszeit ab und verlangsamt die Fahrt', () => {
+    const winter = weatherWeights('NO', 10 * MIN_PER_DAY);
+    const summer = weatherWeights('NO', 190 * MIN_PER_DAY);
+    expect(winter.snow).toBeGreaterThan(10);
+    expect(summer.snow).toBe(0);
+    expect(weatherWeights('ES', 10 * MIN_PER_DAY).snow).toBeLessThan(winter.snow);
+
+    const run = (kind: 'clear' | 'snow') => {
+      const s = newGame();
+      const [d, v, t] = [first(s.drivers), first(s.vehicles), first(s.trailers)];
+      const o = addOrder(s, 'leipzig', 'nuernberg', { pickupStart: s.time, pickupEnd: s.time + 600 });
+      applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+      const trip = s.trips[v.tripId!];
+      trip.activity = 'driving';
+      trip.phase = 'to_delivery';
+      trip.legIndex = trip.legs.length - 1;
+      trip.progressKm = 0;
+      s.disruptions = [];
+      for (let i = 0; i < 90; i++) {
+        s.weather.DE = { kind, since: s.time, until: s.time + 600 };
+        s.time++;
+        tickTrip(s, ctx, trip);
+      }
+      return trip.progressKm;
+    };
+    const clear = run('clear');
+    const snow = run('snow');
+    expect(snow).toBeLessThan(clear * 0.8);
+    expect(snow).toBeGreaterThan(clear * 0.6);
+  });
+
+  it('Sonntagsfahrverbot: LKW über 7,5 t warten, Transporter und Kühlware fahren', async () => {
+    expect(banUntil('DE', SUNDAY_10)).toBe(6 * MIN_PER_DAY + 22 * 60);
+    expect(banUntil('DE', SUNDAY_10 - MIN_PER_DAY)).toBeNull();
+    expect(banUntil('AT', 5 * MIN_PER_DAY + 16 * 60)).toBe(6 * MIN_PER_DAY + 22 * 60);
+    expect(banUntil('CH', 2 * MIN_PER_DAY + 23 * 60)).toBe(3 * MIN_PER_DAY + 5 * 60);
+    expect(banUntil('NL', SUNDAY_10)).toBeNull();
+
+    const s = newGame();
+    s.time = SUNDAY_10 - 120;
+    const [d, v, t] = [first(s.drivers), first(s.vehicles), first(s.trailers)];
+    const o = addOrder(s, 'leipzig', 'nuernberg', { pickupStart: s.time, pickupEnd: s.time + 600, deliveryEnd: s.time + 2 * MIN_PER_DAY });
+    const check = validateDispatch(s, ctx, { orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+    expect(check.issues.some((i) => i.code === 'driving_ban')).toBe(true);
+    applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+    const trip = s.trips[v.tripId!];
+    await runUntil(s, () => trip.activity === 'ban' || trip.phase === 'done', 600);
+    expect(trip.activity).toBe('ban');
+    expect(trip.log.some((l) => l.text.startsWith('Fahrverbot in Deutschland'))).toBe(true);
+    await runUntil(s, () => trip.activity !== 'ban', 900);
+    expect(s.time).toBeGreaterThanOrEqual(6 * MIN_PER_DAY + 22 * 60);
+
+    // Ausnahmen: Transporter, beladener Kühltransport
+    const van = { ...v, modelId: 'trasko-v35' };
+    expect(banApplies(s, van)).toBe(false);
+    expect(banApplies(s, v)).toBe(true);
+    const r = addOrder(s, 'leipzig', 'nuernberg', { cargoId: 'frozen' });
+    r.status = 'in_transit';
+    expect(banApplies(s, v, { ...trip, orderId: r.id, stops: [{ kind: 'delivery', orderId: r.id, cityId: 'nuernberg' }], legIndex: 0, legs: [{ ...trip.legs[0], loaded: true }] } as Trip)).toBe(false);
+  });
+
+  it('Grenzkontrolle an der Schweizer Grenze: einmal Wartezeit, in der Planung berücksichtigt', async () => {
+    const s = newGame(3, 'muenchen');
+    const [d, v, t] = [first(s.drivers), first(s.vehicles), first(s.trailers)];
+    const o = addOrder(s, 'muenchen', 'zuerich', { pickupStart: s.time, pickupEnd: s.time + 600, deliveryEnd: s.time + 2 * MIN_PER_DAY });
+    const est = validateDispatch(s, ctx, { orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id }).estimate!;
+    expect(est.borderMin).toBe(35);
+    expect(isCustomsBorder('DE', 'CH')).toBe(true);
+    expect(isCustomsBorder('DE', 'AT')).toBe(false);
+    applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+    const trip = s.trips[v.tripId!];
+    s.disruptions = [];
+    await runUntil(s, () => trip.phase === 'done', 3 * MIN_PER_DAY);
+    expect(trip.phase).toBe('done');
+    expect(trip.log.filter((l) => l.text.startsWith('Grenzkontrolle')).length).toBe(1);
+  });
+
+  it('Konjunktur: Krise senkt die Nachfrage, regionale Ereignisse verschieben die Herkunft der Aufträge', () => {
+    const s = newGame();
+    startPhase(s, 'crisis', 60);
+    for (let i = 0; i < 40; i++) {
+      s.time += MIN_PER_DAY;
+      dailyEconomy(s);
+    }
+    expect(s.economy.cycle).toBeLessThan(0.9);
+    expect(s.market.demand).toBeLessThan(0.95);
+    expect(crisisPaymentFactor(s)).toBeLessThan(1);
+
+    const share = (st: GameState) => {
+      let pl = 0;
+      for (let i = 0; i < 400; i++) {
+        const o = generateOrder(st, ctx);
+        if (o && CITY_BY_ID[o.fromCityId].country === 'PL') pl++;
+      }
+      return pl;
+    };
+    const a = newGame(9);
+    const base = share(a);
+    const b = newGame(9);
+    setRegionalTrend(b, 'PL', 1.45, 30, 'Messe');
+    for (let i = 0; i < 25; i++) {
+      b.time += MIN_PER_DAY;
+      dailyEconomy(b);
+    }
+    expect(regionFactor(b, 'PL')).toBeGreaterThan(1.3);
+    expect(share(b)).toBeGreaterThan(base * 1.3);
+  });
+
+  it('KI-Konkurrenz übernimmt Aufträge, wirtschaftet, gerät in Schwierigkeiten und geht in Konkurs', () => {
+    const s = newGame();
+    const comps = activeCompetitors(s);
+    expect(comps.length).toBe(5);
+    expect(comps.some((c) => haversineKm([CITY_BY_ID[c.hqCityId].lon, CITY_BY_ID[c.hqCityId].lat], [CITY_BY_ID.leipzig.lon, CITY_BY_ID.leipzig.lat]) < 350)).toBe(true);
+    for (const o of Object.values(s.orders)) o.created -= 120;
+    for (let h = 0; h < 24; h++) {
+      s.time += 60;
+      hourlyCompetition(s);
+    }
+    const taken = Object.values(s.orders).filter((o) => o.takenBy);
+    expect(taken.length).toBeGreaterThan(5);
+    expect(comps.reduce((a, c) => a + c.month.orders, 0)).toBe(taken.length);
+
+    // ohne Aufträge reichen die Fixkosten in den Konkurs
+    const c = comps[0];
+    c.cash = 5_000_00;
+    const cu = Object.values(s.customers)[0];
+    cu.lostTo = c.id;
+    for (let m = 0; m < 6 && c.status !== 'bankrupt'; m++) {
+      for (let d = 0; d < 30; d++) {
+        s.time += MIN_PER_DAY;
+        c.month.revenue = 0;
+        dailyCompetition(s);
+      }
+      monthlyCompetition(s);
+    }
+    expect(c.status).toBe('bankrupt');
+    expect(s.log.some((l) => l.text.startsWith(`Konkurs: ${c.name}`))).toBe(true);
+    dailyCompetition(s);
+    expect(cu.lostTo).toBeUndefined();
+  });
+
+  it('Unzufriedene Kunden wechseln zur Konkurrenz und lassen sich zurückgewinnen', () => {
+    const s = newGame();
+    const rival = foundCompetitor(s, { near: 'leipzig', strategy: 'regional', trucks: 10 });
+    rival.cityIds = ['leipzig'];
+    const cu = Object.values(s.customers).find((c) => c.cityId === 'leipzig') ?? Object.values(s.customers)[0];
+    cu.cityId = 'leipzig';
+    cu.deliveries = 4;
+    cu.satisfaction = 20;
+    for (let i = 0; i < 300 && !cu.lostTo; i++) {
+      s.time += MIN_PER_DAY;
+      dailyCompetition(s);
+    }
+    expect(cu.lostTo).toBeDefined();
+    const bal = s.company.account.balance;
+    s.company.reputation = 95;
+    for (const c of Object.values(s.competitors)) c.reputation = 10;
+    let won = false;
+    for (let i = 0; i < 6 && !won; i++) {
+      const r = applyCommand(s, ctx, 'p1', { type: 'winBackCustomer', customerId: cu.id });
+      expect(r.ok).toBe(true);
+      won = !cu.lostTo;
+      expect(applyCommand(s, ctx, 'p1', { type: 'winBackCustomer', customerId: cu.id }).ok).toBe(false); // Abklingzeit oder schon zurück
+      s.time += 15 * MIN_PER_DAY;
+    }
+    expect(won).toBe(true);
+    expect(s.company.account.balance).toBeLessThan(bal);
+  });
+
+  it('Ereignisregelwerk: Abklingzeiten, keine negativen Ereignisse in der Liquiditätskrise', () => {
+    const s = newGame(21);
+    s.company.account.balance = -5_000_00;
+    for (let i = 0; i < 200; i++) {
+      s.time += MIN_PER_DAY;
+      dailyEvents(s, ctx);
+    }
+    const company = s.events.history.filter((e) => e.category !== 'private');
+    expect(company.length).toBeGreaterThan(0);
+    expect(company.every((e) => e.tone !== 'bad')).toBe(true);
+
+    const t = newGame(22);
+    t.company.account.balance = 200_000_00;
+    for (let i = 0; i < 365; i++) {
+      t.time += MIN_PER_DAY;
+      dailyEvents(t, ctx);
+    }
+    const tenders = t.events.history.filter((e) => e.rule === 'tender').map((e) => e.t);
+    for (let i = 1; i < tenders.length; i++) expect(tenders[i] - tenders[i - 1]).toBeGreaterThanOrEqual(6 * MIN_PER_DAY);
+    const bad = t.events.history.filter((e) => e.tone === 'bad' && e.category !== 'private').map((e) => e.t);
+    for (let i = 1; i < bad.length; i++) expect(bad[i] - bad[i - 1]).toBeGreaterThanOrEqual(4 * MIN_PER_DAY);
+    expect(new Set(t.events.history.map((e) => e.rule)).size).toBeGreaterThan(3);
+    expect(Object.values(t.orders).some((o) => o.tender)).toBe(true);
+  });
+
+  it('Spielstände der Version 8 bekommen Wetter, Konjunktur, Konkurrenz und Ereignisse', () => {
+    const s = newGame();
+    const old = JSON.parse(JSON.stringify(s));
+    for (const k of ['weather', 'economy', 'competitors', 'events']) delete old[k];
+    const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":8'));
+    expect(loaded.economy.phase).toBe('normal');
+    expect(loaded.events.history).toEqual([]);
+    expect(loaded.competitors).toEqual({});
+    loaded.time += 59;
+    tickMinutes(loaded, ctx, 1);
+    expect(activeCompetitors(loaded).length).toBe(5);
+    expect(Object.keys(loaded.weather).length).toBeGreaterThan(20);
   });
 });

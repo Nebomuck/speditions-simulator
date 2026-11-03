@@ -1,4 +1,4 @@
-import { Pause, Play, LayoutDashboard, Map, CalendarRange, ClipboardList, Users, Truck, Wallet, Handshake, Building2, Home, MessagesSquare, BarChart3, Settings, Wifi } from 'lucide-react';
+import { Pause, Play, LayoutDashboard, Map, CalendarRange, ClipboardList, Users, Truck, Wallet, Handshake, Building2, Home, MessagesSquare, BarChart3, Settings, Wifi, TrendingUp } from 'lucide-react';
 import { SPEEDS, formatTime, formatDate, WEEKDAY_NAMES, weekday, holidayName, season, SEASON_NAMES, unreadMessages, openTasksFor, pendingInvitesFor } from '@spedsim/core';
 import { navigate, sendCommand, useGame, useUi, type Page } from '../game/store.ts';
 import { Money } from './components.tsx';
@@ -12,6 +12,7 @@ const NAV: { page: Page; label: string; icon: typeof Map }[] = [
   { page: 'fleet', label: 'Fuhrpark', icon: Truck },
   { page: 'finance', label: 'Finanzen', icon: Wallet },
   { page: 'customers', label: 'Kunden & Verträge', icon: Handshake },
+  { page: 'market', label: 'Markt & Wettbewerb', icon: TrendingUp },
   { page: 'locations', label: 'Standorte & Ausbau', icon: Building2 },
   { page: 'private', label: 'Privatleben', icon: Home },
   { page: 'multiplayer', label: 'Team & Kommunikation', icon: MessagesSquare },
@@ -32,7 +33,7 @@ export function Sidebar() {
     <nav className="sidebar">
       {NAV.map(({ page: p, label, icon: Icon }, i) => (
         <div key={p}>
-          {(i === 4 || i === 9 || i === 11) && <div className="nav-sep" />}
+          {(i === 4 || i === 10 || i === 12) && <div className="nav-sep" />}
           <button className={`nav-item ${page === p ? 'active' : ''}`} onClick={() => navigate(p)}>
             <Icon size={17} />
             {label}

@@ -418,6 +418,11 @@ export interface Customer {
   satisfaction: number; // 0–100
   priceSensitivity: number; // 0–1
   deliveries: number;
+  /** zu diesem Konkurrenten gewechselt (vergibt keine Aufträge mehr an den Spieler) */
+  lostTo?: Id;
+  lostAt?: GameTime;
+  /** letzter Rückgewinnungsversuch */
+  winBackAt?: GameTime;
 }
 
 export type OrderStatus = 'offered' | 'accepted' | 'planned' | 'in_transit' | 'delivered' | 'expired' | 'cancelled';
@@ -445,6 +450,10 @@ export interface Order {
   /** Tour aus einem Rahmenvertrag */
   contractId?: Id;
   status: OrderStatus;
+  /** von einem Konkurrenten übernommen (Status „expired“) */
+  takenBy?: Id;
+  /** besonders lukrative Ausschreibung (Ereignis) */
+  tender?: boolean;
   offerExpires: GameTime;
   created: GameTime;
   tripId?: Id;
@@ -465,6 +474,9 @@ export type TripActivity =
   | 'blocked'
   | 'ferry'
   | 'breakdown'
+  | 'accident'
+  | 'ban'
+  | 'border'
   | 'done';
 
 export interface TripLeg {
@@ -549,6 +561,8 @@ export interface Trip {
   startedAt: GameTime;
   finishedAt?: GameTime;
   costs: { fuel: Money; toll: Money };
+  /** Index der Grenzkante, an der die Kontrolle schon erledigt ist */
+  borderEdge?: number;
   kmEmpty: number;
   kmLoaded: number;
   /** geschätzte Ankunft am Ziel bei Dispositionszeitpunkt */
@@ -649,6 +663,79 @@ export interface TeamVote {
   result?: number;
 }
 
+export type WeatherKind = 'clear' | 'rain' | 'fog' | 'snow' | 'ice' | 'storm' | 'heat';
+
+/** Wetterlage eines Landes */
+export interface CountryWeather {
+  kind: WeatherKind;
+  since: GameTime;
+  until: GameTime;
+}
+
+export type EconomyPhase = 'normal' | 'boom' | 'crisis';
+
+/** Nachfrage einer Region (Land) relativ zum Normalwert */
+export interface RegionalMarket {
+  factor: number;
+  /** Zielwert, dem sich `factor` täglich nähert */
+  target: number;
+  reason?: string;
+  until?: GameTime;
+}
+
+export interface Economy {
+  /** Konjunktur 0,75–1,25 (1 = normal) */
+  cycle: number;
+  phase: EconomyPhase;
+  phaseUntil: GameTime;
+  lastPhaseChange: GameTime;
+  regions: Record<string, RegionalMarket>;
+}
+
+export type CompetitorStrategy = 'budget' | 'premium' | 'regional';
+
+/** KI-Spedition: eigene Flotte, Kasse und Standorte; nimmt Aufträge aus der Börse */
+export interface Competitor {
+  id: Id;
+  name: string;
+  hqCityId: string;
+  cityIds: string[];
+  trucks: number;
+  cash: Money;
+  /** 0–100 */
+  reputation: number;
+  /** Preisniveau gegenüber dem Markt (0,9 = 10 % günstiger) */
+  priceLevel: number;
+  strategy: CompetitorStrategy;
+  founded: GameTime;
+  status: 'active' | 'trouble' | 'bankrupt';
+  troubleSince?: GameTime;
+  bankruptAt?: GameTime;
+  /** angefangene Auftragskapazität (Bruchteil) */
+  carry: number;
+  /** laufender und letzter Monat; `hours` = belegte LKW-Stunden (Auslastung) */
+  month: { revenue: Money; costs: Money; orders: number; hours: number };
+  lastMonth: { revenue: Money; costs: Money; orders: number; hours: number };
+  totals: { orders: number; revenue: Money };
+}
+
+/** Ereignis aus dem Ereignisregelwerk (für die Übersicht „Ereignisse“) */
+export interface WorldEvent {
+  t: GameTime;
+  rule: string;
+  title: string;
+  text: string;
+  category: 'transport' | 'company' | 'market' | 'private';
+  tone: 'good' | 'bad' | 'neutral';
+}
+
+export interface EventState {
+  /** letzter Auslösezeitpunkt je Regel (bei privaten Ereignissen je Spieler: `regel:spieler`) */
+  last: Record<string, GameTime>;
+  lastBad?: GameTime;
+  history: WorldEvent[];
+}
+
 /** Zusammenarbeit im Team: Nachrichten, Aufgaben, gemeinsame Aktivitäten, Abstimmungen */
 export interface TeamState {
   messages: InternalMessage[];
@@ -710,4 +797,12 @@ export interface GameState {
   autoDispatch: AutoDispatchState;
   /** Multiplayer-Zusammenarbeit */
   team: TeamState;
+  /** Wetter je Land (ISO-Code) */
+  weather: Record<string, CountryWeather>;
+  /** Konjunktur und regionale Nachfrage */
+  economy: Economy;
+  /** KI-Konkurrenz */
+  competitors: Record<Id, Competitor>;
+  /** Ereignisregelwerk */
+  events: EventState;
 }
