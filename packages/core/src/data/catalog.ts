@@ -206,7 +206,7 @@ export interface DepartmentDef {
 }
 
 export const DEPARTMENTS: Record<Department, DepartmentDef> = {
-  dispatch: { id: 'dispatch', name: 'Disposition', salary: 3_600_00, maxEffective: 99, text: 'Ein Disponent betreut 8 Fahrzeuge; bis 5 Fahrzeuge disponiert die Geschäftsführung selbst. Fehlt Disposition, sinkt die Fahrerzufriedenheit. Disponenten können teil- oder vollautomatisch planen (Disposition → KI-Disposition).' },
+  dispatch: { id: 'dispatch', name: 'Disposition', salary: 3_600_00, maxEffective: 99, text: 'Ein Disponent betreut 8 Fahrzeuge; je nach Arbeitsstil disponiert die Geschäftsführung selbst bis zu 5 Fahrzeuge. Fehlt Disposition, sinkt die Fahrerzufriedenheit. Disponenten können teil- oder vollautomatisch planen (Disposition → KI-Disposition).' },
   sales: { id: 'sales', name: 'Vertrieb', salary: 3_900_00, maxEffective: 3, text: 'Je Mitarbeiter +12 % Angebote in der Auftragsbörse, +1,5 % bessere Preise und ein zusätzliches Rahmenvertragsangebot.' },
   accounting: { id: 'accounting', name: 'Buchhaltung', salary: 3_400_00, maxEffective: 2, text: 'Forderungsmanagement: weniger Zahlungsausfälle (−45 % / −65 %) und pünktlichere Zahlungen.' },
   fleet: { id: 'fleet', name: 'Fuhrparkmanagement', salary: 3_700_00, maxEffective: 2, text: 'Je Mitarbeiter −8 % Verschleiß und −30 % Pannen; fällige Fahrzeuge (< 60 %) kommen automatisch in die eigene Werkstatt.' },

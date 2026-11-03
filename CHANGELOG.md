@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 – 03.11.2026
+
+- **Lebenssimulation:** Das Privatleben wirkt jetzt tatsächlich und beeinflusst die Firma.
+  - Arbeitsstil (Work-Life-Balance): vom täglichen Selbstdisponieren bis zum angestellten Geschäftsführer. Er bestimmt Stress, Energie und wie viele Fahrzeuge du selbst disponierst.
+  - Bedürfnisse ändern sich täglich. Dauerstress führt zur Erschöpfung, dann fällt die eigene Disposition eine Woche aus.
+  - Freizeit (Essen, Kino, Sport, Freunde, Wellness, Hobby, Weiterbildung) und Urlaub kosten Privatgeld und Zeit.
+  - Wohnen und Besitz: größere Wohnung, Haus oder Villa (mit Immobilienkredit), Ferienhaus, Privatwagen, Einrichtung.
+  - Beziehungen: Freundschaften, Partnerschaft und Familie; ohne gemeinsame Zeit kühlen sie ab.
+  - Hintergrund bei der Gründung (Berufskraftfahrer/in, Speditionskaufmann/-frau, Quereinsteiger/in) mit Fähigkeiten, die sich auf Preise, Fahrerzufriedenheit und Disposition auswirken; persönliche Ziele.
+  - Gewinnausschüttung von der Firma aufs Privatkonto (mit Kapitalertragsteuer).
+
 ## 0.7.0 – 03.11.2026
 
 - **Neuer Name und neues Logo: Cargovia** – Logistik-Simulation Europa. Das Logo zeigt einen LKW auf einer Route, die ein „C“ bildet. Beim Update wird die alte Installation „Speditions-Simulator“ automatisch entfernt; Spielstände und Einstellungen bleiben erhalten.

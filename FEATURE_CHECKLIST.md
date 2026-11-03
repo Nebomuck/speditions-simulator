@@ -129,11 +129,11 @@ Stand: 02.11.2026 · Version 0.1.0
 ## 13–14 · Lebenssimulation & Geldkreislauf
 | Anforderung | Status |
 |---|---|
-| Charakter mit 2D-Avatar, Name, Alter | Implementiert |
+| Charakter mit 2D-Avatar, Name, Alter, Hintergrund (Startfähigkeiten) | Implementiert |
 | Getrenntes Privat-/Firmenvermögen | Getestet |
 | GF-Gehalt beeinflusst Privateinkommen und Firma | Getestet |
-| Bedürfnisse (Datenmodell + Anzeige) | In Entwicklung (Simulation: Phase 8) |
-| Hintergrund, Ziele, Wohnen, Freizeit, Beziehungen, Familie, Work-Life-Balance, Gewinnausschüttung | Geplant (Phase 8) |
+| Bedürfnisse mit tatsächlicher Wirkung (Leistungsfähigkeit, Erschöpfung) | Getestet (Arbeitsstil → Stress/Energie, Burnout legt die eigene Disposition lahm) |
+| Hintergrund, Ziele, Wohnen, Freizeit, Beziehungen, Familie, Work-Life-Balance, Gewinnausschüttung | Getestet (Aktivitäten, Urlaub, Haus mit Immobilienkredit, Partnerschaft und Familie, Abkühlen von Beziehungen, Ausschüttung mit Kapitalertragsteuer; Ferienhaus, Auto, Möbel, Hobbys, Ziele implementiert) |
 
 ## 15–16 · Multiplayer
 | Anforderung | Status |

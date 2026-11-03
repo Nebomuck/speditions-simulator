@@ -38,6 +38,7 @@ packages/core/src
 ├── personnel.ts    Personal: Urlaub, Krankheit, Schulungen, Gehalt, Gespräche, Kündigungen
 ├── company.ts      Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilungen, Flottenwartung
 ├── autodispatch.ts KI-Disposition: Regeln, Vorschläge, automatische Fahrten (nutzt estimateTrip/validateDispatch)
+├── life.ts         Lebenssimulation: Bedürfnisse, Arbeitsstil, Wohnen, Freizeit, Beziehungen, Ausschüttung
 ├── trips.ts        VehicleSystem: minutengenaue Fahrtsimulation
 ├── sim.ts          SimulationEngine: Minuten-Tick, stündliche/tägliche/monatliche Prozesse
 ├── commands.ts     CommandSystem: alle Spieleraktionen + Berechtigungen
@@ -72,7 +73,7 @@ Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed 
                                                        │
      tickMinute: Fahrten (Fahren/Pausen/Tanken/Laden/Pannen) → Fahrer-Ruhe → Werkstatt
                  + stündlich: Auftragsbörse, Rechnungen, Verkehrsstörungen, Rückkehr/Austritt Personal, verpasste Vertragstouren, automatische Wartung, KI-Disposition
-                 + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Zufriedenheit/Krankheit, Vertragstouren für morgen, Miete, Unternehmensstufe, Lagerauslastung, Statistik, Monatsabrechnung (inkl. Lagererlöse)
+                 + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Zufriedenheit/Krankheit, Vertragstouren für morgen, Miete, Unternehmensstufe, Lagerauslastung, Lebenssimulation, Statistik, Monatsabrechnung (inkl. Lagererlöse)
 ```
 
 - Die Simulation läuft unabhängig von der Darstellung: im Worker (Einzelspieler) bzw. auf dem Server (Multiplayer).

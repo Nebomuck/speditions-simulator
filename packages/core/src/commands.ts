@@ -3,6 +3,7 @@
 // Im Multiplayer führt ausschließlich der Server Befehle aus (serverautoritativ) – dadurch sind
 // Doppelbelegungen und widersprüchliche Aktionen ausgeschlossen, da Befehle sequenziell verarbeitet werden.
 
+import { applyLife, payDividend, type LifeAction } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
@@ -58,6 +59,8 @@ export type Command =
   | { type: 'trainDriver'; driverId: Id; course: TrainingCourse }
   | { type: 'setDriverSalary'; driverId: Id; salary: number }
   | { type: 'talkToDriver'; driverId: Id }
+  | { type: 'life'; action: LifeAction }
+  | { type: 'payDividend'; amount: number }
   | { type: 'chat'; text: string }
   | { type: 'setPermissions'; playerId: Id; permissions: Permission[] };
 
@@ -104,6 +107,8 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   repayLoan: 'loans',
   factorInvoices: 'finance',
   chat: null,
+  life: null,
+  payDividend: 'finance',
   setPermissions: 'admin',
 };
 
@@ -454,6 +459,15 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
     case 'promoteDriver': {
       const r = promoteDriver(state, cmd.driverId, cmd.dept);
       return r.ok ? { ok: true, id: r.id } : fail(r.error);
+    }
+    case 'life': {
+      // wirkt immer nur auf den eigenen Charakter
+      const r = applyLife(state, ctx, actorId, cmd.action);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'payDividend': {
+      const r = payDividend(state, actorId, Number(cmd.amount));
+      return r.ok ? { ok: true } : fail(r.error);
     }
     case 'acceptContract': {
       const r = acceptContract(state, ctx, cmd.contractId);

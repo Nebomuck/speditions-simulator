@@ -208,9 +208,62 @@ export interface Character {
   privateAccount: Account;
   /** Monatliches Geschäftsführergehalt (brutto ≈ netto im Spielmodell). */
   salary: Money;
-  home: 'apartment_small';
-  /** Bedürfnisse 0–100 (Phase 8 vollständig). */
-  needs: { energy: number; hunger: number; stress: number; health: number; happiness: number; social: number; leisure: number };
+  home: HomeKind;
+  /** Bedürfnisse 0–100 (hunger = Sättigung, stress: hoch = schlecht) */
+  needs: Needs;
+  /** Hintergrund bei der Gründung (bestimmt die Startfähigkeiten) */
+  background: CharacterBackground;
+  /** Fähigkeiten 0–100: Verhandlung (Preise), Führung (Fahrerzufriedenheit), Logistik (eigene Disposition) */
+  skills: { negotiation: number; leadership: number; logistics: number };
+  /** persönliche Ziele (IDs aus LIFE_GOALS) */
+  goals: string[];
+  /** wie viel der Charakter selbst arbeitet (Work-Life-Balance) */
+  workStyle: WorkStyle;
+  /** Wohneigentum: Immobilienkredit */
+  mortgage?: { principal: Money; remaining: Money; monthly: Money; ratePa: number };
+  holidayHome?: boolean;
+  /** Privatwagen (ID aus PRIVATE_CARS) */
+  car?: string;
+  /** Einrichtung 0–3 */
+  furniture: number;
+  /** laufende Aktivität oder Urlaub */
+  activity?: { id: string; until: GameTime; text: string };
+  /** krank (Erschöpfung) bis */
+  sickUntil?: GameTime;
+  /** aufeinanderfolgende Tage mit Stress ≥ 90 */
+  burnoutDays?: number;
+  relations: Relation[];
+  hobby?: { id: string; level: number };
+  /** Familienzuwachs erwartet am */
+  babyDue?: GameTime;
+  /** Tage, an denen die Aktivitäten zuletzt vergeben wurden (gegen Spam): letzte Aktivität je Art */
+  lastActivity?: Record<string, GameTime>;
+}
+
+export interface Needs {
+  energy: number;
+  hunger: number;
+  stress: number;
+  health: number;
+  happiness: number;
+  social: number;
+  leisure: number;
+}
+
+export type HomeKind = 'apartment_small' | 'apartment_large' | 'house' | 'villa';
+export type WorkStyle = 'hands_on' | 'key_accounts' | 'strategy' | 'delegate' | 'ceo';
+export type CharacterBackground = 'driver' | 'merchant' | 'career_changer';
+
+export interface Relation {
+  id: Id;
+  name: string;
+  kind: 'friend' | 'partner' | 'child';
+  /** Nähe 0–100 */
+  closeness: number;
+  since: GameTime;
+  lastContact: GameTime;
+  /** Wohnort (für Freundschaften) */
+  cityId?: string;
 }
 
 export interface Player {

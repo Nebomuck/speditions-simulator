@@ -13,7 +13,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { WebSocketServer, type WebSocket } from 'ws';
 import roadnet from '@spedsim/core/roadnet.json' with { type: 'json' };
 import {
-  GameSession, addPlayer, createNewGame, createSimContext, deserializeSave, serializeSave, CITY_BY_ID,
+  GameSession, addPlayer, createNewGame, createSimContext, deserializeSave, serializeSave, CITY_BY_ID, LIFE_GOALS,
   type Character, type Command, type DifficultyId, type RoadNetData,
 } from '@spedsim/core';
 
@@ -64,6 +64,8 @@ function sanitizeCharacter(c: unknown, name: string): Partial<Character> {
     name,
     age: typeof o.age === 'number' ? Math.max(18, Math.min(80, Math.round(o.age))) : 32,
     avatar: { skin: n(av.skin, 10), hair: n(av.hair, 10), hairColor: n(av.hairColor, 10), shirt: n(av.shirt, 10) },
+    ...(o.background === 'driver' || o.background === 'merchant' || o.background === 'career_changer' ? { background: o.background } : {}),
+    ...(Array.isArray(o.goals) ? { goals: o.goals.filter((g): g is string => typeof g === 'string' && g in LIFE_GOALS).slice(0, 4) } : {}),
   };
 }
 

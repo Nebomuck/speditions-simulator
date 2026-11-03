@@ -82,6 +82,19 @@ export const MIGRATIONS: Record<number, Migration> = {
     s.autoDispatch ??= defaultAutoDispatch();
     return s;
   },
+  // 0.8.0: Lebenssimulation
+  6: (s) => {
+    for (const p of Object.values(s.players as Record<string, { character: Record<string, unknown> }>)) {
+      const c = p.character;
+      c.background ??= 'career_changer';
+      c.skills ??= { negotiation: 30, leadership: 30, logistics: 30 };
+      c.goals ??= [];
+      c.workStyle ??= 'hands_on';
+      c.furniture ??= 0;
+      c.relations ??= [];
+    }
+    return s;
+  },
 };
 
 export function deserializeSave(text: string): GameState {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server, Download } from 'lucide-react';
-import { CITIES, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type DifficultyId } from '@spedsim/core';
+import { BACKGROUNDS, CITIES, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type CharacterBackground, type DifficultyId } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
 import { appVersion, checkForUpdate, installUpdate, type Update } from '../game/updater.ts';
 import { connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
@@ -34,6 +34,7 @@ export function Welcome() {
   const [difficulty, setDifficulty] = useState<Exclude<DifficultyId, 'custom'>>('normal');
   const [avatar, setAvatar] = useState({ skin: 1, hair: 1, hairColor: 1, shirt: 0 });
   const [age, setAge] = useState(32);
+  const [background, setBackground] = useState<CharacterBackground>('career_changer');
   const [saves, setSaves] = useState<SaveMeta[]>([]);
   const [busy, setBusy] = useState(false);
   const [mpMode, setMpMode] = useState<'list' | 'host' | 'join'>('list');
@@ -78,7 +79,7 @@ export function Welcome() {
     setBusy(true);
     try {
       const host = getLocalHost();
-      await host.newGame({ companyName: company, hqCityId: hq, difficulty, founder: { name: player, character: { name: player, age, avatar } } });
+      await host.newGame({ companyName: company, hqCityId: hq, difficulty, founder: { name: player, character: { name: player, age, avatar, background } } });
       setUi({ host, page: 'dashboard' });
     } catch (e) {
       toast('danger', (e as Error).message);
@@ -108,7 +109,7 @@ export function Welcome() {
     }
   }
 
-  const character = { name: player, age, avatar };
+  const character = { name: player, age, avatar, background };
 
   async function hostNew() {
     setBusy(true);
@@ -207,6 +208,13 @@ export function Welcome() {
                       </button>
                     ))}
                     <input className="input" type="number" min={21} max={65} value={age} onChange={(e) => setAge(Number(e.target.value))} style={{ width: 80 }} title="Alter" />
+                  </div>
+                  <div className="field mt">
+                    <label>Hintergrund</label>
+                    <select className="input" value={background} onChange={(e) => setBackground(e.target.value as CharacterBackground)} title={BACKGROUNDS[background].text}>
+                      {(Object.keys(BACKGROUNDS) as CharacterBackground[]).map((b) => <option key={b} value={b}>{BACKGROUNDS[b].name}</option>)}
+                    </select>
+                    <small className="dim">{BACKGROUNDS[background].text}</small>
                   </div>
                 </div>
               </div>

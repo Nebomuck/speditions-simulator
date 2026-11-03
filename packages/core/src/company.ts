@@ -1,6 +1,7 @@
 // Unternehmensausbau: Niederlassungen, eigene Einrichtungen (Werkstatt, Tankstelle, Lager),
 // Abteilungen mit Büropersonal, Unternehmensstufen und Flottenwartung.
 
+import { ceoManagedVehicles } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import {
   BRANCH_SETUP_COST, COMPANY_LEVELS, DEPARTMENTS, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER,
@@ -17,8 +18,6 @@ type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const OVERDRAFT = -10_000_00;
 const canAfford = (state: GameState, amount: Money) => state.company.account.balance - amount >= OVERDRAFT;
 
-/** bis zu dieser Fahrzeugzahl disponiert die Geschäftsführung selbst */
-export const CEO_MANAGED_VEHICLES = 5;
 export const VEHICLES_PER_DISPATCHER = 8;
 /** Fuhrparkmanagement: Fahrzeuge unter diesem Zustand gehen automatisch in die eigene Werkstatt */
 export const AUTO_SERVICE_BELOW = 60;
@@ -51,7 +50,7 @@ export function seatsAt(state: GameState, locationId: Id): { used: number; total
 /** Fahrzeuge, die keine Disposition betreut (führt zu Unzufriedenheit der Fahrer) */
 export function dispatchShortfall(state: GameState): number {
   const vehicles = Object.keys(state.vehicles).length;
-  return Math.max(0, vehicles - CEO_MANAGED_VEHICLES - deptCount(state, 'dispatch') * VEHICLES_PER_DISPATCHER);
+  return Math.max(0, vehicles - ceoManagedVehicles(state) - deptCount(state, 'dispatch') * VEHICLES_PER_DISPATCHER);
 }
 
 /** Vertrieb: Faktor auf das Auftragsvolumen der Börse */

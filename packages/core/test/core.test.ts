@@ -6,6 +6,8 @@ import {
   type Disruption, type Contract, generateContractOffer, marketSalary, COURSES, dailyPersonnel, tradeInValue, MIN_PER_DAY,
   type GameState, LOCATION_DEFS, BRANCH_SETUP_COST, capacity, monthlyFixedCosts, dailyCompany, monthlyCompany, serviceCost, dispatchShortfall,
   satisfactionFactors, accountingRiskFactor, salesVolumeFactor, warehouseIncome, companyValue, runAutoDispatch, searchDepth,
+  type LifeAction, dailyLife, ceoManagedVehicles, ACTIVITIES, isAway, negotiationBonus, HOMES, MOVING_COST, goalDone, privateWealth,
+  monthlyPrivateCosts, LIVING_BASE, CHILD_COST, DIVIDEND_TAX,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -1080,5 +1082,146 @@ describe('KI-Disponenten (Automatiktest)', () => {
     const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":5'));
     expect(loaded.autoDispatch.mode).toBe('manual');
     expect(loaded.company.staff[0].skill).toBe(50);
+  });
+});
+
+describe('Lebenssimulation: Bedürfnisse, Work-Life-Balance, Wohnen, Beziehungen', () => {
+  const life = (s: GameState, action: LifeAction) => applyCommand(s, ctx, 'p1', { type: 'life', action });
+  const me = (s: GameState) => s.players.p1.character;
+
+  it('der Arbeitsstil bestimmt Stress und Energie – und wie viele Fahrzeuge die Geschäftsführung selbst disponiert', () => {
+    const busy = newGame();
+    const calm = newGame();
+    calm.company.account.balance = 100_000_00;
+    applyCommand(calm, ctx, 'p1', { type: 'hireStaff', dept: 'dispatch', locationId: calm.company.locations[0].id });
+    expect(life(newGame(), { kind: 'workStyle', style: 'delegate' }).ok).toBe(false); // ohne Disponent nicht möglich
+    expect(life(calm, { kind: 'workStyle', style: 'delegate' }).ok).toBe(true);
+    for (let i = 0; i < 30; i++) {
+      dailyLife(busy);
+      dailyLife(calm);
+    }
+    expect(me(busy).needs.stress).toBeGreaterThan(me(calm).needs.stress + 15);
+    expect(me(busy).needs.energy).toBeLessThan(me(calm).needs.energy - 15);
+    expect(ceoManagedVehicles(busy)).toBeGreaterThan(ceoManagedVehicles(calm));
+  });
+
+  it('anhaltender Stress führt zur Erschöpfung; dann disponiert niemand aus der Geschäftsführung', () => {
+    const s = newGame();
+    expect(ceoManagedVehicles(s)).toBeGreaterThan(0);
+    // lange Tage plus Geldsorgen privat und in der Firma
+    me(s).privateAccount.balance = -1_000_00;
+    s.company.account.balance = -20_000_00;
+    for (let i = 0; i < 40 && !me(s).sickUntil; i++) {
+      me(s).needs.leisure = 0;
+      dailyLife(s);
+    }
+    expect(me(s).sickUntil).toBeGreaterThan(s.time);
+    expect(ceoManagedVehicles(s)).toBe(0);
+    expect(life(s, { kind: 'activity', activity: 'cinema' }).ok).toBe(false);
+    expect(s.log.some((l) => l.text.includes('erschöpft'))).toBe(true);
+  });
+
+  it('Freizeitaktivitäten kosten Privatgeld, wirken auf die Bedürfnisse und belegen Zeit', () => {
+    const s = newGame();
+    const company0 = s.company.account.balance;
+    const priv0 = me(s).privateAccount.balance;
+    const stress0 = me(s).needs.stress;
+    expect(life(s, { kind: 'activity', activity: 'wellness' }).ok).toBe(true);
+    expect(me(s).privateAccount.balance).toBe(priv0 - ACTIVITIES.wellness.cost);
+    expect(s.company.account.balance).toBe(company0);
+    expect(me(s).needs.stress).toBeLessThan(stress0);
+    expect(life(s, { kind: 'activity', activity: 'cinema' }).ok).toBe(false); // noch beschäftigt
+    expect(isAway(s, me(s))).toBe(true);
+    s.time += 9 * 60;
+    expect(life(s, { kind: 'activity', activity: 'course', skill: 'negotiation' }).ok).toBe(true);
+    expect(me(s).skills.negotiation).toBe(35);
+    expect(negotiationBonus(s)).toBeGreaterThan(0);
+  });
+
+  it('Haus mit Immobilienkredit: Bank prüft die Rate, Monatsabrechnung bucht Zins und Tilgung privat', () => {
+    const s = newGame();
+    const c = me(s);
+    c.privateAccount.balance = 120_000_00;
+    expect(life(s, { kind: 'moveHome', home: 'house', mortgage: true }).ok).toBe(false); // Rate zu hoch für 2.400 € Gehalt
+    c.salary = 6_000_00;
+    expect(life(s, { kind: 'moveHome', home: 'house', mortgage: true }).ok).toBe(true);
+    expect(c.home).toBe('house');
+    expect(c.mortgage!.remaining).toBe(Math.round(HOMES.house.price! * 0.8));
+    expect(c.privateAccount.balance).toBe(120_000_00 - HOMES.house.price! * 0.2 - MOVING_COST);
+    const rest = c.mortgage!.remaining;
+    const company0 = s.company.account.balance;
+    processMonthEnd(s);
+    expect(c.mortgage!.remaining).toBeLessThan(rest);
+    expect(s.ledger.some((l) => l.account === 'private:p1' && l.text === 'Zinsen Immobilienkredit')).toBe(true);
+    expect(s.ledger.some((l) => l.account === 'company' && l.text.includes('Immobilien'))).toBe(false);
+    expect(s.company.account.balance).toBeLessThan(company0); // nur das GF-Gehalt
+    expect(goalDone(s, c, 'own_home')).toBe(true);
+    expect(privateWealth(c)).toBeGreaterThan(c.privateAccount.balance);
+  });
+
+  it('Beziehungen: Kontakt pflegt Freundschaften, aus Nähe wird Partnerschaft, Familie braucht Platz', () => {
+    const s = newGame(3);
+    const c = me(s);
+    c.privateAccount.balance = 50_000_00;
+    expect(life(s, { kind: 'activity', activity: 'friends' }).ok).toBe(true);
+    const friend = c.relations.find((r) => r.kind === 'friend')!;
+    expect(friend).toBeDefined();
+    expect(life(s, { kind: 'relation', relationId: friend.id, action: 'propose' }).ok).toBe(false); // zu wenig Nähe
+    friend.closeness = 100;
+    c.needs.happiness = 100;
+    let tries = 0;
+    while (!c.relations.some((r) => r.kind === 'partner') && tries++ < 10) {
+      friend.closeness = 100;
+      life(s, { kind: 'relation', relationId: friend.id, action: 'propose' });
+    }
+    expect(friend.kind).toBe('partner');
+    expect(life(s, { kind: 'relation', relationId: friend.id, action: 'family' }).ok).toBe(false); // kleine Wohnung
+    expect(life(s, { kind: 'moveHome', home: 'apartment_large' }).ok).toBe(true);
+    expect(life(s, { kind: 'relation', relationId: friend.id, action: 'family' }).ok).toBe(true);
+    s.time = c.babyDue!;
+    dailyLife(s);
+    expect(c.relations.some((r) => r.kind === 'child')).toBe(true);
+    expect(monthlyPrivateCosts(c).find((i) => i.label === 'Lebenshaltung')!.amount).toBe(LIVING_BASE + CHILD_COST);
+
+    // ohne Kontakt kühlt eine Freundschaft ab
+    const other = c.relations.find((r) => r.kind === 'friend') ?? (life(s, { kind: 'activity', activity: 'friends' }), c.relations.find((r) => r.kind === 'friend'));
+    if (other) {
+      const before = other.closeness;
+      other.lastContact = s.time - 20 * MIN_PER_DAY;
+      dailyLife(s);
+      expect(other.closeness).toBeLessThan(before);
+    }
+  });
+
+  it('Urlaub ohne Disponent: die Disposition bleibt liegen, die Fahrer werden unzufriedener', () => {
+    const s = newGame();
+    const v0 = first(s.vehicles);
+    for (let i = 0; i < 4; i++) s.vehicles[`veh-l${i}`] = { ...JSON.parse(JSON.stringify(v0)), id: `veh-l${i}` };
+    expect(dispatchShortfall(s)).toBe(0);
+    expect(life(s, { kind: 'vacation', vacation: 'week' }).ok).toBe(true);
+    expect(dispatchShortfall(s)).toBe(5);
+    expect(satisfactionFactors(s, first(s.drivers)).reasons.some((r) => r.text === 'überlastete Disposition')).toBe(true);
+    expect(me(s).needs.stress).toBeLessThan(30);
+  });
+
+  it('Gewinnausschüttung: Firmengeld aufs Privatkonto, abzüglich Kapitalertragsteuer, nur aus Guthaben', () => {
+    const s = newGame();
+    const company0 = s.company.account.balance;
+    const priv0 = me(s).privateAccount.balance;
+    expect(applyCommand(s, ctx, 'p1', { type: 'payDividend', amount: company0 + 100_00 }).ok).toBe(false);
+    expect(applyCommand(s, ctx, 'p1', { type: 'payDividend', amount: 10_000_00 }).ok).toBe(true);
+    expect(s.company.account.balance).toBe(company0 - 10_000_00);
+    expect(me(s).privateAccount.balance).toBe(priv0 + 10_000_00 - Math.round(10_000_00 * DIVIDEND_TAX));
+  });
+
+  it('Spielstände der Version 6 erhalten die Lebenssimulation', () => {
+    const s = newGame();
+    const old = JSON.parse(JSON.stringify(s));
+    for (const k of ['background', 'skills', 'goals', 'workStyle', 'furniture', 'relations']) delete old.players.p1.character[k];
+    const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":6'));
+    const c = loaded.players.p1.character;
+    expect(c.workStyle).toBe('hands_on');
+    expect(c.relations).toEqual([]);
+    expect(c.skills.logistics).toBe(30);
   });
 });

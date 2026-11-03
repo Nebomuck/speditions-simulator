@@ -1,10 +1,11 @@
 // FinanceSystem: Buchungen, Rechnungen, Zahlungseingänge, Monatsabrechnung.
 // Firmenkonto und Privatkonten der Spieler sind strikt getrennt (LedgerAccount).
 
+import { WORK_STYLES, monthlyLife } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { DEPARTMENTS } from './data/catalog.ts';
 import { accountingRiskFactor, deptCount, facilityItems, facilityValue } from './company.ts';
-import { TRAILER_BY_TYPE, TRUCK_BY_ID, LOCATION_DEFS, PRIVATE_LIVING_COST } from './data/catalog.ts';
+import { TRAILER_BY_TYPE, TRUCK_BY_ID, LOCATION_DEFS } from './data/catalog.ts';
 import { rand, newId } from './rng.ts';
 import { MIN_PER_DAY, formatDate } from './time.ts';
 import type { Customer, GameState, Id, Invoice, LedgerAccount, LedgerCategory, Loan, LogEntry, Money, Order } from './types.ts';
@@ -128,6 +129,10 @@ export function monthlyFixedCosts(state: GameState): { label: string; amount: Mo
   }
   for (const p of Object.values(state.players)) if (p.character.salary > 0) items.push({ label: `Geschäftsführergehalt ${p.character.name}`, amount: p.character.salary, category: 'salary' });
   for (const l of state.company.loans) items.push({ label: `${l.label ?? 'Kreditrate'} (Rest ${formatMoney(l.remaining)})`, amount: Math.min(l.monthly, l.remaining + loanInterest(l)), category: 'loan' });
+  for (const p of Object.values(state.players)) {
+    const ws = WORK_STYLES[p.character.workStyle ?? 'hands_on'];
+    if (ws.monthly) items.push({ label: `Angestellte Geschäftsführung (für ${p.character.name})`, amount: ws.monthly, category: 'wages' });
+  }
   items.push({ label: 'Software, Telefon, Verwaltung', amount: 120_00 + 25_00 * Object.keys(state.vehicles).length, category: 'other' });
   return items;
 }
@@ -150,7 +155,7 @@ export function processMonthEnd(state: GameState): void {
   for (const l of repaid) addLog(state, { level: 'success', category: 'finance', text: `Kredit über ${formatMoney(l.principal)} vollständig getilgt.` });
   for (const p of Object.values(state.players)) {
     if (p.character.salary > 0) book(state, `private:${p.id}`, p.character.salary, 'salary', 'Geschäftsführergehalt');
-    book(state, `private:${p.id}`, -PRIVATE_LIVING_COST, 'living', 'Miete Wohnung & Lebenshaltung');
+    monthlyLife(state, p);
   }
   if (state.company.account.balance < 0) {
     const interest = Math.round((-state.company.account.balance * OVERDRAFT_INTEREST_PA) / 12);

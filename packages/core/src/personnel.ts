@@ -1,5 +1,6 @@
 // Personalmanagement: Urlaub, Krankheit, Schulungen, Gehalt, Personalgespräche, Zufriedenheit und Kündigungen.
 
+import { leadershipBonus } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { addLog, book, formatMoney } from './finance.ts';
 import { wageLevel } from './generate.ts';
@@ -49,6 +50,8 @@ export function satisfactionFactors(state: GameState, d: Driver): { target: numb
   if (sinceVacation > 100) reasons.push({ text: `seit ${Math.round(sinceVacation)} Tagen kein Urlaub`, delta: -Math.min(20, Math.round((sinceVacation - 100) / 6)) });
   if (d.hos.drivenWeek > 45 * 60) reasons.push({ text: 'hohe Wochenlenkzeit', delta: -6 });
   if (state.company.reputation > 70) reasons.push({ text: 'Firma mit gutem Ruf', delta: 4 });
+  const lead = leadershipBonus(state);
+  if (lead > 0) reasons.push({ text: 'gute Mitarbeiterführung', delta: lead });
   const short = dispatchShortfall(state);
   if (short > 0) reasons.push({ text: 'überlastete Disposition', delta: -Math.min(12, 2 + short) });
   if (d.hired <= state.company.founded) reasons.push({ text: 'Fahrer der ersten Stunde', delta: 8 });

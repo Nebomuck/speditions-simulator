@@ -1,6 +1,7 @@
 // SimulationEngine: deterministischer Minuten-Tick. Stündliche, tägliche und monatliche Prozesse
 // werden an Zeitgrenzen ausgelöst. Wird identisch im Einzelspieler-Worker und auf dem Server ausgeführt.
 
+import { dailyLife } from './life.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney, processInvoices, processMonthEnd } from './finance.ts';
 import { makeApplicant, makeVehicleOffer } from './generate.ts';
@@ -84,6 +85,8 @@ function daily(state: GameState, ctx: SimContext) {
   dailyContracts(state, ctx);
   // Unternehmensstufe, Lagerauslastung
   dailyCompany(state);
+  // Lebenssimulation der Spielercharaktere
+  dailyLife(state);
   // Kurzzeitmiete wird täglich abgerechnet
   for (const v of Object.values(state.vehicles)) if (v.ownership === 'rented' && v.rentPerDay) book(state, 'company', -v.rentPerDay, 'leasing', `Miete LKW ${v.plate}`);
 

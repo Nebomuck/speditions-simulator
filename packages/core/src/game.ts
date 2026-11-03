@@ -9,11 +9,12 @@ import { makeApplicant, makeVehicleOffer, plate, usedValue } from './generate.ts
 import { freshHos } from './hos.ts';
 import { updateOrderMarket } from './orders.ts';
 import { defaultAutoDispatch } from './autodispatch.ts';
+import { BACKGROUNDS } from './life.ts';
 import { newId } from './rng.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player } from './types.ts';
 
-export const STATE_VERSION = 6;
+export const STATE_VERSION = 7;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.15, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -33,7 +34,7 @@ export interface NewGameOptions {
 }
 
 export function makeCharacter(name: string, partial: Partial<Character> = {}): Character {
-  return {
+  const c: Character = {
     name,
     age: 32,
     avatar: { skin: 1, hair: 2, hairColor: 1, shirt: 0 },
@@ -41,8 +42,17 @@ export function makeCharacter(name: string, partial: Partial<Character> = {}): C
     salary: 2_400_00,
     home: 'apartment_small',
     needs: { energy: 80, hunger: 70, stress: 30, health: 90, happiness: 65, social: 60, leisure: 50 },
+    background: 'career_changer',
+    skills: { ...BACKGROUNDS.career_changer.skills },
+    goals: [],
+    workStyle: 'hands_on',
+    furniture: 0,
+    relations: [],
     ...partial,
   };
+  // Startfähigkeiten folgen dem Hintergrund, wenn keine eigenen angegeben sind
+  if (partial.background && !partial.skills) c.skills = { ...BACKGROUNDS[c.background].skills };
+  return c;
 }
 
 export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState {
