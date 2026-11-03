@@ -83,7 +83,7 @@ Eine Fahrt besteht aus Fahrer, Zugmaschine und Auflieger, die am selben Ort steh
 
 Disponenten (Abteilung Disposition) betreuen je 8 Fahrzeuge. Drei Modi: **manuell**, **teilautomatisch** (stündliche Vorschläge, ein Klick übernimmt) und **vollautomatisch** (nimmt Angebote an und disponiert selbst).
 
-Je Fahrzeug sucht der Disponent passende Aufträge (Laderaum, Nutzlast, Qualifikationen, Abholfenster), rechnet die besten mit derselben Kalkulation wie die manuelle Disposition durch und entscheidet nach den Regeln des Spielers: Mindestgewinn, maximale Leerfahrt, bevorzugte Ladungsarten, Einsatzländer, Stammkunden bevorzugen, keine riskanten Termine (2 h Puffer), nächstes Fahrzeug statt höchstem Gewinn. Angenommene Aufträge und Vertragstouren haben immer Vorrang. Weitere Aufgaben: Rückladungen als Folgeauftrag für fahrende LKW (ab Kompetenz 40), verspätete Folgeaufträge neu vergeben (ab 60), LKW ohne Auftrag nach 12 h zum nächsten Standort zurückholen.
+Je Fahrzeug sucht der Disponent passende Aufträge (Laderaum, Nutzlast, Qualifikationen, Abholfenster), rechnet die besten mit derselben Kalkulation wie die manuelle Disposition durch und entscheidet nach den Regeln des Spielers: Mindestgewinn, maximale Leerfahrt, bevorzugte Ladungsarten, Einsatzländer, Stammkunden bevorzugen, keine riskanten Termine (2 h Puffer), nächstes Fahrzeug statt höchstem Gewinn. Angenommene Aufträge und Vertragstouren haben immer Vorrang. Weitere Aufgaben: Rückladungen als Folgeauftrag für fahrende LKW (ab Kompetenz 40), verspätete Folgeaufträge neu vergeben (ab 60), LKW ohne Auftrag nach 24 h zum nächsten Standort zurückholen. Steht ein LKW länger ohne Auftrag, nimmt der Disponent auch weitere Anfahrten in Kauf (je 4 h Standzeit +100 % der maximalen Leerfahrt, bis zum Vierfachen); Ruhezeiten des Fahrers zählen dabei nicht als Standzeit.
 
 **Kompetenz** (Einsteiger 20–42, Erfahren 45–68, Profi 72–92; Gehalt 82 % / 100 % / 130 %) bestimmt die Suchtiefe (4–30 Aufträge), den Kalkulationsfehler (bis ±25 % Gewinn, unterschätzte Leerfahrten, zu optimistische Fahrzeiten) und Fehlgriffe bei der Priorisierung. Jede Disposition bringt etwas Erfahrung. Beförderte Fahrer starten mit Kompetenz 25 + 0,6 × Erfahrung.
 
@@ -96,7 +96,9 @@ Je Fahrzeug sucht der Disponent passende Aufträge (Laderaum, Nutzlast, Qualifik
 | Wochenlenkzeit | max. 56 h bzw. nach 6 Tageslenkzeiten 45 h Wochenruhe |
 | Ruhe im Stand | Standzeit ohne Arbeit zählt als Ruhe; Be-/Entladen und Tanken zählen als Arbeit |
 
-**Bewusste Vereinfachungen** (später erweiterbar): keine Aufteilung 15 + 30 min, keine 10-h-Tage, keine verkürzten Ruhezeiten, keine Doppelwochen-Grenze von 90 h, keine 13-h-Schichtregel, keine Doppelbesatzung, kein Sonntagsfahrverbot (geplant für Phase 10).
+**Bewusste Vereinfachungen** (später erweiterbar): keine Aufteilung 15 + 30 min, keine 10-h-Tage, keine verkürzten Ruhezeiten, keine Doppelwochen-Grenze von 90 h, keine 13-h-Schichtregel, keine Doppelbesatzung. Fahrverbote siehe Abschnitt 17.
+
+**Ruhe an der Ladestelle:** Wartet ein Fahrer mindestens 3 h auf das Ladefenster, ist er schon gefahren und endet eine Tagesruhe noch vor dem Ende des Fensters, legt er sie dort ein. Vorkalkulation, Plantafel und Folgeaufträge rechnen mit denselben Regeln wie die Simulation (Lenk- und Ruhezeiten, Wetter, Grenzwartezeiten, Fahrverbote) und übernehmen den Lenkzeitstand vom Ende der laufenden Fahrt.
 
 ## 8. Fahrzeuge
 
@@ -160,12 +162,14 @@ Jeder Spieler hat einen Charakter mit 2D-Avatar, Alter, Hintergrund, Privatkonto
 | | Einfach | Normal | Realistisch |
 |---|---|---|---|
 | Startkapital | 60.000 € | 25.000 € | 12.000 € |
-| Frachtraten | +15 % | ±0 | −8 % |
+| Frachtraten | +8 % | ±0 | −4 % |
 | Pannen/Verzögerungen | ×0,5 | ×1 | ×1,4 |
-| Zahlungsrisiko | ×0,5 | ×1 | ×1,6 |
+| Zahlungsrisiko | ×0,5 | ×1 | ×1,4 |
 | Start-LKW | gekauft | geleast | geleast |
 
-Ein benutzerdefinierter Schwierigkeitsgrad ist im Datenmodell vorhanden (`custom` + Einzelwerte); die Oberfläche dafür folgt.
+**Benutzerdefiniert:** Startkapital 5.000–250.000 €, Frachtraten 80–130 %, Ereignisse 0–200 %, Zahlungsrisiko 0–200 %, Start-LKW gekauft oder geleast.
+
+**Balancing (0.11):** Das allgemeine Ratenniveau liegt bei etwa 1,85–2,00 € je Last-km. Ein gut disponierter LKW erwirtschaftet so rund 2.000–3.000 € Deckungsbeitrag im Monat; ein einzelner LKW trägt Büro und Geschäftsführergehalt nur knapp, ab dem zweiten wird die Firma profitabel. Gemessen mit einem Spieler-Bot über 18 Monate (`packages/core/test/measure-balance.ts`): Auf „Normal“ wächst die Firma über Leasing auf 5–8 LKW, auf „Realistisch“ bleibt sie mit zwei LKW lange um die Gewinnschwelle, auf „Einfach“ wächst sie schnell.
 
 ## 15. Multiplayer (kooperativ)
 
@@ -234,4 +238,11 @@ Unzufriedene Kunden können abwandern; ihre Aufträge gehen dann direkt an den K
 
 ### Ereignisregelwerk
 Ereignisse entstehen aus Regeln mit Bedingung, Wahrscheinlichkeit und Abklingzeit, nicht aus reinem Zufall: Großkunde, Ausschreibung (gut bezahlt, 12 h verfügbar), Dieselpreissprung oder -rückgang, Marktchance oder Einbruch in einer Region, Kündigung eines Rahmenvertrags (nur bei vielen verpassten oder verspäteten Touren), Kundenänderungen (Lieferung verschoben oder eilig mit 8 % Aufschlag) sowie private Ereignisse. **Fairness:** Negative Firmenereignisse kommen höchstens alle 4 Tage und nie, solange das Firmenkonto im Minus ist; positive werden in schwierigen Lagen wahrscheinlicher. Der Ereignisfaktor des Schwierigkeitsgrads skaliert alles.
+
+## 18. Bedienung, Hilfe und Atmosphäre
+
+- **Erste Schritte:** In neuen Spielen führt eine Liste durch neun Schritte (Börse, erste Disposition, Zeit, Karte, Lieferung, Finanzen, Fuhrpark, zweites Fahrzeug, Hilfe). Sie erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor und lässt sich ausblenden bzw. über die Hilfe wieder einblenden.
+- **Hilfe:** F1 oder „?“ öffnet die Hilfe zur aktuellen Seite; alle Artikel sind durchsuchbar.
+- **Kontextmenüs:** Rechtsklick auf Fahrzeuge, Aufträge und Fahrer bietet die häufigsten Aktionen.
+- **Audio:** Effekttöne, eine ruhige generative Hintergrundmusik, Büroatmosphäre (Raumklang, Tastatur) und ein Telefonklingeln, wenn Kunden oder Partner anrufen (Ereignisse aus dem Regelwerk). Alles wird zur Laufzeit erzeugt – keine fremden Audiodateien. Musik und Atmosphäre sind getrennt regelbar.
 

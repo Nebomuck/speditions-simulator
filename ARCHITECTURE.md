@@ -34,7 +34,8 @@ packages/core/src
 ├── dispatch.ts     DispatchSystem: Vorkalkulation, Konfliktprüfung, Fahrtanlage, Vorausplanung
 │                   (Warteschlange je Fahrzeug, vehicleSchedule, startNextQueued), Beiladung (planCoLoad)
 ├── disruptions.ts  Verkehrsstörungen (Sperrung/Stau, wetterbedingte Sperrungen), Routing nach Verkehrslage, Umleitung
-├── world.ts        Wetter je Land, Fahrverbote, Zollgrenzen und Grenzwartezeiten
+├── world.ts        Wetter je Land, Fahrverbote, Zollgrenzen und Grenzwartezeiten,
+│                   Fahrzeitschätzung je Abschnitt (routeSegments, simulateRoute)
 ├── economy.ts      Konjunktur (Normal/Aufschwung/Krise), regionale Nachfrage, Saison
 ├── competition.ts  KI-Konkurrenz: Kapazität, Auftragsübernahme, Kosten, Wachstum, Konkurs, Abwerbung, Rückgewinnung
 ├── events.ts       Ereignisregelwerk (Bedingung, Chance, Abklingzeit, Fairness) für Firma, Markt und Privatleben
@@ -56,7 +57,8 @@ packages/core/src
 apps/client/src
 ├── worker/         Einzelspieler-Host (GameSession im Web Worker) + IndexedDB-Speicher
 ├── game/           GameHost-Abstraktion (LocalHost / RemoteHost), Client-Store, Protokoll
-├── ui/             MapView (MapSystem), DispatchDialog, Shell, Komponenten, Klänge
+├── ui/             MapView (MapSystem), DispatchDialog, Shell, Komponenten, Tutorial, Hilfe (help.ts),
+│                   Kontextmenü, Audio (sound.ts: Effekte, generative Musik, Büroatmosphäre, Telefon)
 └── pages/          Dashboard, Karte, Disposition, Börse, Personal, Fuhrpark, Finanzen, Kunden,
                     Standorte, Markt & Wettbewerb, Privatleben, Team, Statistiken, Einstellungen
 
@@ -112,6 +114,7 @@ Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx,
 - `state.weather[land]` hält Wetterlage und Dauer; `updateWeather` würfelt stündlich abgelaufene Lagen neu (`weatherWeights` nach Monat und Breitengrad). `edgeWeather` liefert das Wetter einer Straßenkante über das Land ihres Startknotens.
 - `trips.ts` multipliziert das Tempo mit `WEATHER[kind].speed`; Unfälle und Reifenschäden werden je gefahrenem km mit einem gemeinsamen Zufallswert gewürfelt (`ACCIDENT_PER_KM` × Wetterrisiko × Erfahrung × Ereignisfaktor).
 - `banUntil(land, t)` gibt das Ende eines laufenden Fahrverbots zurück; `banApplies` prüft Fahrzeug und Ladung. Vor jeder neuen Kante prüft die Fahrt das Verbot im Land dieser Kante (Aktivität `ban`, zählt als Ruhe).
+- Planung und Simulation nutzen dieselben Regeln: `routeSegments` zerlegt eine Route in Abschnitte (Land, Fahrzeit mit Stau und Wetter, Wartezeit an Grenze/Sperrung), `simulateRoute` fährt sie mit Lenk-/Ruhezeiten und Fahrverboten ab. `estimateTrip`, `tripStopEtas` und damit Plantafel, Verspätungsprüfung und Folgeaufträge bauen darauf auf. `pickupWaitMin` (hos.ts) entscheidet, ob ein Fahrer die Wartezeit an der Ladestelle für die Tagesruhe nutzt. Der Lenkzeitstand am Ende einer Fahrt wird als `PlanStart.hos` an Folgeaufträge weitergegeben.
 - `isCustomsBorder` erkennt Zollgrenzen; beim ersten Befahren der Grenzkante würfelt `rollBorderWait` die Wartezeit (Aktivität `border`, gemerkt in `trip.borderEdge`). `routeBorderMin` plant den Erwartungswert in `estimateTrip` und `remainingDriveMin` ein.
 
 ## Wirtschaft, Konkurrenz und Ereignisse

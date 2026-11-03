@@ -22,10 +22,31 @@ import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Pl
 export const STATE_VERSION = 9;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
-  easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.15, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
+  easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.08, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
   normal: { id: 'normal', startCapital: 25_000_00, rateFactor: 1.0, eventFactor: 1.0, paymentRiskFactor: 1.0, startTruckOwned: false },
-  realistic: { id: 'realistic', startCapital: 12_000_00, rateFactor: 0.92, eventFactor: 1.4, paymentRiskFactor: 1.6, startTruckOwned: false },
+  realistic: { id: 'realistic', startCapital: 12_000_00, rateFactor: 0.96, eventFactor: 1.4, paymentRiskFactor: 1.4, startTruckOwned: false },
 };
+
+/** Grenzen des benutzerdefinierten Schwierigkeitsgrads */
+export const CUSTOM_LIMITS = {
+  startCapital: [5_000_00, 250_000_00],
+  rateFactor: [0.8, 1.3],
+  eventFactor: [0, 2],
+  paymentRiskFactor: [0, 2],
+} as const;
+
+/** Benutzerdefinierte Werte auf zulässige Bereiche begrenzen (auch für Eingaben vom Netzwerk). */
+export function sanitizeDifficulty(p: Partial<Difficulty> | undefined): Partial<Difficulty> {
+  const out: Partial<Difficulty> = {};
+  if (!p || typeof p !== 'object') return out;
+  for (const k of Object.keys(CUSTOM_LIMITS) as (keyof typeof CUSTOM_LIMITS)[]) {
+    const v = Number(p[k]);
+    if (Number.isFinite(v)) out[k] = Math.min(CUSTOM_LIMITS[k][1], Math.max(CUSTOM_LIMITS[k][0], v));
+  }
+  if (out.startCapital !== undefined) out.startCapital = Math.round(out.startCapital / 100) * 100;
+  if (typeof p.startTruckOwned === 'boolean') out.startTruckOwned = p.startTruckOwned;
+  return out;
+}
 
 export const DIFFICULTY_LABEL: Record<DifficultyId, string> = { easy: 'Einfach', normal: 'Normal', realistic: 'Realistisch', custom: 'Benutzerdefiniert' };
 
@@ -64,7 +85,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
   const hq = CITY_BY_ID[opts.hqCityId];
   if (!hq || !ctx.net.hasCity(hq.id)) throw new Error('Ungültiger Firmensitz.');
   const base = opts.difficulty === 'custom' ? DIFFICULTIES.normal : DIFFICULTIES[opts.difficulty];
-  const difficulty: Difficulty = { ...base, ...(opts.difficulty === 'custom' ? opts.customDifficulty : {}), id: opts.difficulty };
+  const difficulty: Difficulty = { ...base, ...(opts.difficulty === 'custom' ? sanitizeDifficulty(opts.customDifficulty) : {}), id: opts.difficulty };
   const seed = (opts.seed ?? Math.floor(Math.random() * 2 ** 31)) | 0;
   const startTime = 6 * 60; // Montag 06:00
 

@@ -36,7 +36,7 @@ export const SAFE_BUFFER_MIN = 120;
 export const CHAIN_MIN_SKILL = 40;
 export const REACT_MIN_SKILL = 60;
 const SUGGESTION_TTL = 3 * 60;
-const RETURN_AFTER_HOURS = 12;
+const RETURN_AFTER_HOURS = 24;
 
 const ll = (cityId: string): [number, number] => [CITY_BY_ID[cityId].lon, CITY_BY_ID[cityId].lat];
 
@@ -111,8 +111,10 @@ function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: Sta
       : Object.values(state.trailers).filter((t) => t.status === 'idle' && t.cityId === vehicle.cityId && !reserved.trailers.has(t.id));
   if (!model.body && !trailers.length) return null;
 
-  // Ein unerfahrener Disponent unterschätzt Leerfahrten
-  const emptyLimit = rules.maxEmptyKm * (1 + err * 0.4);
+  // Steht der LKW schon länger, nimmt der Disponent auch weitere Anfahrten in Kauf (bis zum Vierfachen) –
+  // besser als leer zum Standort zurück. Ein unerfahrener Disponent unterschätzt Leerfahrten.
+  const maxEmpty = rules.maxEmptyKm * (queued ? 1 : Math.min(4, 1 + (state.autoDispatch.idleHours[vehicle.id] ?? 0) / 4));
+  const emptyLimit = maxEmpty * (1 + err * 0.4);
   const pool = Object.values(state.orders).filter((o) => {
     if (reserved.orders.has(o.id)) return false;
     if (o.status === 'accepted') {
@@ -144,12 +146,14 @@ function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: Sta
     if (!estimate || issues.some((i) => i.level === 'error')) continue;
     // Abholfenster nicht erreichbar: einem anderen Fahrzeug überlassen
     if (committed && issues.some((i) => i.code === 'pickup_late')) continue;
+    // als Folgeauftrag zu spät: nicht wieder einplanen (wurde gerade deshalb freigegeben)
+    if (committed && queued && estimate.lateMin > 60) continue;
     // Kalkulationsfehler: ±25 % bei Kompetenz 0, exakt bei 100
     const perceived = estimate.profit * (1 + rand.normal(state, 0, err * 0.25));
     const perceivedEmpty = estimate.emptyKm * (1 - err * 0.3 * rand.float(state, 0, 1));
     if (!committed) {
       if (perceived < rules.minProfit) continue;
-      if (perceivedEmpty > rules.maxEmptyKm) continue;
+      if (perceivedEmpty > maxEmpty) continue;
       if (issues.some((i) => i.code === 'pickup_late')) continue;
       // Unerfahrene Disponenten schätzen Fahrzeiten zu optimistisch ein
       const optimism = skill < 50 ? rand.float(state, 0, 90) * err : 0;
@@ -281,8 +285,11 @@ export function runAutoDispatch(state: GameState, ctx: SimContext): void {
       continue;
     }
 
-    // Kein Auftrag: nach 12 h zurück zum nächsten Standort
+    // Kein Auftrag: nach 24 h zurück zum nächsten Standort
     if (!idle) continue;
+    // Ruhezeit des Fahrers ist keine Standzeit ohne Auftrag
+    const here = Object.values(state.drivers).filter((d) => d.status === 'idle' && d.cityId === vehicle.cityId);
+    if (here.length && here.every((d) => d.hos.requiredRest > 0)) continue;
     ad.idleHours[vehicle.id] = (ad.idleHours[vehicle.id] ?? 0) + 1;
     if (!ad.rules.returnToBase || ad.idleHours[vehicle.id] < RETURN_AFTER_HOURS) continue;
     if (state.company.locations.some((l) => l.cityId === vehicle.cityId)) continue;

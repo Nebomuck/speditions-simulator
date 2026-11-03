@@ -189,14 +189,19 @@ Stand: 02.11.2026 · Version 0.1.0
 | Alle 14 Hauptbereiche | Implementiert (Unternehmensausbau mit Standorten zusammengelegt; Inhalte späterer Phasen klar gekennzeichnet) |
 | Dashboard mit allen geforderten Kennzahlen + Mini-Karte | Implementiert |
 | Tabellen, Diagramme, Dialoge, Drag-and-Drop, Tooltips, Benachrichtigungen | Implementiert |
-| Kontextmenüs, anpassbare Panelgrößen | Geplant (Phase 11) |
+| Kontextmenüs | Implementiert (Rechtsklick auf Fahrzeuge, Aufträge und Fahrer) |
+| Anpassbare Panelgrößen | Geplant |
+| Tutorial „Erste Schritte“ | Implementiert (9 Schritte, erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor) |
+| Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 15 Artikel) |
+| Dezente Animationen | Implementiert (Seitenwechsel, Meldungen, Dialoge; respektiert „Bewegung reduzieren“) |
 
 ## 21–22 · Fortschritt & Schwierigkeit
 | Anforderung | Status |
 |---|---|
 | Unternehmensstufen 1–6 | Getestet (Einzelunternehmen bis Europäischer Logistikkonzern; Fahrzeuge, Lieferungen, Reputation, Standorte, Länder) |
 | Schwierigkeitsgrade Einfach/Normal/Realistisch | Implementiert |
-| Benutzerdefiniert | In Entwicklung (Datenmodell vorhanden, Oberfläche fehlt) |
+| Benutzerdefiniert | Implementiert (Startkapital, Frachtraten, Ereignisse, Zahlungsrisiko, Start-LKW; Grenzen in `sanitizeDifficulty`, auch im Multiplayer) |
+| Balancing | Getestet (Langzeit-Bot `measure-balance.ts`: Normal wächst mit Leasing auf 5–8 LKW in 18 Monaten, Realistisch bleibt knapp) |
 
 ## 23 · Persistenz
 | Anforderung | Status |
@@ -209,7 +214,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Anforderung | Status |
 |---|---|
 | Benachrichtigungstöne (selbst erzeugt, lizenzfrei) | Implementiert |
-| Hintergrundmusik, Büroatmosphäre, Telefon | Geplant (Phase 11) |
+| Hintergrundmusik, Büroatmosphäre, Telefon | Implementiert (generativ per Web Audio, getrennt regelbar; Telefon bei Kundenanrufen aus dem Ereignisregelwerk) |
 
 ## 25–26 · Performance & Architektur
 | Anforderung | Status |

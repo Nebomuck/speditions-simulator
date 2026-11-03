@@ -4,12 +4,13 @@
 import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, COUNTRY_NAMES, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
-import { weatherClosure } from './disruptions.ts';
+import { disruptionOnEdge, weatherClosure } from './disruptions.ts';
+import { drivableNow, hosDrive, hosRest } from './hos.ts';
 import { addLog } from './finance.ts';
 import { rand } from './rng.ts';
 import type { RoadEdge } from './routing.ts';
 import { MIN_PER_DAY, formatDateTime, holidayName, hourOfDay, minuteOfDay, season, weekday } from './time.ts';
-import type { CountryWeather, GameState, GameTime, Trip, Vehicle, WeatherKind } from './types.ts';
+import type { CountryWeather, GameState, GameTime, HoursOfService, Trip, Vehicle, WeatherKind } from './types.ts';
 
 // ---------------------------------------------------------------- Wetter
 
@@ -233,3 +234,83 @@ export function routeBorderMin(ctx: SimContext, nodes: string[]): number {
   }
   return min;
 }
+
+// ---------------------------------------------------------------- Fahrzeitschätzung
+
+/** Abschnitt einer Route für die Zeitschätzung: Land, reine Fahrzeit und feste Wartezeit davor (Grenze, Sperrung). */
+export interface DriveSegment {
+  country: string;
+  driveMin: number;
+  waitMin: number;
+}
+
+/**
+ * Zerlegt eine Knotenfolge ab `fromKm` in Abschnitte je Kante – mit Stau, aktuellem Wetter, Sperrungen
+ * (Wartezeit bis zur Freigabe) und erwarteter Grenzwartezeit. `sf` = Geschwindigkeitsfaktor des Fahrzeugs.
+ */
+export function routeSegments(state: GameState, ctx: SimContext, nodes: string[], fromKm = 0, sf = 1): DriveSegment[] {
+  const out: DriveSegment[] = [];
+  let acc = 0;
+  for (let i = 1; i < nodes.length; i++) {
+    const e = ctx.net.edgeBetween(nodes[i - 1], nodes[i]);
+    if (!e) continue;
+    const start = acc;
+    acc += e.km;
+    if (acc <= fromKm) continue;
+    const part = (acc - Math.max(start, fromKm)) / e.km;
+    const country = CITY_BY_ID[nodes[i - 1]].country;
+    const d = disruptionOnEdge(state, e);
+    const wx = WEATHER[weatherIn(state, country)].speed;
+    const driveMin = (e.truckMin * part) / (d?.kind === 'jam' ? d.speedFactor : 1) / wx / sf;
+    let waitMin = d?.kind === 'closure' ? Math.max(0, d.until - state.time) : 0;
+    if (start >= fromKm && !e.ferry) waitMin += expectedBorderWait(CITY_BY_ID[e.a].country, CITY_BY_ID[e.b].country);
+    out.push({ country, driveMin, waitMin });
+  }
+  return out;
+}
+
+/**
+ * Schätzt die Dauer einer Fahrt über `segments` ab `t0` mit Lenk- und Ruhezeiten und – wenn `banned` – Fahrverboten
+ * (der LKW wartet am Beginn des Abschnitts, die Wartezeit zählt als Ruhe). Verändert `h` (vorher kopieren!).
+ */
+export function simulateRoute(h: HoursOfService, t0: GameTime, segments: DriveSegment[], banned: boolean): { elapsed: number; restMin: number; banMin: number } {
+  let t = t0;
+  let restMin = 0;
+  let banMin = 0;
+  for (const seg of segments) {
+    t += seg.waitMin;
+    let left = seg.driveMin;
+    let guard = 0;
+    while (left > 0.001 && guard++ < 2000) {
+      if (h.requiredRest > 0) {
+        const r = h.requiredRest;
+        hosRest(h, r);
+        t += r;
+        restMin += r;
+        continue;
+      }
+      const until = banned ? banUntil(seg.country, t) : null;
+      if (until !== null) {
+        hosRest(h, until - t);
+        banMin += until - t;
+        t = until;
+        continue;
+      }
+      // in Stundenschritten, damit ein beginnendes Fahrverbot erkannt wird
+      const chunk = Math.min(left, drivableNow(h), banned && BAN_COUNTRIES.includes(seg.country) ? 60 : Infinity);
+      hosDrive(h, chunk);
+      t += chunk;
+      left -= chunk;
+    }
+  }
+  return { elapsed: t - t0, restMin, banMin };
+}
+
+/** Gilt für diese Ladung ein Fahrverbot? (Transporter, leichte Solo-LKW und beladene Kühltransporte sind ausgenommen) */
+export function banAppliesTo(vehicle: Vehicle, loadedCargoId?: string): boolean {
+  const model = TRUCK_BY_ID[vehicle.modelId];
+  if (!model) return false;
+  if (model.kind === 'van' || (model.kind === 'rigid' && (model.payloadT ?? 0) <= 4)) return false;
+  return !(loadedCargoId && CARGO_BY_ID[loadedCargoId]?.trailer === 'reefer');
+}
+

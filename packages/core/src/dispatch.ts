@@ -4,14 +4,14 @@ import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, loadSpace } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { EMPLOYER_COST_FACTOR, addLog, formatMoney } from './finance.ts';
-import { REST_KIND_LABEL, hosRest, hosWork, simulateDriving } from './hos.ts';
+import { REST_KIND_LABEL, hosRest, hosWork, pickupWaitMin, simulateDriving } from './hos.ts';
 import { newId } from './rng.ts';
 import { routeNow } from './disruptions.ts';
 import { depotRefuel } from './company.ts';
 import { tripStopEtas } from './selectors.ts';
 import { MIN_PER_DAY, formatDateTime, formatDuration } from './time.ts';
 import type { GameState, HoursOfService, Id, Money, Order, Trip, TripLeg, TripStop, Vehicle } from './types.ts';
-import { BAN_RULES, banApplies, banOnRoute, routeBorderMin, routeCountries } from './world.ts';
+import { BAN_RULES, banApplies, banAppliesTo, banOnRoute, routeBorderMin, routeCountries, routeSegments, simulateRoute } from './world.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
 
 export interface DispatchInput {
@@ -51,6 +51,8 @@ export interface TripEstimate {
   borderMin: number;
   /** Länder entlang der Route (Anfahrt und Lastfahrt) */
   countries: string[];
+  /** Lenk-/Ruhezeitstand des Fahrers nach der Entladung (für Folgeaufträge) */
+  endHos: HoursOfService;
 }
 
 export interface Issue {
@@ -139,25 +141,22 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
     t += r.elapsed;
     restMin += r.restMin;
   }
-  const e1 = simulateDriving(hos, toPickup.driveMin);
+  // Fahrt mit Lenk-/Ruhezeiten, Wetter, Grenzwartezeiten und Fahrverboten (wie in der Simulation)
+  const e1 = simulateRoute(hos, t, routeSegments(state, ctx, toPickupRaw.nodes, 0, sf), banAppliesTo(vehicle));
   t += e1.elapsed;
-  restMin += e1.restMin;
+  restMin += e1.restMin + e1.banMin;
   const border1 = routeBorderMin(ctx, toPickupRaw.nodes);
-  t += border1;
-  if (t < order.pickupStart) {
-    // Wartezeit zählt als Ruhe (vereinfacht)
-    const wait = order.pickupStart - t;
-    hos.restStreak += wait;
-    t = order.pickupStart;
-  }
+  // Warten aufs Ladefenster zählt als Ruhe; lange Wartezeiten nutzt der Fahrer für die Tagesruhe
+  const wait = pickupWaitMin(hos, t, order.pickupStart, order.pickupEnd);
+  hosRest(hos, wait);
+  t += wait;
   const pickupEta = t;
   t += cargo.loadMin;
-  hos.restStreak = 0;
-  const e2 = simulateDriving(hos, loaded.driveMin);
+  hosWork(hos, cargo.loadMin);
+  const e2 = simulateRoute(hos, t, routeSegments(state, ctx, loadedRaw.nodes, 0, sf), banAppliesTo(vehicle, order.cargoId));
   t += e2.elapsed;
-  restMin += e2.restMin;
+  restMin += e2.restMin + e2.banMin;
   const border2 = routeBorderMin(ctx, loadedRaw.nodes);
-  t += border2;
   const model = TRUCK_BY_ID[vehicle.modelId];
   const loadFrac = loadFraction(state, vehicle, input.trailerId || undefined, order);
   const fuelL = toPickup.km * consumptionPerKm(vehicle.modelId, 0, driver.ecoDriving) + loaded.km * consumptionPerKm(vehicle.modelId, loadFrac, driver.ecoDriving);
@@ -166,6 +165,7 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   const fuelStops = Math.max(0, Math.ceil((fuelL - (tankNow - model.tankL * FUEL_RESERVE)) / usable));
   t += fuelStops * FUEL_STOP_MIN;
   const deliveryEta = t + Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);
+  hosWork(hos, 0);
   const lateMin = Math.max(0, deliveryEta - order.deliveryEnd);
   const durationMin = deliveryEta - startTime;
   const fuelCost = Math.round(fuelL * state.market.diesel);
@@ -194,6 +194,7 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
     fuelStops,
     borderMin: border1 + border2,
     countries: routeCountries([...toPickupRaw.nodes, ...loadedRaw.nodes]),
+    endHos: hos,
   };
 }
 
@@ -395,7 +396,7 @@ export function vehicleSchedule(state: GameState, ctx: SimContext, vehicleId: Id
   if (!trip || trip.phase === 'done') return [];
   const lastLeg = trip.legs[trip.legs.length - 1];
   const dest = lastLeg.nodes[lastLeg.nodes.length - 1];
-  const { etas, end: eta } = tripStopEtas(state, ctx, trip);
+  const { etas, end: eta, hos: endHos } = tripStopEtas(state, ctx, trip);
   const stops: ScheduleStop[] = (trip.stops ?? []).map((st, i) => ({ ...st, eta: etas[i] ?? trip.startedAt, done: i < trip.legIndex || (i === trip.legIndex && etas[i] === undefined) }));
   let lateMin = 0;
   for (const st of stops) if (st.kind === 'delivery' && !st.done) lateMin = Math.max(lateMin, st.eta - state.orders[st.orderId].deliveryEnd);
@@ -408,17 +409,17 @@ export function vehicleSchedule(state: GameState, ctx: SimContext, vehicleId: Id
       start: trip.startedAt,
       fromCityId: trip.legs[0].nodes[0],
       toCityId: dest,
-      end: { cityId: dest, time: eta },
+      end: { cityId: dest, time: eta, hos: endHos },
       lateMin,
     },
   ];
-  let cursor: PlanStart = { cityId: dest, time: eta };
+  let cursor: PlanStart = { cityId: dest, time: eta, hos: endHos };
   for (const job of vehicle.queue ?? []) {
     const o = state.orders[job.orderId];
     if (!o) continue;
     const est = estimateTrip(state, ctx, { orderId: o.id, driverId: trip.driverId, vehicleId, trailerId: trip.trailerId ?? '' }, cursor);
     if (!est) continue;
-    const end: PlanStart = { cityId: o.toCityId, time: est.deliveryEta };
+    const end: PlanStart = { cityId: o.toCityId, time: est.deliveryEta, hos: est.endHos };
     items.push({ kind: 'queued', orderId: o.id, queueId: job.id, start: cursor.time, pickup: est.pickupEta, fromCityId: cursor.cityId, toCityId: o.toCityId, end, lateMin: est.lateMin });
     cursor = end;
   }

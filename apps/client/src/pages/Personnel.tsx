@@ -10,6 +10,7 @@ import { sendCommand, useGame } from '../game/store.ts';
 import { Avatar, Badge, Bar, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
 import { cityName, km, QUAL_LABEL, tripLabel, activityLabel } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
+import { openMenu } from '../ui/ContextMenu.tsx';
 
 export function PersonnelPage() {
   const s = useGame();
@@ -30,7 +31,24 @@ export function PersonnelPage() {
               {drivers.map((d) => {
                 const trip = d.tripId ? s.trips[d.tripId] : undefined;
                 return (
-                  <tr key={d.id}>
+                  <tr
+                    key={d.id}
+                    onContextMenu={(e) =>
+                      openMenu(
+                        e,
+                        [
+                          { label: 'Personalakte öffnen', icon: <FolderOpen size={14} />, onClick: () => setFileId(d.id) },
+                          { label: 'Personalgespräch führen', icon: <MessageCircle size={14} />, onClick: () => sendCommand({ type: 'talkToDriver', driverId: d.id }) },
+                          { label: 'Eine Woche Urlaub', icon: <Palmtree size={14} />, disabled: d.status !== 'idle' || (d.vacationLeft ?? 0) < 7, onClick: () => sendCommand({ type: 'sendVacation', driverId: d.id, days: 7 }) },
+                          {
+                            label: 'Entlassen …', icon: <UserMinus size={14} />, danger: true, sep: true, disabled: !!trip,
+                            onClick: async () => (await askConfirm(`${d.name} entlassen? Abfindung: 1 Monatsgehalt.`, { title: 'Fahrer entlassen?', confirmLabel: 'Entlassen', danger: true })) && sendCommand({ type: 'fireDriver', driverId: d.id }),
+                          },
+                        ],
+                        d.name,
+                      )
+                    }
+                  >
                     <td>
                       <div className="row"><Avatar seed={d.name} size={32} /><div><b>{d.name}</b><div className="dim">{d.age} J. · aus {cityName(d.homeCityId)}</div></div></div>
                     </td>

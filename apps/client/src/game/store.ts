@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 import roadnet from '@spedsim/core/roadnet.json';
 import { createSimContext, type Command, type CommandResult, type GameState, type LogEntry, type RoadNetData } from '@spedsim/core';
 import type { GameHost } from './host.ts';
-import { playSound } from '../ui/sound.ts';
+import { playPhone, playSound } from '../ui/sound.ts';
 
 /** Clientseitiger Weltkontext (Straßennetz) für Positionsberechnung und Kartendarstellung. */
 export const world = createSimContext(roadnet as RoadNetData);
@@ -39,7 +39,14 @@ interface UiState {
   tunnel: { status: 'off' | 'starting' | 'checking' | 'ready' | 'error'; url?: string; error?: string };
   theme: 'dark' | 'light';
   sound: boolean;
+  /** Lautstärke Hintergrundmusik / Büroatmosphäre 0–100 */
+  music: number;
+  ambience: number;
   dispatchDraft: { orderId?: string; vehicleId?: string } | null;
+  /** geöffneter Hilfeartikel (F1) oder null */
+  help: string | null;
+  /** Erste-Schritte-Liste eingeblendet */
+  tutorial: boolean;
 }
 
 let ui: UiState = {
@@ -58,11 +65,16 @@ let ui: UiState = {
   tunnel: { status: 'off' },
   theme: (localStorageGet('spedsim.theme') as 'dark' | 'light') ?? 'dark',
   sound: localStorageGet('spedsim.sound') !== 'off',
+  music: Number(localStorageGet('spedsim.music') ?? 30),
+  ambience: Number(localStorageGet('spedsim.ambience') ?? 25),
   dispatchDraft: null,
+  help: null,
+  tutorial: false,
 };
 
 const listeners = new Set<() => void>();
 let lastLogId = -1;
+let lastEventT = -1;
 let toastSeq = 0;
 
 function localStorageGet(k: string): string | null {
@@ -129,6 +141,12 @@ export function receiveSnapshot(state: GameState, at: number, playerId: string) 
   lastLogId = state.log.length ? state.log[state.log.length - 1].id : lastLogId === -1 ? 0 : lastLogId;
   setUi({ state, snapshotAt: at, playerId });
   for (const l of fresh) if (l.level !== 'info') toast(l.level, l.text);
+  // Ereignisse aus dem Regelwerk: Kunden und Partner rufen an, Marktmeldungen klingen leiser
+  const events = state.events?.history ?? [];
+  const newEvents = lastEventT < 0 ? [] : events.filter((e) => e.t > lastEventT && e.category !== 'private');
+  lastEventT = events.length ? Math.max(lastEventT, events[events.length - 1].t) : Math.max(lastEventT, 0);
+  if (newEvents.some((e) => e.category !== 'market')) playPhone();
+  else if (newEvents.length) playSound('notice');
   if (fresh.some((l) => l.level === 'danger')) playSound('alert');
   else if (fresh.some((l) => l.level === 'success' && l.category === 'order')) playSound('success');
   else if (fresh.some((l) => l.level === 'warning')) playSound('warning');
@@ -136,8 +154,9 @@ export function receiveSnapshot(state: GameState, at: number, playerId: string) 
 
 export function resetGameUi() {
   lastLogId = -1;
+  lastEventT = -1;
   seenTeam = null;
-  setUi({ state: null, host: null, page: 'dashboard', selectedVehicleId: null, dispatchDraft: null, toasts: [], hosting: false, connection: '' });
+  setUi({ state: null, host: null, page: 'dashboard', selectedVehicleId: null, dispatchDraft: null, toasts: [], hosting: false, connection: '', help: null, tutorial: false });
 }
 
 export function toast(level: Toast['level'], text: string) {

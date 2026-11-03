@@ -67,10 +67,13 @@ export function pickDestination(state: GameState, ctx: SimContext, origin: CityD
 }
 
 /** Grundvergütung einer Tour (ohne Zufall/Express), Grundlage für Börse und Rahmenverträge. */
+/** allgemeines Frachtratenniveau (Balancing 0.11: Marge eines gut disponierten LKW ca. 12–15 %) */
+export const RATE_LEVEL = 1.1;
+
 export function baseRate(state: GameState, cargo: CargoDef, km: number): number {
   const distanceFactor = km < 250 ? 1.25 : km < 500 ? 1.08 : 1;
   const fuelSurcharge = state.market.diesel / 155;
-  return (cargo.ratePerKm * km * distanceFactor * (0.75 + 0.25 * fuelSurcharge) + cargo.baseFee) * state.difficulty.rateFactor * state.market.demand ** 0.5;
+  return (cargo.ratePerKm * km * distanceFactor * (0.75 + 0.25 * fuelSurcharge) + cargo.baseFee) * RATE_LEVEL * state.difficulty.rateFactor * state.market.demand ** 0.5;
 }
 
 /** Erzeugt einen wirtschaftlich plausiblen Auftrag. Liefert null, wenn kein sinnvoller Auftrag entsteht. */
@@ -78,8 +81,10 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   const cargo = rand.weighted(state, CARGOS, (c) => cargoWeight(state, c))!;
   let origins = CITIES.filter((c) => c.industries.some((i) => cargo.producers.includes(i)) && ctx.net.hasCity(c.id));
   if (opts.local) {
-    const anchors = [...activeCities(state)].map((id) => CITY_BY_ID[id]);
-    origins = origins.filter((o) => anchors.some((a) => haversineKm(ll(a), ll(o)) <= LOCAL_RADIUS_KM));
+    // Ein Ort je Fahrzeug, Fahrtziel und Standort – gleich gewichtet, damit auch LKW fern der Heimat Anschlussladungen finden
+    const anchor = CITY_BY_ID[rand.pick(state, [...activeCities(state)])];
+    const near = origins.filter((o) => haversineKm(ll(anchor), ll(o)) <= LOCAL_RADIUS_KM);
+    if (near.length) origins = near;
   }
   // eigene Lagerhallen ziehen Verteilerverkehr an
   // regionale Nachfrage (Konjunktur, Ereignisse) verschiebt die Herkunft der Ladungen

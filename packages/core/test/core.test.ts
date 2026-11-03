@@ -12,6 +12,7 @@ import {
   diffState, applyPatch, sameJson,
   weatherWeights, tickTrip, banUntil, banApplies, validateDispatch, isCustomsBorder, startPhase, dailyEconomy, crisisPaymentFactor, setRegionalTrend, regionFactor,
   activeCompetitors, hourlyCompetition, dailyCompetition, monthlyCompetition, foundCompetitor, dailyEvents, type Trip,
+  pickupWaitMin, freshHos, type StaffMember,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -964,7 +965,7 @@ describe('Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilunge
     d.experience = 70;
     expect(applyCommand(s, ctx, 'p1', { type: 'promoteDriver', driverId: d.id, dept: 'sales' }).ok).toBe(true);
     expect(s.drivers[d.id]).toBeUndefined();
-    const m = s.company.staff.find((x) => x.name === d.name)!;
+    const m = s.company.staff.find((x) => x.name === d.name && x.promoted)!;
     expect(m.promoted).toBe(true);
     expect(m.salary).toBeGreaterThanOrEqual(d.salary);
     expect(salesVolumeFactor(s)).toBeCloseTo(1.12);
@@ -1626,3 +1627,54 @@ describe('Erweiterte Simulation (Phase 10)', () => {
     expect(Object.keys(loaded.weather).length).toBeGreaterThan(20);
   });
 });
+
+describe('Feinschliff: Planung und Balancing (Phase 11)', () => {
+  it('Lange Wartezeit am Ladefenster wird zur Tagesruhe, wenn sie vor Ende des Fensters endet', () => {
+    const h = { ...freshHos(), drivenToday: 300 };
+    expect(pickupWaitMin(h, 0, 300, 800)).toBe(HOS_RULES.DAILY_REST);
+    expect(pickupWaitMin(h, 0, 300, 500)).toBe(300); // Ruhe passt nicht ins Fenster
+    expect(pickupWaitMin({ ...h, drivenToday: 0 }, 0, 300, 800)).toBe(300); // ausgeruht: nur warten
+    expect(pickupWaitMin(h, 400, 300, 800)).toBe(0);
+  });
+
+  it('Vorkalkulation rechnet das Sonntagsfahrverbot ein', () => {
+    const s = newGame();
+    s.time = 5 * MIN_PER_DAY + 21 * 60; // Sa 21:00
+    s.disruptions = [];
+    const [d, v, t] = [first(s.drivers), first(s.vehicles), first(s.trailers)];
+    const o = addOrder(s, 'leipzig', 'muenchen', { pickupStart: s.time, pickupEnd: s.time + 120, deliveryEnd: s.time + 2 * MIN_PER_DAY });
+    const est = estimateTrip(s, ctx, { orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id })!;
+    expect(est.deliveryEta).toBeGreaterThan(6 * MIN_PER_DAY + 22 * 60);
+    s.time += 3 * MIN_PER_DAY; // gleiche Uhrzeit am Dienstag: kein Verbot
+    o.pickupStart = s.time;
+    o.pickupEnd = s.time + 120;
+    const tue = estimateTrip(s, ctx, { orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id })!;
+    expect(tue.deliveryEta - s.time).toBeLessThan(est.deliveryEta - (s.time - 3 * MIN_PER_DAY) - 12 * 60);
+  });
+
+  it('Folgeaufträge werden mit dem Lenkzeitstand am Ende der laufenden Fahrt geplant', () => {
+    const s = newGame();
+    const [d, v, t] = [first(s.drivers), first(s.vehicles), first(s.trailers)];
+    const o = addOrder(s, 'leipzig', 'mailand', { pickupStart: s.time, pickupEnd: s.time + 600, deliveryEnd: s.time + 4 * MIN_PER_DAY });
+    applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+    const end = vehicleSchedule(s, ctx, v.id)[0].end;
+    expect(end.hos).toBeDefined();
+    expect(end.hos!.drivenWeek).toBeGreaterThan(d.hos.drivenWeek + 9 * 60);
+  });
+
+  it('KI-Disposition: Ruhezeit des Fahrers zählt nicht als Standzeit ohne Auftrag', () => {
+    const s = newGame();
+    s.company.staff.push({ id: 'st1', name: 'Test', dept: 'dispatch', salary: 0, hired: 0, locationId: s.company.locations[0].id, skill: 80 } as StaffMember);
+    applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto' });
+    s.orders = {};
+    const [d, v] = [first(s.drivers), first(s.vehicles)];
+    d.hos.requiredRest = 600;
+    d.hos.requiredRestKind = 'daily';
+    runAutoDispatch(s, ctx);
+    expect(s.autoDispatch.idleHours[v.id]).toBeUndefined();
+    d.hos.requiredRest = 0;
+    runAutoDispatch(s, ctx);
+    expect(s.autoDispatch.idleHours[v.id]).toBe(1);
+  });
+});
+

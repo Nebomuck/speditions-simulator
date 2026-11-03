@@ -117,6 +117,20 @@ export function simulateDriving(h: HoursOfService, driveMin: number): { elapsed:
   return { elapsed, restMin };
 }
 
+/** Ab dieser Wartezeit am Ladefenster legt der Fahrer seine Tagesruhe gleich dort ein. */
+export const REST_WHILE_WAITING_MIN = 180;
+
+/**
+ * Wartezeit an der Ladestelle (min, ab `now`). Lange Wartezeiten nutzt der Fahrer für die Tagesruhe,
+ * wenn er schon gefahren ist und die Ruhe vor Ende des Ladefensters endet – dann wird bis zum Ende der Ruhe gewartet.
+ */
+export function pickupWaitMin(h: HoursOfService, now: number, pickupStart: number, pickupEnd: number): number {
+  if (now >= pickupStart) return 0;
+  const wait = pickupStart - now;
+  if (wait >= REST_WHILE_WAITING_MIN && h.drivenToday >= 120 && now + HOS_RULES.DAILY_REST <= pickupEnd) return Math.max(wait, HOS_RULES.DAILY_REST);
+  return wait;
+}
+
 export const REST_KIND_LABEL: Record<HoursOfService['requiredRestKind'], string> = {
   none: '–',
   break: 'Fahrtunterbrechung',

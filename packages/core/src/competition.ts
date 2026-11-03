@@ -12,6 +12,8 @@ import { haversineKm } from './geo.ts';
 import { newId, rand } from './rng.ts';
 import { MIN_PER_DAY } from './time.ts';
 import type { Competitor, CompetitorStrategy, Customer, GameState, Id, Money, Order } from './types.ts';
+// Kosten skalieren mit dem Frachtratenniveau, damit die Margen der Konkurrenz gleich bleiben
+import { RATE_LEVEL } from './orders.ts';
 
 type Result = { ok: true; won?: boolean } | { ok: false; error: string };
 
@@ -115,7 +117,7 @@ export const competitionPriceFactor = (state: GameState, country: string) => 1 -
 
 function addRevenue(c: Competitor, payment: Money, km: number) {
   const revenue = Math.round(payment * c.priceLevel);
-  const cost = Math.round((km * COST_PER_KM + 40_00) * COST_LEVEL[c.strategy]);
+  const cost = Math.round((km * COST_PER_KM + 40_00) * COST_LEVEL[c.strategy] * RATE_LEVEL);
   c.cash += revenue - cost;
   c.month.revenue += revenue;
   c.month.costs += cost;
@@ -172,7 +174,7 @@ export function hourlyCompetition(state: GameState): void {
 export function dailyCompetition(state: GameState): void {
   const comps = activeCompetitors(state);
   for (const c of comps) {
-    const cost = Math.round(c.trucks * TRUCK_DAY_COST * COST_LEVEL[c.strategy] * (0.95 + 0.05 * c.cityIds.length));
+    const cost = Math.round(c.trucks * TRUCK_DAY_COST * COST_LEVEL[c.strategy] * RATE_LEVEL * (0.95 + 0.05 * c.cityIds.length));
     c.cash -= cost;
     c.month.costs += cost;
   }

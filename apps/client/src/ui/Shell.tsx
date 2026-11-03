@@ -1,6 +1,7 @@
-import { Pause, Play, LayoutDashboard, Map, CalendarRange, ClipboardList, Users, Truck, Wallet, Handshake, Building2, Home, MessagesSquare, BarChart3, Settings, Wifi, TrendingUp } from 'lucide-react';
+import { Pause, Play, LayoutDashboard, Map, CalendarRange, ClipboardList, Users, Truck, Wallet, Handshake, Building2, Home, MessagesSquare, BarChart3, Settings, Wifi, TrendingUp, CircleHelp } from 'lucide-react';
 import { SPEEDS, formatTime, formatDate, WEEKDAY_NAMES, weekday, holidayName, season, SEASON_NAMES, unreadMessages, openTasksFor, pendingInvitesFor } from '@spedsim/core';
-import { navigate, sendCommand, useGame, useUi, type Page } from '../game/store.ts';
+import { getUi, navigate, sendCommand, setUi, useGame, useUi, type Page } from '../game/store.ts';
+import { helpForPage } from './help.ts';
 import { Money } from './components.tsx';
 
 const NAV: { page: Page; label: string; icon: typeof Map }[] = [
@@ -34,7 +35,7 @@ export function Sidebar() {
       {NAV.map(({ page: p, label, icon: Icon }, i) => (
         <div key={p}>
           {(i === 4 || i === 10 || i === 12) && <div className="nav-sep" />}
-          <button className={`nav-item ${page === p ? 'active' : ''}`} onClick={() => navigate(p)}>
+          <button data-tour={`nav-${p}`} className={`nav-item ${page === p ? 'active' : ''}`} onClick={() => navigate(p)}>
             <Icon size={17} />
             {label}
             {counts[p] ? <span className="count">{counts[p]}</span> : null}
@@ -67,7 +68,7 @@ export function TopBar() {
         <strong>{formatTime(s.time)} · {formatDate(s.time)}</strong>
         <span>{WEEKDAY_NAMES[weekday(s.time)]} · {SEASON_NAMES[season(s.time)]}{holiday ? ` · ${holiday}` : ''}</span>
       </div>
-      <div className="speed-group" title="Simulationsgeschwindigkeit (Leertaste: Pause)">
+      <div className="speed-group" data-tour="speed" title="Simulationsgeschwindigkeit (Leertaste: Pause)">
         <button className={s.paused ? 'active' : ''} onClick={() => sendCommand({ type: 'setPaused', paused: !s.paused }, { quiet: true })}>
           {s.paused ? <Play size={14} /> : <Pause size={14} />}
         </button>
@@ -106,6 +107,9 @@ export function TopBar() {
         <span>Diesel</span>
         <strong>{(s.market.diesel / 100).toLocaleString('de-DE', { minimumFractionDigits: 3 })} €/l</strong>
       </div>
+      <button className="icon-btn help-btn" data-tour="help" title="Hilfe (F1)" onClick={() => setUi({ help: helpForPage(getUi().page) })}>
+        <CircleHelp size={19} />
+      </button>
     </header>
   );
 }

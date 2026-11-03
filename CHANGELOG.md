@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.0 – 03.11.2026
+
+- **Balancing:** Ein Spieler-Bot hat das Spiel über 18 Monate auf allen Schwierigkeitsgraden gespielt. Daraus:
+  - Frachtraten um 10 % angehoben (rund 1,85–2,00 € je Last-km). Ein gut disponierter LKW bringt etwa 2.000–3.000 € Deckungsbeitrag im Monat; ab dem zweiten Fahrzeug wird die Firma profitabel. „Einfach“ (+8 %) und „Realistisch“ (−4 %, Zahlungsrisiko ×1,4) neu abgestimmt.
+  - Ein Teil der Aufträge entsteht jetzt gleichmäßig rund um jedes Fahrzeug und Fahrtziel statt überwiegend am Firmensitz – LKW fern der Heimat finden Anschlussladungen. Leerfahrten sanken im Test von 30–40 % auf etwa 15–20 %.
+- **Planung genauer:** Vorkalkulation, Plantafel und Folgeaufträge rechnen Fahrverbote, Wetter und Grenzwartezeiten genauso wie die Fahrt selbst. Folgeaufträge berücksichtigen den Lenkzeitstand am Ende der laufenden Fahrt (vorher wurde die Wochenruhe übersehen). Verspätete Lieferungen der KI-Disposition sanken im Test von rund 45 % auf unter 10 %.
+- **Ruhe an der Ladestelle:** Wartet ein Fahrer länger als 3 h auf das Ladefenster, legt er seine Tagesruhe gleich dort ein, wenn sie vor dem Ende des Fensters endet.
+- **KI-Disponenten:** Steht ein LKW länger ohne Auftrag, nehmen sie auch weitere Anfahrten in Kauf, bevor sie ihn nach 24 h (vorher 12 h) leer zum Standort zurückholen. Ruhezeiten zählen nicht mehr als Standzeit. Verspätete Folgeaufträge werden nicht mehr stündlich neu eingeplant.
+- **Erste Schritte:** Ein Tutorial führt in neuen Spielen durch die ersten Aufträge, die Karte, Finanzen und Wachstum und hebt das nächste Bedienelement hervor.
+- **Hilfe:** F1 oder das Fragezeichen oben rechts öffnet die Hilfe zur aktuellen Seite – durchsuchbar, mit Lenkzeiten, Fahrverboten, Finanzen, Fuhrpark und allen Tastenkürzeln.
+- **Musik und Atmosphäre:** ruhige, generative Hintergrundmusik, Büroatmosphäre und ein Telefonklingeln, wenn Kunden oder Partner anrufen. Musik und Atmosphäre sind in den Einstellungen getrennt regelbar.
+- **Kontextmenüs:** Rechtsklick auf Fahrzeuge, Aufträge und Fahrer für die häufigsten Aktionen.
+- **Benutzerdefinierter Schwierigkeitsgrad** beim Gründen: Startkapital, Frachtraten, Ereignisse, Zahlungsrisiko und Start-LKW frei wählbar – auch für Multiplayer-Firmen.
+- Dezente Animationen bei Seitenwechseln, Meldungen und Dialogen (abgeschaltet bei „Bewegung reduzieren“ im System).
+
 ## 0.10.0 – 03.11.2026
 
 - **Wetter:** Jedes Land hat eigenes Wetter nach Jahreszeit und Lage – Regen, Nebel, Schnee, Glätte, Sturm, Hitze. Schlechtes Wetter bremst die LKW (Schnee −28 %, Glätte −40 %), erhöht das Unfallrisiko und führt gelegentlich zu wetterbedingten Sperrungen. Das Fahrzeugfenster zeigt das Wetter am Standort.

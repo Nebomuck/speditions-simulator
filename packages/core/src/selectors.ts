@@ -3,12 +3,11 @@
 import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
-import { UNLOAD_MIN_FACTOR, speedFactor } from './dispatch.ts';
-import { disruptionOnEdge } from './disruptions.ts';
-import { WEATHER, expectedBorderWait, weatherIn } from './world.ts';
+import { UNLOAD_MIN_FACTOR, ordersOnBoard, speedFactor } from './dispatch.ts';
+import { banAppliesTo, routeSegments, simulateRoute } from './world.ts';
 import { haversineKm, type LonLat } from './geo.ts';
-import { hosRest, hosWork, simulateDriving } from './hos.ts';
-import type { GameState, Id, Trip } from './types.ts';
+import { hosRest, hosWork, pickupWaitMin } from './hos.ts';
+import type { GameState, HoursOfService, Id, Trip } from './types.ts';
 
 export interface VehicleMarker {
   vehicleId: Id;
@@ -53,33 +52,14 @@ export function remainingKm(trip: Trip): number {
   return Math.max(0, km);
 }
 
-/** Restliche reine Fahrzeit (min) ab aktueller Position bis zum Ende einer Knotenfolge. */
-function remainingDriveMin(state: GameState, ctx: SimContext, nodes: string[], fromKm: number): number {
-  let acc = 0;
-  let min = 0;
-  for (let i = 1; i < nodes.length; i++) {
-    const e = ctx.net.edgeBetween(nodes[i - 1], nodes[i]);
-    if (!e) continue;
-    const start = acc;
-    acc += e.km;
-    if (acc <= fromKm) continue;
-    const part = (acc - Math.max(start, fromKm)) / e.km;
-    // Stau verlangsamt, Sperrung kostet die Wartezeit bis zur Freigabe; Wetter verlangsamt, Zollgrenzen kosten Wartezeit
-    const d = disruptionOnEdge(state, e);
-    const wx = WEATHER[weatherIn(state, CITY_BY_ID[e.a].country)].speed;
-    min += (e.truckMin * part) / (d?.kind === 'jam' ? d.speedFactor : 1) / wx + (d?.kind === 'closure' ? Math.max(0, d.until - state.time) : 0);
-    if (start >= fromKm) min += expectedBorderWait(CITY_BY_ID[e.a].country, CITY_BY_ID[e.b].country);
-  }
-  return min;
-}
-
 /** Geschätztes Ende von Beladung bzw. Entladung je noch offenem Halt (Index wie trip.stops) und Fahrtende.
- *  Berücksichtigt Lenk-/Ruhezeiten, Ladefenster und Verkehrsstörungen auf der Route. */
-export function tripStopEtas(state: GameState, ctx: SimContext, trip: Trip): { etas: number[]; end: number } {
-  if (trip.phase === 'done') return { etas: [], end: trip.finishedAt ?? state.time };
+ *  Berücksichtigt Lenk-/Ruhezeiten, Ladefenster, Verkehrsstörungen, Wetter, Grenzen und Fahrverbote auf der Route. */
+export function tripStopEtas(state: GameState, ctx: SimContext, trip: Trip): { etas: number[]; end: number; hos: HoursOfService } {
   const driver = state.drivers[trip.driverId];
+  if (trip.phase === 'done') return { etas: [], end: trip.finishedAt ?? state.time, hos: { ...driver.hos } };
   const hos = { ...driver.hos };
-  const sf = speedFactor(state.vehicles[trip.vehicleId]?.modelId ?? '');
+  const vehicle = state.vehicles[trip.vehicleId];
+  const sf = speedFactor(vehicle?.modelId ?? '');
   let t = state.time;
   const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry';
   if (stationary) {
@@ -100,22 +80,23 @@ export function tripStopEtas(state: GameState, ctx: SimContext, trip: Trip): { e
     }
     const leg = trip.legs[li];
     const from = li === trip.legIndex ? trip.progressKm : 0;
-    t += simulateDriving(hos, remainingDriveMin(state, ctx, leg.nodes, from) / sf).elapsed;
+    const reefer = leg.loaded ? ordersOnBoard(trip, li).find((id) => CARGO_BY_ID[state.orders[id]?.cargoId]?.trailer === 'reefer') : undefined;
+    const banned = !!vehicle && banAppliesTo(vehicle, reefer ? state.orders[reefer].cargoId : undefined);
+    t += simulateRoute(hos, t, routeSegments(state, ctx, leg.nodes, from, sf), banned).elapsed;
     if (stop && cargo) {
       const o = state.orders[stop.orderId];
       // wie in der Simulation: Warten aufs Ladefenster zählt als Ruhe, Be-/Entladen als Arbeit
       if (stop.kind === 'pickup') {
-        if (t < o.pickupStart) {
-          hosRest(hos, o.pickupStart - t);
-          t = o.pickupStart;
-        }
+        const wait = pickupWaitMin(hos, t, o.pickupStart, o.pickupEnd);
+        hosRest(hos, wait);
+        t += wait;
         t += cargo.loadMin;
       } else t += Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);
       hosWork(hos, 0);
       etas[li] = Math.round(t);
     }
   }
-  return { etas, end: Math.round(t) };
+  return { etas, end: Math.round(t), hos };
 }
 
 /** Voraussichtliches Ende einer laufenden Fahrt unter Berücksichtigung der Lenk-/Ruhezeiten. */

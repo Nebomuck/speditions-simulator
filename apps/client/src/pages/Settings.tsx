@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Save, Download, LogOut, Sun, Moon, Volume2, VolumeX } from 'lucide-react';
+import { Save, Download, LogOut, Sun, Moon, Volume2, VolumeX, Music, Building, Phone } from 'lucide-react';
 import { DIFFICULTY_LABEL } from '@spedsim/core';
 import { getUi, localStorageSet, resetGameUi, setUi, toast, useGame, useUi } from '../game/store.ts';
 import { Card, PageHeader } from '../ui/components.tsx';
+import { applyVolumes, playPhone } from '../ui/sound.ts';
 import { askConfirm } from '../ui/confirm.tsx';
 
 export function SettingsPage() {
@@ -10,6 +11,13 @@ export function SettingsPage() {
   const host = useUi((u) => u.host);
   const theme = useUi((u) => u.theme);
   const sound = useUi((u) => u.sound);
+  const music = useUi((u) => u.music);
+  const ambience = useUi((u) => u.ambience);
+  const setVolume = (key: 'music' | 'ambience', v: number) => {
+    setUi({ [key]: v });
+    localStorageSet(`spedsim.${key}`, String(v));
+    applyVolumes();
+  };
   const [name, setName] = useState(s.company.name);
 
   return (
@@ -17,14 +25,23 @@ export function SettingsPage() {
       <PageHeader title="Einstellungen" />
       <div className="grid grid-2">
         <Card title="Darstellung & Ton">
-          <div className="row">
+          <div className="row wrap">
             <button className={`btn ${theme === 'dark' ? 'primary' : ''}`} onClick={() => { setUi({ theme: 'dark' }); localStorageSet('spedsim.theme', 'dark'); }}><Moon size={15} />Dunkel</button>
             <button className={`btn ${theme === 'light' ? 'primary' : ''}`} onClick={() => { setUi({ theme: 'light' }); localStorageSet('spedsim.theme', 'light'); }}><Sun size={15} />Hell</button>
-            <button className="btn" onClick={() => { setUi({ sound: !sound }); localStorageSet('spedsim.sound', sound ? 'off' : 'on'); }}>
-              {sound ? <Volume2 size={15} /> : <VolumeX size={15} />} Klänge {sound ? 'an' : 'aus'}
+            <button className="btn" onClick={() => { setUi({ sound: !sound }); localStorageSet('spedsim.sound', sound ? 'off' : 'on'); applyVolumes(); }}>
+              {sound ? <Volume2 size={15} /> : <VolumeX size={15} />} Effekte {sound ? 'an' : 'aus'}
             </button>
+            {sound && <button className="btn" title="Klingelton für Kundenanrufe testen" onClick={playPhone}><Phone size={15} />Test</button>}
           </div>
-          <p className="dim" style={{ fontSize: 12.5 }}>Tastenkürzel: Leertaste = Pause/Weiter, 1–6 = Geschwindigkeit, M = Karte, D = Disposition, A = Auftragsbörse.</p>
+          <div className="volume mt">
+            <label><Music size={14} />Hintergrundmusik</label>
+            <input type="range" min={0} max={100} step={5} value={music} onChange={(e) => setVolume('music', Number(e.target.value))} />
+            <span>{music === 0 ? 'aus' : `${music} %`}</span>
+            <label><Building size={14} />Büroatmosphäre</label>
+            <input type="range" min={0} max={100} step={5} value={ambience} onChange={(e) => setVolume('ambience', Number(e.target.value))} />
+            <span>{ambience === 0 ? 'aus' : `${ambience} %`}</span>
+          </div>
+          <p className="dim" style={{ fontSize: 12.5 }}>Tastenkürzel: Leertaste = Pause/Weiter, 1–6 = Geschwindigkeit, M = Karte, D = Disposition, A = Auftragsbörse, F1 = Hilfe. Musik und Klänge werden im Spiel erzeugt (keine fremden Audiodateien).</p>
         </Card>
         <Card title="Spielstand">
           {host?.mode === 'local' ? (

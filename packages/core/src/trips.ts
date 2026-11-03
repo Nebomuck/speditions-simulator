@@ -9,7 +9,7 @@ import { FUEL_RESERVE, FUEL_STOP_MIN, UNLOAD_MIN_FACTOR, consumptionPerKm, penal
 import { disruptionLabel, disruptionOnEdge, routeNow } from './disruptions.ts';
 import { onContractDelivery } from './contracts.ts';
 import { addLog, adjustSatisfaction, book, createInvoice, formatMoney } from './finance.ts';
-import { drivableNow, hosDrive, hosRest, hosWork } from './hos.ts';
+import { HOS_RULES, drivableNow, hosDrive, hosRest, hosWork, pickupWaitMin } from './hos.ts';
 import { rand } from './rng.ts';
 import { formatDateTime, formatDuration, hourOfDay } from './time.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
@@ -324,7 +324,10 @@ function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
     if (state.time < order.pickupStart) {
       trip.phase = 'loading';
       trip.activity = 'waiting';
-      trip.activityLeft = order.pickupStart - state.time;
+      // lange Wartezeit: Tagesruhe gleich an der Ladestelle
+      trip.activityLeft = pickupWaitMin(state.drivers[trip.driverId].hos, state.time, order.pickupStart, order.pickupEnd);
+      if (trip.activityLeft > order.pickupStart - state.time || trip.activityLeft >= HOS_RULES.DAILY_REST)
+        tlog(state, trip, `Tagesruhe an der Ladestelle bis ${formatDateTime(state.time + trip.activityLeft)}`);
     } else startLoading(state, trip);
     return;
   }

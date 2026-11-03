@@ -14,8 +14,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { WebSocketServer, type WebSocket } from 'ws';
 import roadnet from '@spedsim/core/roadnet.json' with { type: 'json' };
 import {
-  GameSession, addPlayer, applyPatch, createNewGame, createSimContext, deserializeSave, diffState, playerView, serializeSave, CITY_BY_ID, LIFE_GOALS,
-  type Character, type Command, type DifficultyId, type RoadNetData,
+  GameSession, addPlayer, applyPatch, createNewGame, createSimContext, deserializeSave, diffState, playerView, serializeSave, sanitizeDifficulty, CITY_BY_ID, LIFE_GOALS,
+  type Character, type Command, type Difficulty, type DifficultyId, type RoadNetData,
 } from '@spedsim/core';
 
 export interface ServerOptions {
@@ -200,13 +200,14 @@ export function startServer(opts: ServerOptions) {
 
   function handleCreate(c: Client, m: Record<string, unknown>) {
     const hq = typeof m.hqCityId === 'string' && CITY_BY_ID[m.hqCityId] ? m.hqCityId : 'leipzig';
-    const diff = (['easy', 'normal', 'realistic'] as DifficultyId[]).includes(m.difficulty as DifficultyId) ? (m.difficulty as DifficultyId) : 'normal';
+    const diff = (['easy', 'normal', 'realistic', 'custom'] as DifficultyId[]).includes(m.difficulty as DifficultyId) ? (m.difficulty as DifficultyId) : 'normal';
     const name = cleanName(m.name, 'Gründer/in');
     const playerId = `pl${randomBytes(5).toString('hex')}`;
     const state = createNewGame(ctx, {
       companyName: cleanName(m.companyName, 'Koop-Spedition'),
       hqCityId: hq,
       difficulty: diff,
+      customDifficulty: diff === 'custom' ? sanitizeDifficulty(m.customDifficulty as Partial<Difficulty>) : undefined,
       founder: { id: playerId, name, character: sanitizeCharacter(m.character, name) },
     });
     const id = `g${randomBytes(6).toString('hex')}`;

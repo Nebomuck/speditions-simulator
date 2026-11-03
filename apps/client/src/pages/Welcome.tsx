@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server, Download } from 'lucide-react';
-import { BACKGROUNDS, CITIES, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type CharacterBackground, type DifficultyId } from '@spedsim/core';
+import { BACKGROUNDS, CITIES, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type CharacterBackground, type Difficulty, type DifficultyId } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
 import { appVersion, checkForUpdate, installUpdate, type Update } from '../game/updater.ts';
 import { connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
@@ -48,7 +48,8 @@ export function Welcome() {
   const [company, setCompany] = useState('Mustermann Logistik');
   const [player, setPlayer] = useState('Alex Mustermann');
   const [hq, setHq] = useState('leipzig');
-  const [difficulty, setDifficulty] = useState<Exclude<DifficultyId, 'custom'>>('normal');
+  const [difficulty, setDifficulty] = useState<DifficultyId>('normal');
+  const [custom, setCustom] = useState<Partial<Difficulty>>({ ...DIFFICULTIES.normal });
   const [avatar, setAvatar] = useState({ skin: 1, hair: 1, hairColor: 1, shirt: 0 });
   const [age, setAge] = useState(32);
   const [background, setBackground] = useState<CharacterBackground>('career_changer');
@@ -102,7 +103,7 @@ export function Welcome() {
     setBusy(true);
     try {
       const host = getLocalHost();
-      await host.newGame({ companyName: company, hqCityId: hq, difficulty, founder: { name: player, character: { name: player, age, avatar, background } } });
+      await host.newGame({ companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, founder: { name: player, character: { name: player, age, avatar, background } } });
       setUi({ host, page: 'dashboard' });
     } catch (e) {
       toast('danger', (e as Error).message);
@@ -139,7 +140,7 @@ export function Welcome() {
     try {
       const external = externalServer.trim();
       const url = external ? normalizeServerUrl(external) : await ensureLocalServer();
-      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, name: player, character }, !external);
+      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, name: player, character }, !external);
     } catch (e) {
       toast('danger', `Server konnte nicht gestartet werden: ${(e as Error).message ?? e}`);
       setUi({ connection: '' });
@@ -248,7 +249,12 @@ export function Welcome() {
                           <small>{formatMoney(DIFFICULTIES[d].startCapital)} · {DIFF_TEXT[d]}</small>
                         </button>
                       ))}
+                      <button className={difficulty === 'custom' ? 'active' : ''} onClick={() => setDifficulty('custom')}>
+                        <b>{DIFFICULTY_LABEL.custom}</b>
+                        <small>Startkapital, Margen, Ereignisse und Zahlungsrisiko selbst festlegen</small>
+                      </button>
                     </div>
+                    {difficulty === 'custom' && <CustomDifficulty value={custom} onChange={setCustom} />}
                   </div>
                 </>
               ) : null}
@@ -424,3 +430,37 @@ export function Welcome() {
     </div>
   );
 }
+
+/** Benutzerdefinierter Schwierigkeitsgrad */
+function CustomDifficulty({ value, onChange }: { value: Partial<Difficulty>; onChange: (v: Partial<Difficulty>) => void }) {
+  const pct = (v = 1) => `${Math.round(v * 100)} %`;
+  const rows: { key: 'startCapital' | 'rateFactor' | 'eventFactor' | 'paymentRiskFactor'; label: string; step: number; fmt: (v?: number) => string; hint: string }[] = [
+    { key: 'startCapital', label: 'Startkapital', step: 5_000_00, fmt: (v = 0) => formatMoney(v), hint: '' },
+    { key: 'rateFactor', label: 'Frachtraten', step: 0.02, fmt: pct, hint: 'Marge je Auftrag' },
+    { key: 'eventFactor', label: 'Ereignisse & Pannen', step: 0.1, fmt: pct, hint: 'Pannen, Unfälle, Störungen, negative Ereignisse' },
+    { key: 'paymentRiskFactor', label: 'Zahlungsrisiko', step: 0.1, fmt: pct, hint: 'verspätete Zahlungen und Ausfälle' },
+  ];
+  return (
+    <div className="custom-diff mt">
+      {rows.map((r) => (
+        <label key={r.key} title={r.hint}>
+          <span>{r.label}</span>
+          <input
+            type="range"
+            min={CUSTOM_LIMITS[r.key][0]}
+            max={CUSTOM_LIMITS[r.key][1]}
+            step={r.step}
+            value={value[r.key] ?? 0}
+            onChange={(e) => onChange({ ...value, [r.key]: Number(e.target.value) })}
+          />
+          <b>{r.fmt(value[r.key])}</b>
+        </label>
+      ))}
+      <label className="check">
+        <input type="checkbox" checked={!!value.startTruckOwned} onChange={(e) => onChange({ ...value, startTruckOwned: e.target.checked })} />
+        Start-LKW gehört der Firma (sonst geleast)
+      </label>
+    </div>
+  );
+}
+

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Wrench, ShoppingCart, Tag, Truck, Container, Gauge } from 'lucide-react';
+import { Wrench, ShoppingCart, Tag, Truck, Container, Gauge, MapPin, Send } from 'lucide-react';
 import {
   TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, annuity, capacity, deptCount, formatDateTime, hasFacility, openVehicleLoan, serviceCost, toDate, tradeInValue,
   vehicleLoanRate, vehicleMarketValue, vehicleRentPerDay, type TrailerType, type TruckModel, type Vehicle,
@@ -8,6 +8,36 @@ import { sendCommand, setUi, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Modal, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { activityLabel, bodyName, cityName, dec, km, modelName, trailerName } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
+import { openMenu, type MenuItem } from '../ui/ContextMenu.tsx';
+import type { GameState } from '@spedsim/core';
+
+async function sellOrReturn(v: Vehicle) {
+  const ok = await askConfirm(
+    v.ownership === 'leased'
+      ? 'Leasingvertrag vorzeitig beenden? Ablöse: 3 Monatsraten.'
+      : v.ownership === 'rented'
+        ? 'Mietfahrzeug zurückgeben? Die Miete endet sofort.'
+        : `Fahrzeug für ca. 90 % des Marktwerts verkaufen?${v.loanId ? ' Die Restschuld der Finanzierung wird aus dem Erlös abgelöst.' : ''}`,
+    { title: `${v.plate} ${v.ownership === 'owned' ? 'verkaufen' : 'zurückgeben'}?`, confirmLabel: v.ownership === 'owned' ? 'Verkaufen' : 'Zurückgeben', danger: true },
+  );
+  if (ok) sendCommand({ type: 'sellVehicle', vehicleId: v.id });
+}
+
+/** Rechtsklick auf ein Fahrzeug */
+export function vehicleMenu(s: GameState, v: Vehicle): MenuItem[] {
+  const idle = v.status === 'idle';
+  return [
+    { label: 'Auf der Karte zeigen', icon: <MapPin size={14} />, onClick: () => setUi({ selectedVehicleId: v.id, followVehicle: !idle, page: 'map' }) },
+    { label: idle ? 'Disponieren …' : 'Folgeauftrag planen …', icon: <Send size={14} />, disabled: v.status === 'workshop' || v.status === 'broken', onClick: () => setUi({ dispatchDraft: { vehicleId: v.id } }) },
+    {
+      label: `Werkstatt${v.condition < 98 ? ` (ca. ${Math.round(serviceCost(s, v).cost / 100).toLocaleString('de-DE')} €)` : ''}`,
+      icon: <Wrench size={14} />,
+      disabled: !idle || v.condition >= 98,
+      onClick: () => sendCommand({ type: 'serviceVehicle', vehicleId: v.id }),
+    },
+    { label: v.ownership === 'owned' ? 'Verkaufen …' : 'Zurückgeben …', icon: <Tag size={14} />, danger: true, sep: true, disabled: !idle, onClick: () => sellOrReturn(v) },
+  ];
+}
 
 export function FleetPage() {
   const s = useGame();
@@ -70,7 +100,7 @@ export function FleetPage() {
                 const trip = v.tripId ? s.trips[v.tripId] : undefined;
                 const m = TRUCK_BY_ID[v.modelId];
                 return (
-                  <tr key={v.id}>
+                  <tr key={v.id} onContextMenu={(e) => openMenu(e, vehicleMenu(s, v), `${v.plate} · ${m.maker} ${m.name}`)}>
                     <td><b>{v.plate}</b></td>
                     <td>{m.maker} {m.name}<div className="dim">{kindText(v.modelId)} · {v.year} · {m.hp} PS · {m.emission} · Ø {dec(m.consumption)} l/100 km</div></td>
                     <td><Badge kind={trip ? 'info' : v.status === 'workshop' ? 'warning' : 'success'}>{activityLabel(trip, v.status)}</Badge>{v.busyUntil && <div className="dim" style={{ fontSize: 12 }}>bis {formatDateTime(v.busyUntil)}</div>}</td>
@@ -93,16 +123,7 @@ export function FleetPage() {
                         <button
                           className="btn small danger"
                           disabled={v.status !== 'idle'}
-                          onClick={async () =>
-                            (await askConfirm(
-                              v.ownership === 'leased'
-                                ? 'Leasingvertrag vorzeitig beenden? Ablöse: 3 Monatsraten.'
-                                : v.ownership === 'rented'
-                                  ? 'Mietfahrzeug zurückgeben? Die Miete endet sofort.'
-                                  : `Fahrzeug für ca. 90 % des Marktwerts verkaufen?${v.loanId ? ' Die Restschuld der Finanzierung wird aus dem Erlös abgelöst.' : ''}`,
-                              { title: `${v.plate} ${v.ownership === 'owned' ? 'verkaufen' : 'zurückgeben'}?`, confirmLabel: v.ownership === 'owned' ? 'Verkaufen' : 'Zurückgeben', danger: true },
-                            )) && sendCommand({ type: 'sellVehicle', vehicleId: v.id })
-                          }
+                          onClick={() => sellOrReturn(v)}
                         >
                           {v.ownership === 'owned' ? 'Verkaufen' : 'Rückgabe'}
                         </button>

@@ -8,6 +8,19 @@ import { Badge, Card, Empty, Money, PageHeader, useSort } from '../ui/components
 import { MapView } from '../ui/MapView.tsx';
 import { cargoName, cityName, km, tons, ORDER_STATUS_LABEL, QUAL_LABEL, trailerName } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
+import { openMenu, type MenuItem } from '../ui/ContextMenu.tsx';
+
+const cancelOrder = async (o: Order) =>
+  (await askConfirm('Auftrag stornieren? Es fällt eine Stornogebühr von 15 % an.', { title: 'Auftrag stornieren?', confirmLabel: 'Stornieren', danger: true })) && sendCommand({ type: 'cancelOrder', orderId: o.id });
+
+/** Rechtsklick auf einen Auftrag */
+function orderMenu(o: Order): MenuItem[] {
+  const items: MenuItem[] = [{ label: 'Disponieren …', icon: <Send size={14} />, disabled: o.status !== 'offered' && o.status !== 'accepted', onClick: () => setUi({ dispatchDraft: { orderId: o.id } }) }];
+  if (o.status === 'offered') items.push({ label: 'Annehmen (später disponieren)', icon: <Check size={14} />, onClick: () => sendCommand({ type: 'acceptOrder', orderId: o.id }) });
+  items.push({ label: 'Route auf der Karte', icon: <MapPin size={14} />, onClick: () => setUi({ focusOrderId: o.id }) });
+  if (o.status === 'accepted') items.push({ label: 'Stornieren …', icon: <X size={14} />, danger: true, sep: true, onClick: () => cancelOrder(o) });
+  return items;
+}
 
 type SortKey = 'payment' | 'perKm' | 'distance' | 'pickup' | 'origin' | 'profit';
 
@@ -131,7 +144,7 @@ export function OrdersPage() {
             <table className="table">
               <tbody>
                 {mine.map((o) => (
-                  <tr key={o.id}>
+                  <tr key={o.id} onContextMenu={(e) => openMenu(e, orderMenu(o), `${cityName(o.fromCityId)} → ${cityName(o.toCityId)}`)}>
                     <td><b>{cityName(o.fromCityId)} → {cityName(o.toCityId)}</b><div className="dim">{cargoName(o.cargoId)}</div></td>
                     <td><Badge kind={o.status === 'accepted' ? 'warning' : 'info'}>{ORDER_STATUS_LABEL[o.status]}</Badge></td>
                     <td className="nowrap">Abholung bis {formatDateTime(o.pickupEnd)}</td>
@@ -140,8 +153,8 @@ export function OrdersPage() {
                     <td className="num">
                       {o.status === 'accepted' && (
                         <div className="row" style={{ justifyContent: 'flex-end' }}>
-                          <button className="btn small primary" onClick={() => setUi({ dispatchDraft: { orderId: o.id } })}><Send size={13} />Disponieren</button>
-                          <button className="btn small danger" title="Stornieren (Gebühr 15 %)" onClick={async () => (await askConfirm('Auftrag stornieren? Es fällt eine Stornogebühr von 15 % an.', { title: 'Auftrag stornieren?', confirmLabel: 'Stornieren', danger: true })) && sendCommand({ type: 'cancelOrder', orderId: o.id })}><X size={13} /></button>
+                          <button className="btn small primary" data-tour="order-dispatch" onClick={() => setUi({ dispatchDraft: { orderId: o.id } })}><Send size={13} />Disponieren</button>
+                          <button className="btn small danger" title="Stornieren (Gebühr 15 %)" onClick={() => cancelOrder(o)}><X size={13} /></button>
                         </div>
                       )}
                     </td>
@@ -171,7 +184,12 @@ export function OrdersPage() {
             </thead>
             <tbody>
               {rows.map(({ o, est, perKm }) => (
-                <tr key={o.id} className={`clickable ${focus === o.id ? 'selected' : ''}`} onClick={() => setUi({ focusOrderId: focus === o.id ? null : o.id })}>
+                <tr
+                  key={o.id}
+                  className={`clickable ${focus === o.id ? 'selected' : ''}`}
+                  onClick={() => setUi({ focusOrderId: focus === o.id ? null : o.id })}
+                  onContextMenu={(e) => openMenu(e, orderMenu(o), `${cityName(o.fromCityId)} → ${cityName(o.toCityId)}`)}
+                >
                   <td>
                     <b>{cityName(o.fromCityId)} → {cityName(o.toCityId)}</b>
                     <div className="dim" style={{ fontSize: 12 }}>
@@ -198,7 +216,7 @@ export function OrdersPage() {
                   <td className="num" onClick={(e) => e.stopPropagation()}>
                     <div className="row" style={{ justifyContent: 'flex-end' }}>
                       <button className="btn small" title="Annehmen (später disponieren)" onClick={() => sendCommand({ type: 'acceptOrder', orderId: o.id })}><Check size={13} /></button>
-                      <button className="btn small primary" onClick={() => setUi({ dispatchDraft: { orderId: o.id } })}><Send size={13} />Disponieren</button>
+                      <button className="btn small primary" data-tour="order-dispatch" onClick={() => setUi({ dispatchDraft: { orderId: o.id } })}><Send size={13} />Disponieren</button>
                     </div>
                   </td>
                 </tr>

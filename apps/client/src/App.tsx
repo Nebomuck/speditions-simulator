@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { SPEEDS } from '@spedsim/core';
-import { getUi, navigate, sendCommand, useUi } from './game/store.ts';
+import { getUi, navigate, sendCommand, setUi, useUi } from './game/store.ts';
 import { Welcome } from './pages/Welcome.tsx';
 import { Dashboard } from './pages/Dashboard.tsx';
 import { MapPage } from './pages/MapPage.tsx';
@@ -18,6 +18,11 @@ import { SettingsPage } from './pages/Settings.tsx';
 import { Sidebar, Toasts, TopBar } from './ui/Shell.tsx';
 import { DispatchDialog } from './ui/DispatchDialog.tsx';
 import { ConfirmHost } from './ui/confirm.tsx';
+import { HelpDialog } from './ui/Help.tsx';
+import { ContextMenuHost } from './ui/ContextMenu.tsx';
+import { helpForPage } from './ui/help.ts';
+import { Tutorial } from './ui/Tutorial.tsx';
+import { startBackground, stopBackground } from './ui/sound.ts';
 
 const PAGES = {
   dashboard: Dashboard,
@@ -45,10 +50,22 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // Musik und Büroatmosphäre nur im laufenden Spiel
+  useEffect(() => {
+    if (!inGame) return;
+    startBackground();
+    return stopBackground;
+  }, [inGame]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const st = getUi().state;
       if (!st || !getUi().host) return;
+      if (e.key === 'F1') {
+        e.preventDefault();
+        setUi({ help: getUi().help === null ? helpForPage(getUi().page) : null });
+        return;
+      }
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || getUi().dispatchDraft) return;
       if (e.code === 'Space') {
@@ -82,6 +99,9 @@ export function App() {
         <Page />
       </main>
       <DispatchDialog />
+      <Tutorial />
+      <HelpDialog />
+      <ContextMenuHost />
       <ConfirmHost />
       <Toasts />
     </div>
