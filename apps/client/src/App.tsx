@@ -16,6 +16,7 @@ import { StatsPage } from './pages/Stats.tsx';
 import { SettingsPage } from './pages/Settings.tsx';
 import { Sidebar, Toasts, TopBar } from './ui/Shell.tsx';
 import { DispatchDialog } from './ui/DispatchDialog.tsx';
+import { ConfirmHost } from './ui/confirm.tsx';
 
 const PAGES = {
   dashboard: Dashboard,
@@ -66,6 +67,7 @@ export function App() {
     return (
       <>
         <Welcome />
+        <ConfirmHost />
         <Toasts />
       </>
     );
@@ -78,6 +80,7 @@ export function App() {
         <Page />
       </main>
       <DispatchDialog />
+      <ConfirmHost />
       <Toasts />
     </div>
   );

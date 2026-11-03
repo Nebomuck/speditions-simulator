@@ -7,6 +7,7 @@ import { sendCommand, setUi, toast, useGame, useUi, world } from '../game/store.
 import { Badge, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
 import { MapView } from '../ui/MapView.tsx';
 import { cargoName, cityName, km, tons, ORDER_STATUS_LABEL, QUAL_LABEL, trailerName } from '../ui/format.ts';
+import { askConfirm } from '../ui/confirm.tsx';
 
 type SortKey = 'payment' | 'perKm' | 'distance' | 'pickup' | 'origin' | 'profit';
 
@@ -140,7 +141,7 @@ export function OrdersPage() {
                       {o.status === 'accepted' && (
                         <div className="row" style={{ justifyContent: 'flex-end' }}>
                           <button className="btn small primary" onClick={() => setUi({ dispatchDraft: { orderId: o.id } })}><Send size={13} />Disponieren</button>
-                          <button className="btn small danger" title="Stornieren (Gebühr 15 %)" onClick={() => confirm('Auftrag stornieren? Es fällt eine Stornogebühr von 15 % an.') && sendCommand({ type: 'cancelOrder', orderId: o.id })}><X size={13} /></button>
+                          <button className="btn small danger" title="Stornieren (Gebühr 15 %)" onClick={async () => (await askConfirm('Auftrag stornieren? Es fällt eine Stornogebühr von 15 % an.', { title: 'Auftrag stornieren?', confirmLabel: 'Stornieren', danger: true })) && sendCommand({ type: 'cancelOrder', orderId: o.id })}><X size={13} /></button>
                         </div>
                       )}
                     </td>

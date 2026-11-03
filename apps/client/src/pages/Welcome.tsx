@@ -8,8 +8,9 @@ import { appVersion, checkForUpdate, installUpdate, type Update } from '../game/
 import { connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
 import type { SaveMeta } from '../game/protocol.ts';
 import { localStorageSet, receiveSnapshot, setUi, toast } from '../game/store.ts';
-import { Avatar } from '../ui/components.tsx';
+import { Avatar, Modal } from '../ui/components.tsx';
 import { countryName } from '../ui/format.ts';
+import { askConfirm } from '../ui/confirm.tsx';
 
 const DIFF_TEXT: Record<Exclude<DifficultyId, 'custom'>, string> = {
   easy: 'Mehr Startkapital, höhere Margen, weniger Pannen',
@@ -18,6 +19,22 @@ const DIFF_TEXT: Record<Exclude<DifficultyId, 'custom'>, string> = {
 };
 
 let localHost: LocalHost | null = null;
+/** „Später“ gilt bis zum nächsten Programmstart (nicht bei jeder Rückkehr ins Hauptmenü erneut fragen) */
+let updatePostponed = false;
+
+/** Release-Notes (Markdown-Auszug aus dem Changelog): Aufzählungen mit Einrückung und **fett** */
+function ReleaseNotes({ text }: { text: string }) {
+  const inline = (t: string) => t.split(/(\*\*[^*]+\*\*)/).map((part, i) => (/^\*\*[^*]+\*\*$/.test(part) ? <b key={i}>{part.slice(2, -2)}</b> : part));
+  return (
+    <ul className="notes-list">
+      {text.split('\n').filter((l) => l.trim()).map((line, i) => {
+        const m = line.match(/^(\s*)[-*]\s+(.*)$/);
+        const depth = m ? Math.floor(m[1].length / 2) : 0;
+        return <li key={i} style={{ marginLeft: depth * 18, listStyle: m ? (depth ? 'circle' : 'disc') : 'none' }}>{inline(m ? m[2] : line)}</li>;
+      })}
+    </ul>
+  );
+}
 function getLocalHost() {
   localHost ??= new LocalHost({
     onSnapshot: (s) => receiveSnapshot(s.state, s.at, s.playerId),
@@ -52,6 +69,12 @@ export function Welcome() {
   const [version, setVersion] = useState<string | null>(null);
   const [update, setUpdate] = useState<Update | null>(null);
   const [updateProgress, setUpdateProgress] = useState<number | null | undefined>(undefined);
+  /** Update-Fenster geschlossen („Später“) → nur noch Hinweis in der Fußzeile */
+  const [updateLater, setUpdateLaterState] = useState(updatePostponed);
+  const setUpdateLater = (v: boolean) => {
+    updatePostponed = v;
+    setUpdateLaterState(v);
+  };
 
   useEffect(() => {
     appVersion().then(setVersion);
@@ -170,22 +193,6 @@ export function Welcome() {
         </div>
 
         <div className="card" style={{ padding: 22 }}>
-          {update && (
-            <div className="card mb" style={{ background: 'var(--accent-soft, var(--panel-2))', borderColor: 'var(--accent)' }}>
-              <div className="row" style={{ alignItems: 'center' }}>
-                <Download size={18} />
-                <div style={{ flex: 1 }}>
-                  <b>Version {update.version} ist verfügbar</b>
-                  {version && <span className="dim"> (installiert: {version})</span>}
-                  {update.body && <div className="dim" style={{ fontSize: 12.5, whiteSpace: 'pre-line', maxHeight: 90, overflow: 'auto' }}>{update.body}</div>}
-                </div>
-                <button className="btn primary" disabled={updateProgress !== undefined} onClick={runUpdate}>
-                  {updateProgress === undefined ? 'Jetzt aktualisieren' : updateProgress === null ? 'Wird geladen …' : updateProgress >= 1 ? 'Wird installiert …' : `${Math.round(updateProgress * 100)} %`}
-                </button>
-              </div>
-              {updateProgress !== undefined && <p className="dim" style={{ fontSize: 12, marginBottom: 0 }}>Das Spiel schließt sich kurz und startet nach der Installation neu. Spielstände bleiben erhalten.</p>}
-            </div>
-          )}
           <div className="tabs">
             <button className={`tab ${tab === 'new' ? 'active' : ''}`} onClick={() => setTab('new')}><Plus size={15} />Neue Firma</button>
             <button className={`tab ${tab === 'load' ? 'active' : ''}`} onClick={() => setTab('load')}><Play size={15} />Laden</button>
@@ -268,7 +275,7 @@ export function Welcome() {
                     </div>
                     <button className="btn small primary" disabled={busy} onClick={() => load(s.name)}><Play size={14} />Laden</button>
                     <button className="icon-btn" title="Löschen" onClick={async () => {
-                      if (!confirm(`Spielstand „${s.name}“ endgültig löschen?`)) return;
+                      if (!(await askConfirm(<>Der Spielstand <b>„{s.name}“</b> wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.</>, { title: 'Spielstand löschen?', confirmLabel: 'Löschen', danger: true }))) return;
                       await getLocalHost().deleteSave(s.name);
                       setSaves(await getLocalHost().listSaves());
                     }}><Trash2 size={16} /></button>
@@ -301,8 +308,8 @@ export function Welcome() {
                       </div>
                     </div>
                     <button className="btn small primary" disabled={busy} onClick={() => resumeSession(s)}><Play size={14} />Fortsetzen</button>
-                    <button className="icon-btn" title="Aus der Liste entfernen" onClick={() => {
-                      if (!confirm(`„${s.company}“ aus der Liste entfernen? Der Spielstand bleibt auf dem Server, ohne die gemerkten Zugangsdaten kannst du ihn aber nicht mehr als dieser Spieler öffnen.`)) return;
+                    <button className="icon-btn" title="Aus der Liste entfernen" onClick={async () => {
+                      if (!(await askConfirm(<><b>„{s.company || 'Multiplayer-Firma'}“</b> wird aus der Liste entfernt. Der Spielstand bleibt auf dem Server, ohne die gemerkten Zugangsdaten kannst du ihn aber nicht mehr als dieser Spieler öffnen.</>, { title: 'Firma entfernen?', confirmLabel: 'Entfernen', danger: true }))) return;
                       forgetSession(s.gameId);
                       setSessions(loadSessions());
                     }}><Trash2 size={16} /></button>
@@ -368,9 +375,52 @@ export function Welcome() {
               </p>
             </>
           )}
-          {version && <p className="dim" style={{ fontSize: 11.5, textAlign: 'right', marginBottom: 0 }}>Version {version}{!update && ' · aktuell'}</p>}
         </div>
       </div>
+      <footer className="welcome-footer">
+        <span>© {new Date().getFullYear()} Nebomuck · Alle Rechte vorbehalten</span>
+        {(version || update) && (
+          <span>
+            {version && `Version ${version}`}
+            {update ? (
+              <button className="link-btn" onClick={() => setUpdateLater(false)}><Download size={12} />Update {update.version} verfügbar</button>
+            ) : (
+              ' · aktuell'
+            )}
+          </span>
+        )}
+      </footer>
+      {update && !updateLater && (
+        <Modal
+          title={<><Download size={18} style={{ verticalAlign: -3, marginRight: 8 }} />Update verfügbar</>}
+          width={560}
+          onClose={() => updateProgress === undefined && setUpdateLater(true)}
+          footer={
+            <>
+              <button className="btn" disabled={updateProgress !== undefined} onClick={() => setUpdateLater(true)}>Später</button>
+              <button className="btn primary" disabled={updateProgress !== undefined} onClick={runUpdate}>
+                {updateProgress === undefined ? 'Jetzt aktualisieren' : updateProgress === null ? 'Wird geladen …' : updateProgress >= 1 ? 'Wird installiert …' : `Wird geladen … ${Math.round(updateProgress * 100)} %`}
+              </button>
+            </>
+          }
+        >
+          <p style={{ marginTop: 0 }}>
+            <b>Cargovia {update.version}</b> ist verfügbar{version && <span className="dim"> (installiert: {version})</span>}.
+          </p>
+          {update.body && (
+            <div className="update-notes">
+              <div className="dim mb" style={{ fontSize: 12 }}>Neu in dieser Version</div>
+              <ReleaseNotes text={update.body} />
+            </div>
+          )}
+          {updateProgress !== undefined && (
+            <>
+              <div className="bar good mt" style={{ height: 6 }}><div style={{ width: `${Math.round((updateProgress ?? 0) * 100)}%` }} /></div>
+              <p className="dim" style={{ fontSize: 12, marginBottom: 0 }}>Das Spiel schließt sich kurz und startet nach der Installation neu. Spielstände bleiben erhalten.</p>
+            </>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

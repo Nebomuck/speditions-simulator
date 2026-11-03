@@ -10,6 +10,7 @@ import {
 import { sendCommand, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
 import { cityLabel, cityName, countryName, km, tons, trailerName, QUAL_LABEL } from '../ui/format.ts';
+import { askConfirm } from '../ui/confirm.tsx';
 
 const INDUSTRY: Record<string, string> = {
   port: 'Hafen', chemical: 'Chemie', automotive: 'Automobil', food: 'Lebensmittel', agriculture: 'Landwirtschaft', steel: 'Stahl',
@@ -129,7 +130,7 @@ function LocationCard({ loc: l }: { loc: Location }) {
       sub={hq ? 'Firmensitz' : 'Niederlassung'}
       actions={
         !hq && (
-          <button className="btn small danger" onClick={() => confirm(`Niederlassung ${cityName(l.cityId)} aufgeben? Aufhebung kostet eine Monatsmiete, Einrichtungen verfallen.`) && sendCommand({ type: 'closeBranch', locationId: l.id })}>
+          <button className="btn small danger" onClick={async () => (await askConfirm(`Niederlassung ${cityName(l.cityId)} aufgeben? Aufhebung kostet eine Monatsmiete, Einrichtungen verfallen.`, { title: 'Niederlassung aufgeben?', confirmLabel: 'Aufgeben', danger: true })) && sendCommand({ type: 'closeBranch', locationId: l.id })}>
             Aufgeben
           </button>
         )
@@ -170,7 +171,7 @@ function LocationCard({ loc: l }: { loc: Location }) {
                   className="btn small"
                   disabled={!!reason}
                   title={reason || `Betrieb ${(f.monthly / 100).toLocaleString('de-DE')} €/Monat`}
-                  onClick={() => confirm(`${f.name} für ${(f.cost / 100).toLocaleString('de-DE')} € bauen? Betrieb ${(f.monthly / 100).toLocaleString('de-DE')} €/Monat.`) && sendCommand({ type: 'buildFacility', locationId: l.id, facility: k })}
+                  onClick={async () => (await askConfirm(`${f.name} für ${(f.cost / 100).toLocaleString('de-DE')} € bauen? Betrieb ${(f.monthly / 100).toLocaleString('de-DE')} €/Monat.`, { title: 'Einrichtung bauen?', confirmLabel: 'Bauen' })) && sendCommand({ type: 'buildFacility', locationId: l.id, facility: k })}
                 >
                   {reason || <>Bauen · <Money value={f.cost} /></>}
                 </button>
@@ -194,7 +195,7 @@ function LocationCard({ loc: l }: { loc: Location }) {
             <button
               className="btn small primary"
               disabled={locked}
-              onClick={() => confirm(`${n.name} anmieten? Einmalig ${(n.deposit / 100).toLocaleString('de-DE')} € Kaution & Einrichtung.`) && sendCommand({ type: 'upgradeLocation', locationId: l.id, kind: k })}
+              onClick={async () => (await askConfirm(`${n.name} anmieten? Einmalig ${(n.deposit / 100).toLocaleString('de-DE')} € Kaution & Einrichtung.`, { title: 'Standort ausbauen?', confirmLabel: 'Anmieten' })) && sendCommand({ type: 'upgradeLocation', locationId: l.id, kind: k })}
             >
               {locked ? `ab Stufe ${DEPOT_MIN_LEVEL}` : 'Anmieten'}
             </button>
@@ -296,7 +297,7 @@ function Departments() {
                   <div key={m.id} className="list-item" style={{ alignItems: 'center' }}>
                     <span style={{ flex: 1 }}>{m.name} <Badge kind={m.skill >= 70 ? 'success' : m.skill >= 45 ? 'info' : 'warning'} title="Kompetenz">{Math.round(m.skill)}</Badge>{m.promoted && <span className="dim"> · ehem. Fahrer</span>}<div className="dim" style={{ fontSize: 12 }}>{cityName(s.company.locations.find((l) => l.id === m.locationId)?.cityId ?? '')} · seit {formatDate(m.hired)}</div></span>
                     <Money value={m.salary} />
-                    <button className="btn small danger" onClick={() => confirm(`${m.name} entlassen? Abfindung ein Monatsgehalt.`) && sendCommand({ type: 'fireStaff', staffId: m.id })}><UserMinus size={13} /></button>
+                    <button className="btn small danger" onClick={async () => (await askConfirm(`${m.name} entlassen? Abfindung ein Monatsgehalt.`, { title: 'Entlassen?', confirmLabel: 'Entlassen', danger: true })) && sendCommand({ type: 'fireStaff', staffId: m.id })}><UserMinus size={13} /></button>
                   </div>
                 ))}
               </div>
@@ -383,7 +384,7 @@ function ContractCard({ c }: { c: Contract }) {
       <div className="row mt" style={{ justifyContent: 'flex-end' }}>
         {c.status === 'offered' && <button className="btn primary small" onClick={() => sendCommand({ type: 'acceptContract', contractId: c.id })}><FileSignature size={13} /> Vertrag annehmen</button>}
         {c.status === 'active' && (
-          <button className="btn small danger" onClick={() => confirm(`Vertrag vorzeitig kündigen? Ablöse ${Math.round((c.penaltyMissed * 3) / 100).toLocaleString('de-DE')} €, der Kunde wird verärgert sein.`) && sendCommand({ type: 'cancelContract', contractId: c.id })}>
+          <button className="btn small danger" onClick={async () => (await askConfirm(`Vertrag vorzeitig kündigen? Ablöse ${Math.round((c.penaltyMissed * 3) / 100).toLocaleString('de-DE')} €, der Kunde wird verärgert sein.`, { title: 'Vertrag kündigen?', confirmLabel: 'Kündigen', danger: true })) && sendCommand({ type: 'cancelContract', contractId: c.id })}>
             Kündigen
           </button>
         )}

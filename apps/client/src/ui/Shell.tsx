@@ -40,6 +40,7 @@ export function Sidebar() {
           </button>
         </div>
       ))}
+      <div className="sidebar-footer">© {new Date().getFullYear()} Nebomuck · Alle Rechte vorbehalten</div>
     </nav>
   );
 }

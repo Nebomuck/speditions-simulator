@@ -9,6 +9,7 @@ import {
 import { sendCommand, useGame } from '../game/store.ts';
 import { Avatar, Badge, Bar, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
 import { cityName, km, QUAL_LABEL, tripLabel, activityLabel } from '../ui/format.ts';
+import { askConfirm } from '../ui/confirm.tsx';
 
 export function PersonnelPage() {
   const s = useGame();
@@ -54,7 +55,7 @@ export function PersonnelPage() {
                       <button className="btn small" title="Personalakte: Urlaub, Schulung, Gehalt, Gespräch" onClick={() => setFileId(d.id)}>
                         <FolderOpen size={13} /> Akte
                       </button>{' '}
-                      <button className="btn small danger" disabled={!!trip} title="Entlassen (Abfindung 1 Monatsgehalt)" onClick={() => confirm(`${d.name} entlassen? Abfindung: 1 Monatsgehalt.`) && sendCommand({ type: 'fireDriver', driverId: d.id })}>
+                      <button className="btn small danger" disabled={!!trip} title="Entlassen (Abfindung 1 Monatsgehalt)" onClick={async () => (await askConfirm(`${d.name} entlassen? Abfindung: 1 Monatsgehalt.`, { title: 'Fahrer entlassen?', confirmLabel: 'Entlassen', danger: true })) && sendCommand({ type: 'fireDriver', driverId: d.id })}>
                         <UserMinus size={13} />
                       </button>
                     </td>
@@ -182,7 +183,7 @@ function DriverFile({ driver: d, onClose }: { driver: Driver; onClose: () => voi
             <button
               className="btn"
               disabled={!available || d.experience < PROMOTION_MIN_EXPERIENCE || seats.used >= seats.total}
-              onClick={() => confirm(`${d.name} in die ${DEPARTMENTS[dept].name} befördern? ${d.name} fährt danach nicht mehr.`) && sendCommand({ type: 'promoteDriver', driverId: d.id, dept }).then((r) => r.ok && onClose())}
+              onClick={async () => (await askConfirm(`${d.name} in die ${DEPARTMENTS[dept].name} befördern? ${d.name} fährt danach nicht mehr.`, { title: 'Befördern?', confirmLabel: 'Befördern' })) && sendCommand({ type: 'promoteDriver', driverId: d.id, dept }).then((r) => r.ok && onClose())}
             >
               Befördern
             </button>

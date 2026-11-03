@@ -7,6 +7,7 @@ import {
 import { sendCommand, setUi, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Modal, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { activityLabel, bodyName, cityName, dec, km, modelName, trailerName } from '../ui/format.ts';
+import { askConfirm } from '../ui/confirm.tsx';
 
 export function FleetPage() {
   const s = useGame();
@@ -92,14 +93,15 @@ export function FleetPage() {
                         <button
                           className="btn small danger"
                           disabled={v.status !== 'idle'}
-                          onClick={() =>
-                            confirm(
+                          onClick={async () =>
+                            (await askConfirm(
                               v.ownership === 'leased'
                                 ? 'Leasingvertrag vorzeitig beenden? Ablöse: 3 Monatsraten.'
                                 : v.ownership === 'rented'
                                   ? 'Mietfahrzeug zurückgeben? Die Miete endet sofort.'
                                   : `Fahrzeug für ca. 90 % des Marktwerts verkaufen?${v.loanId ? ' Die Restschuld der Finanzierung wird aus dem Erlös abgelöst.' : ''}`,
-                            ) && sendCommand({ type: 'sellVehicle', vehicleId: v.id })
+                              { title: `${v.plate} ${v.ownership === 'owned' ? 'verkaufen' : 'zurückgeben'}?`, confirmLabel: v.ownership === 'owned' ? 'Verkaufen' : 'Zurückgeben', danger: true },
+                            )) && sendCommand({ type: 'sellVehicle', vehicleId: v.id })
                           }
                         >
                           {v.ownership === 'owned' ? 'Verkaufen' : 'Rückgabe'}
@@ -127,7 +129,7 @@ export function FleetPage() {
                   <td><div className="row"><Bar value={t.condition} />{Math.round(t.condition)} %</div></td>
                   <td>{t.ownership === 'leased' ? <>Leasing <Money value={t.leaseRate ?? 0} />/Monat</> : 'Eigentum'}</td>
                   <td className="num">
-                    <button className="btn small danger" disabled={t.status !== 'idle'} onClick={() => confirm('Auflieger abgeben?') && sendCommand({ type: 'sellTrailer', trailerId: t.id })}>
+                    <button className="btn small danger" disabled={t.status !== 'idle'} onClick={async () => (await askConfirm('Der Auflieger wird verkauft bzw. der Leasingvertrag beendet.', { title: 'Auflieger abgeben?', confirmLabel: 'Abgeben', danger: true })) && sendCommand({ type: 'sellTrailer', trailerId: t.id })}>
                       {t.ownership === 'leased' ? 'Rückgabe' : 'Verkaufen'}
                     </button>
                   </td>

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 – 03.11.2026
+
+- Updates erscheinen beim Start als Fenster mit den Neuerungen („Jetzt aktualisieren“ oder „Später“). Nach „Später“ bleibt ein Hinweis in der Fußzeile.
+- Eigene Bestätigungsdialoge statt der Windows-Meldung „tauri.localhost meldet …“ – z. B. beim Löschen von Spielständen, Entlassen, Verkaufen und Stornieren. Beim Verlassen ins Hauptmenü gibt es „Speichern“ und „Ohne Speichern“.
+- Copyright-Hinweis in der Fußzeile des Startbildschirms, unten in der Seitenleiste und bei den Lizenzen.
+
 ## 0.9.0 – 03.11.2026
 
 - **Multiplayer – Zusammenarbeit im Team** (Team & Kommunikation, jetzt mit Tabs):

@@ -3,6 +3,7 @@ import { Save, Download, LogOut, Sun, Moon, Volume2, VolumeX } from 'lucide-reac
 import { DIFFICULTY_LABEL } from '@spedsim/core';
 import { getUi, localStorageSet, resetGameUi, setUi, toast, useGame, useUi } from '../game/store.ts';
 import { Card, PageHeader } from '../ui/components.tsx';
+import { askConfirm } from '../ui/confirm.tsx';
 
 export function SettingsPage() {
   const s = useGame();
@@ -57,7 +58,11 @@ export function SettingsPage() {
           <button
             className="btn danger mt"
             onClick={async () => {
-              if (host?.mode === 'local' && confirm('Vor dem Beenden speichern?')) await host.save!(name);
+              if (host?.mode === 'local') {
+                const save = await askConfirm('Möchtest du vor dem Beenden speichern?', { title: 'Zum Hauptmenü', confirmLabel: 'Speichern', cancelLabel: 'Ohne Speichern', dismissResult: null });
+                if (save === null) return;
+                if (save) await host.save!(name);
+              }
               getUi().host?.close();
               resetGameUi();
             }}
@@ -79,6 +84,7 @@ export function SettingsPage() {
             <li>Routenberechnung beim Erzeugen des Netzes: OSRM (BSD-2)</li>
             <li>MapLibre GL JS (BSD-3), React (MIT), Lucide Icons (ISC)</li>
             <li>Alle Fahrzeughersteller, Firmen und Personen sind frei erfunden.</li>
+            <li>Cargovia © {new Date().getFullYear()} Nebomuck. Alle Rechte vorbehalten.</li>
           </ul>
         </Card>
       </div>
