@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1 – 03.11.2026
+
+- **Update-Fehler behoben:** Updates landeten bei Installationen in einem eigenen Ordner (z. B. E:\Spiele\Cargovia) teils im Standardordner unter %LOCALAPPDATA%. Dann lief die neue Version nur direkt nach dem Update, die Desktop-Verknüpfung startete weiter die alte. Das Update wird jetzt immer in den Ordner des laufenden Programms installiert.
+
 ## 0.11.0 – 03.11.2026
 
 - **Balancing:** Ein Spieler-Bot hat das Spiel über 18 Monate auf allen Schwierigkeitsgraden gespielt. Daraus:

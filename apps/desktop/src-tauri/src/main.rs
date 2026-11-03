@@ -223,10 +223,22 @@ fn local_address() -> Option<String> {
     Some(socket.local_addr().ok()?.ip().to_string())
 }
 
+/// Updater: das Update immer in den Ordner des laufenden Programms installieren.
+/// Ohne Vorgabe wählt der Installer im Update-Modus u. U. den Standardordner (%LOCALAPPDATA%\Cargovia),
+/// dann laufen zwei Installationen nebeneinander und die alte Verknüpfung startet weiter die alte Version.
+/// NSIS erwartet `/D=` als letztes Argument und ohne Anführungszeichen (auch bei Leerzeichen im Pfad).
+fn updater_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry, tauri_plugin_updater::Config> {
+    let builder = tauri_plugin_updater::Builder::new();
+    match std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.to_path_buf())) {
+        Some(dir) => builder.installer_arg(format!("/D={}", dir.display())).build(),
+        None => builder.build(),
+    }
+}
+
 fn main() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(updater_plugin())
         .plugin(tauri_plugin_process::init())
         .manage(ServerState::default())
         .manage(TunnelState::default())
