@@ -1,6 +1,7 @@
 // PersistenceSystem: versioniertes Speicherformat mit Prüfsumme und Migrationskette.
 
 import { STATE_VERSION } from './game.ts';
+import { defaultAutoDispatch } from './autodispatch.ts';
 import type { GameState } from './types.ts';
 
 export const SAVE_FORMAT = 'spedsim-save';
@@ -72,6 +73,13 @@ export const MIGRATIONS: Record<number, Migration> = {
     for (const l of company.locations as Record<string, unknown>[]) l.facilities ??= [];
     company.staff ??= [];
     company.level ??= 1;
+    return s;
+  },
+  // 0.7.0: KI-Disponenten
+  5: (s) => {
+    const company = s.company as Record<string, unknown>;
+    for (const m of company.staff as Record<string, unknown>[]) m.skill ??= 50;
+    s.autoDispatch ??= defaultAutoDispatch();
     return s;
   },
 };

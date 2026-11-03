@@ -5,7 +5,7 @@ import {
   TRUCK_BY_ID, estimateTrip, vehicleSchedule, STATE_VERSION, planCoLoad, ordersOnBoard, rerouteAffected, routeNow, tripEta, updateDisruptions,
   type Disruption, type Contract, generateContractOffer, marketSalary, COURSES, dailyPersonnel, tradeInValue, MIN_PER_DAY,
   type GameState, LOCATION_DEFS, BRANCH_SETUP_COST, capacity, monthlyFixedCosts, dailyCompany, monthlyCompany, serviceCost, dispatchShortfall,
-  satisfactionFactors, accountingRiskFactor, salesVolumeFactor, warehouseIncome, companyValue,
+  satisfactionFactors, accountingRiskFactor, salesVolumeFactor, warehouseIncome, companyValue, runAutoDispatch, searchDepth,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -959,5 +959,126 @@ describe('Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilunge
     expect(loaded.company.staff).toEqual([]);
     expect(loaded.company.level).toBe(1);
     expect(loaded.company.locations[0].facilities).toEqual([]);
+  });
+});
+
+describe('KI-Disponenten (Automatiktest)', () => {
+  /** Leere Börse mit kontrollierten Angeboten und einem Disponenten der gewünschten Stufe. */
+  const setup = (grade: 'junior' | 'regular' | 'senior' = 'senior') => {
+    const s = newGame(7);
+    s.company.account.balance = 200_000_00;
+    for (const o of Object.values(s.orders)) delete s.orders[o.id];
+    const hq = s.company.locations[0];
+    expect(applyCommand(s, ctx, 'p1', { type: 'hireStaff', dept: 'dispatch', locationId: hq.id, grade }).ok).toBe(true);
+    return s;
+  };
+
+  it('ohne Disponent ist keine Automatik möglich', () => {
+    const s = newGame();
+    expect(applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto' }).ok).toBe(false);
+  });
+
+  it('wählt anhand der Regeln den wirtschaftlich sinnvollen Auftrag und disponiert ihn', () => {
+    const s = setup();
+    const good = addOrder(s, 'leipzig', 'prag', { payment: 1_600_00 });
+    const poor = addOrder(s, 'leipzig', 'dresden', { payment: 90_00 });
+    const far = addOrder(s, 'hamburg', 'berlin', { payment: 2_400_00 });
+    const better = addOrder(s, 'leipzig', 'wien', { payment: 1_900_00, cargoId: 'chemicals' }); // ADR + Tank: nicht passend
+    expect(applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto', rules: { maxEmptyKm: 150, minProfit: 200_00 } }).ok).toBe(true);
+    runAutoDispatch(s, ctx);
+    const v = first(s.vehicles);
+    expect(v.status).toBe('on_trip');
+    expect(s.trips[v.tripId!].orderId).toBe(good.id);
+    expect(good.status).toBe('planned');
+    for (const o of [poor, far, better]) expect(o.status).toBe('offered');
+    expect(s.autoDispatch.stats.planned).toBe(1);
+    expect(s.log.some((l) => l.text.startsWith('Disponent'))).toBe(true);
+  });
+
+  it('Regeln greifen: Ladungsart, Einsatzländer und Mindestgewinn', () => {
+    const s = setup();
+    addOrder(s, 'leipzig', 'prag', { payment: 1_600_00 });
+    applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto', rules: { countries: ['DE'] } });
+    runAutoDispatch(s, ctx);
+    expect(first(s.vehicles).status).toBe('idle'); // Prag liegt außerhalb der Einsatzländer
+    applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', rules: { countries: [], cargoIds: ['grain'] } });
+    runAutoDispatch(s, ctx);
+    expect(first(s.vehicles).status).toBe('idle'); // falsche Ladungsart
+    applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', rules: { cargoIds: [], minProfit: 5_000_00 } });
+    runAutoDispatch(s, ctx);
+    expect(first(s.vehicles).status).toBe('idle'); // Mindestgewinn nicht erreicht
+    applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', rules: { minProfit: 100_00 } });
+    runAutoDispatch(s, ctx);
+    expect(first(s.vehicles).status).toBe('on_trip');
+  });
+
+  it('angenommene Aufträge haben Vorrang, auch wenn ein Angebot lukrativer wäre', () => {
+    const s = setup();
+    const committed = addOrder(s, 'leipzig', 'dresden', { payment: 400_00, status: 'accepted' });
+    addOrder(s, 'leipzig', 'prag', { payment: 2_000_00 });
+    applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto' });
+    runAutoDispatch(s, ctx);
+    expect(s.trips[first(s.vehicles).tripId!].orderId).toBe(committed.id);
+  });
+
+  it('teilautomatisch: Vorschlag statt Ausführung; Übernahme disponiert', () => {
+    const s = setup();
+    const good = addOrder(s, 'leipzig', 'prag', { payment: 1_600_00 });
+    applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'assist' });
+    runAutoDispatch(s, ctx);
+    expect(first(s.vehicles).status).toBe('idle');
+    expect(s.autoDispatch.suggestions.length).toBe(1);
+    const sug = s.autoDispatch.suggestions[0];
+    expect(sug.orderId).toBe(good.id);
+    runAutoDispatch(s, ctx); // kein doppelter Vorschlag
+    expect(s.autoDispatch.suggestions.length).toBe(1);
+    expect(applyCommand(s, ctx, 'p1', { type: 'acceptSuggestion', suggestionId: sug.id }).ok).toBe(true);
+    expect(first(s.vehicles).status).toBe('on_trip');
+    expect(s.autoDispatch.suggestions.length).toBe(0);
+  });
+
+  it('plant Rückladungen als Folgeauftrag für fahrende LKW', () => {
+    const s = setup();
+    addOrder(s, 'leipzig', 'prag', { payment: 1_600_00 });
+    applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto', rules: { safeDeadlines: false } });
+    runAutoDispatch(s, ctx);
+    const v = first(s.vehicles);
+    expect(v.status).toBe('on_trip');
+    const back = addOrder(s, 'prag', 'leipzig', { payment: 1_400_00, pickupStart: s.time + 6 * 60, pickupEnd: s.time + 30 * 60, deliveryEnd: s.time + 3 * 1440 });
+    runAutoDispatch(s, ctx);
+    expect(v.queue?.map((j) => j.orderId)).toEqual([back.id]);
+  });
+
+  it('Kompetenz bestimmt Suchtiefe; erfahrene Disponenten wählen im Mittel profitabler', () => {
+    expect(searchDepth(20)).toBeLessThan(searchDepth(90));
+    const pickProfit = (grade: 'junior' | 'senior', seed: number) => {
+      const s = setup(grade);
+      s.rng = seed;
+      // viele Angebote mit unterschiedlichem Ertrag in der Region
+      const dests = ['prag', 'dresden', 'berlin', 'nuernberg', 'muenchen', 'hamburg', 'wien', 'frankfurt'];
+      dests.forEach((d, i) => addOrder(s, 'leipzig', d, { payment: (600 + ((i * 37) % 9) * 160) * 100, deliveryEnd: s.time + 4 * 1440 }));
+      applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto', rules: { minProfit: -100_000_00 } });
+      runAutoDispatch(s, ctx);
+      const v = first(s.vehicles);
+      const o = s.orders[s.trips[v.tripId!].orderId!];
+      return estimateTrip(s, ctx, { orderId: o.id, driverId: first(s.drivers).id, vehicleId: v.id, trailerId: first(s.trailers).id }, { cityId: 'leipzig', time: s.time })?.profit ?? 0;
+    };
+    let junior = 0;
+    let senior = 0;
+    for (let i = 1; i <= 12; i++) {
+      junior += pickProfit('junior', i * 7919);
+      senior += pickProfit('senior', i * 7919);
+    }
+    expect(senior).toBeGreaterThanOrEqual(junior);
+  });
+
+  it('Spielstände der Version 5 erhalten die KI-Disposition', () => {
+    const s = newGame();
+    const old = JSON.parse(JSON.stringify(s));
+    delete old.autoDispatch;
+    old.company.staff = [{ id: 'stf-1', name: 'A', dept: 'dispatch', salary: 3_600_00, hired: 0, locationId: old.company.locations[0].id }];
+    const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":5'));
+    expect(loaded.autoDispatch.mode).toBe('manual');
+    expect(loaded.company.staff[0].skill).toBe(50);
   });
 });

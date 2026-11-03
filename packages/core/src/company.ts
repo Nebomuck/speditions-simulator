@@ -4,13 +4,13 @@
 import { CITY_BY_ID } from './data/cities.ts';
 import {
   BRANCH_SETUP_COST, COMPANY_LEVELS, DEPARTMENTS, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER,
-  STAFF_HIRING_COST, TRUCK_BY_ID, WAREHOUSE_RATE, WAREHOUSE_SLOTS, type CompanyLevelDef,
+  STAFF_GRADES, STAFF_HIRING_COST, TRUCK_BY_ID, WAREHOUSE_RATE, WAREHOUSE_SLOTS, type CompanyLevelDef,
 } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney } from './finance.ts';
 import { personName, wageLevel } from './generate.ts';
-import { newId } from './rng.ts';
-import type { Department, FacilityKind, GameState, Id, Location, LocationKind, Money, StaffMember, Trip, Vehicle } from './types.ts';
+import { newId, rand } from './rng.ts';
+import type { Department, FacilityKind, GameState, Id, Location, LocationKind, Money, StaffGrade, StaffMember, Trip, Vehicle } from './types.ts';
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -64,8 +64,8 @@ export const accountingRiskFactor = (state: GameState) => [1, 0.55, 0.35][deptCo
 export const fleetWearFactor = (state: GameState) => 1 - 0.08 * deptCount(state, 'fleet');
 export const fleetBreakdownFactor = (state: GameState) => 1 - 0.3 * deptCount(state, 'fleet');
 
-export function staffSalary(dept: Department, location: Location): Money {
-  return Math.round((DEPARTMENTS[dept].salary * wageLevel(CITY_BY_ID[location.cityId]?.country ?? 'DE')) / 1000) * 1000;
+export function staffSalary(dept: Department, location: Location, grade: StaffGrade = 'regular'): Money {
+  return Math.round((DEPARTMENTS[dept].salary * STAFF_GRADES[grade].salaryFactor * wageLevel(CITY_BY_ID[location.cityId]?.country ?? 'DE')) / 1000) * 1000;
 }
 
 /** Monatliche Betriebskosten aller Einrichtungen */
@@ -213,16 +213,20 @@ export function buildFacility(state: GameState, locationId: Id, kind: FacilityKi
 
 // ---------------------------------------------------------------- Abteilungen
 
-export function hireStaff(state: GameState, dept: Department, locationId: Id): Result<{ id: Id }> {
+export function hireStaff(state: GameState, dept: Department, locationId: Id, grade: StaffGrade = 'regular'): Result<{ id: Id }> {
   const loc = state.company.locations.find((l) => l.id === locationId);
-  if (!loc || !DEPARTMENTS[dept]) return { ok: false, error: 'Standort oder Abteilung nicht gefunden.' };
+  if (!loc || !DEPARTMENTS[dept] || !STAFF_GRADES[grade]) return { ok: false, error: 'Standort oder Abteilung nicht gefunden.' };
   const seats = seatsAt(state, loc.id);
   if (seats.used >= seats.total) return { ok: false, error: `Keine freien Büroarbeitsplätze in ${CITY_BY_ID[loc.cityId].name} (${seats.total}). Standort erweitern.` };
   if (!canAfford(state, STAFF_HIRING_COST)) return { ok: false, error: 'Nicht genügend Geld.' };
-  const m: StaffMember = { id: newId(state, 'stf'), name: personName(state, CITY_BY_ID[loc.cityId].country), dept, salary: staffSalary(dept, loc), hired: state.time, locationId: loc.id };
+  const [lo, hi] = STAFF_GRADES[grade].skill;
+  const m: StaffMember = {
+    id: newId(state, 'stf'), name: personName(state, CITY_BY_ID[loc.cityId].country), dept, salary: staffSalary(dept, loc, grade), hired: state.time, locationId: loc.id,
+    skill: rand.int(state, lo, hi),
+  };
   (state.company.staff ??= []).push(m);
   book(state, 'company', -STAFF_HIRING_COST, 'hiring', `Einstellung ${m.name} (${DEPARTMENTS[dept].name})`);
-  addLog(state, { level: 'success', category: 'personnel', text: `${m.name} verstärkt die ${DEPARTMENTS[dept].name} in ${CITY_BY_ID[loc.cityId].name} (${formatMoney(m.salary)}/Monat).` });
+  addLog(state, { level: 'success', category: 'personnel', text: `${m.name} verstärkt die ${DEPARTMENTS[dept].name} in ${CITY_BY_ID[loc.cityId].name} (Kompetenz ${m.skill}, ${formatMoney(m.salary)}/Monat).` });
   return { ok: true, id: m.id };
 }
 
@@ -249,6 +253,8 @@ export function promoteDriver(state: GameState, driverId: Id, dept: Department):
   const m: StaffMember = {
     id: newId(state, 'stf'), name: d.name, dept, salary: Math.max(staffSalary(dept, loc), Math.round((d.salary * 1.08) / 1000) * 1000),
     hired: d.hired, locationId: loc.id, promoted: true,
+    // Fahrpraxis hilft in der Disposition besonders
+    skill: Math.round(Math.min(90, dept === 'dispatch' ? 25 + d.experience * 0.6 : 20 + d.experience * 0.4)),
   };
   (state.company.staff ??= []).push(m);
   delete state.drivers[d.id];

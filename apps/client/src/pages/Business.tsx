@@ -3,9 +3,9 @@
 import { useMemo, useState } from 'react';
 import { Building2, ArrowUpCircle, FileSignature, ArrowRight, Award, Wrench, Fuel, Warehouse, MapPin, Briefcase, UserPlus, UserMinus } from 'lucide-react';
 import {
-  BRANCH_SETUP_COST, CARGO_BY_ID, CITIES, COMPANY_LEVELS, DEPARTMENTS, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, VEHICLES_PER_DISPATCHER,
+  BRANCH_SETUP_COST, CARGO_BY_ID, CITIES, COMPANY_LEVELS, DEPARTMENTS, STAFF_GRADES, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, VEHICLES_PER_DISPATCHER,
   capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, warehouseIncome,
-  type Contract, type Department, type FacilityKind, type Location,
+  type Contract, type Department, type FacilityKind, type Location, type StaffGrade,
 } from '@spedsim/core';
 import { sendCommand, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
@@ -254,6 +254,7 @@ function Departments() {
   const staff = s.company.staff ?? [];
   const free = s.company.locations.filter((l) => seatsAt(s, l.id).used < seatsAt(s, l.id).total);
   const [locId, setLocId] = useState('');
+  const [grade, setGrade] = useState<StaffGrade>('regular');
   const target = free.find((l) => l.id === locId) ?? free[0];
   const short = dispatchShortfall(s);
   return (
@@ -262,11 +263,16 @@ function Departments() {
       sub="Büropersonal entlastet die Geschäftsführung. Erfahrene Fahrer lassen sich in der Personalakte ins Büro befördern."
       className="mt"
       actions={
-        free.length > 1 && (
-          <select className="input" style={{ width: 'auto' }} value={target?.id ?? ''} onChange={(e) => setLocId(e.target.value)} title="Arbeitsplatz für Neueinstellungen">
-            {free.map((l) => <option key={l.id} value={l.id}>Arbeitsplatz: {cityName(l.cityId)}</option>)}
+        <div className="row">
+          <select className="input" style={{ width: 'auto' }} value={grade} onChange={(e) => setGrade(e.target.value as StaffGrade)} title="Erfahrungsstufe für Neueinstellungen">
+            {(Object.keys(STAFF_GRADES) as StaffGrade[]).map((g) => <option key={g} value={g}>{STAFF_GRADES[g].name} (Kompetenz {STAFF_GRADES[g].skill.join('–')})</option>)}
           </select>
-        )
+          {free.length > 1 && (
+            <select className="input" style={{ width: 'auto' }} value={target?.id ?? ''} onChange={(e) => setLocId(e.target.value)} title="Arbeitsplatz für Neueinstellungen">
+              {free.map((l) => <option key={l.id} value={l.id}>Arbeitsplatz: {cityName(l.cityId)}</option>)}
+            </select>
+          )}
+        </div>
       }
     >
       {short > 0 && (
@@ -288,14 +294,14 @@ function Departments() {
               <div className="list">
                 {members.map((m) => (
                   <div key={m.id} className="list-item" style={{ alignItems: 'center' }}>
-                    <span style={{ flex: 1 }}>{m.name}{m.promoted && <span className="dim"> · ehem. Fahrer</span>}<div className="dim" style={{ fontSize: 12 }}>{cityName(s.company.locations.find((l) => l.id === m.locationId)?.cityId ?? '')} · seit {formatDate(m.hired)}</div></span>
+                    <span style={{ flex: 1 }}>{m.name} <Badge kind={m.skill >= 70 ? 'success' : m.skill >= 45 ? 'info' : 'warning'} title="Kompetenz">{Math.round(m.skill)}</Badge>{m.promoted && <span className="dim"> · ehem. Fahrer</span>}<div className="dim" style={{ fontSize: 12 }}>{cityName(s.company.locations.find((l) => l.id === m.locationId)?.cityId ?? '')} · seit {formatDate(m.hired)}</div></span>
                     <Money value={m.salary} />
                     <button className="btn small danger" onClick={() => confirm(`${m.name} entlassen? Abfindung ein Monatsgehalt.`) && sendCommand({ type: 'fireStaff', staffId: m.id })}><UserMinus size={13} /></button>
                   </div>
                 ))}
               </div>
-              <button className="btn small mt" disabled={!target} onClick={() => target && sendCommand({ type: 'hireStaff', dept: k, locationId: target.id })} title={target ? '' : 'Keine freien Büroarbeitsplätze – Standort erweitern'}>
-                <UserPlus size={13} /> Einstellen · ca. <Money value={target ? staffSalary(k, target) : d.salary} />/Monat
+              <button className="btn small mt" disabled={!target} onClick={() => target && sendCommand({ type: 'hireStaff', dept: k, locationId: target.id, grade })} title={target ? '' : 'Keine freien Büroarbeitsplätze – Standort erweitern'}>
+                <UserPlus size={13} /> Einstellen · ca. <Money value={target ? staffSalary(k, target, grade) : d.salary} />/Monat
               </button>
             </div>
           );

@@ -13,6 +13,7 @@ import { updateDisruptions } from './disruptions.ts';
 import { dailyContracts, hourlyContracts } from './contracts.ts';
 import { dailyPersonnel, hourlyPersonnel } from './personnel.ts';
 import { dailyCompany, hourlyCompany, monthlyCompany } from './company.ts';
+import { runAutoDispatch } from './autodispatch.ts';
 import type { GameState } from './types.ts';
 
 /** Simuliert genau eine Spielminute. */
@@ -46,6 +47,7 @@ function hourly(state: GameState, ctx: SimContext) {
   hourlyPersonnel(state);
   hourlyContracts(state);
   hourlyCompany(state);
+  runAutoDispatch(state, ctx);
 }
 
 function daily(state: GameState, ctx: SimContext) {

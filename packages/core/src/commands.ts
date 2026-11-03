@@ -15,7 +15,8 @@ import { buildFacility, closeBranch, fireStaff, hireStaff, openBranch, promoteDr
 import { freshHos } from './hos.ts';
 import { newId } from './rng.ts';
 import { SPEEDS, toDate } from './time.ts';
-import type { Department, FacilityKind, GameState, Id, LocationKind, Permission, TrailerType, TrainingCourse, Vehicle } from './types.ts';
+import type { Department, DispatchMode, DispatchRules, FacilityKind, GameState, Id, LocationKind, Permission, StaffGrade, TrailerType, TrainingCourse, Vehicle } from './types.ts';
+import { acceptSuggestion, dismissSuggestion, setAutoDispatch } from './autodispatch.ts';
 
 export type Command =
   | { type: 'setSpeed'; speed: number }
@@ -42,7 +43,10 @@ export type Command =
   | { type: 'openBranch'; cityId: string; kind: LocationKind }
   | { type: 'closeBranch'; locationId: Id }
   | { type: 'buildFacility'; locationId: Id; facility: FacilityKind }
-  | { type: 'hireStaff'; dept: Department; locationId: Id }
+  | { type: 'hireStaff'; dept: Department; locationId: Id; grade?: StaffGrade }
+  | { type: 'setAutoDispatch'; mode?: DispatchMode; rules?: Partial<DispatchRules> }
+  | { type: 'acceptSuggestion'; suggestionId: Id }
+  | { type: 'dismissSuggestion'; suggestionId: Id }
   | { type: 'fireStaff'; staffId: Id }
   | { type: 'promoteDriver'; driverId: Id; dept: Department }
   | { type: 'takeLoan'; amount: number; months: number }
@@ -91,6 +95,9 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   closeBranch: 'expansion',
   buildFacility: 'expansion',
   hireStaff: 'personnel',
+  setAutoDispatch: 'dispatch',
+  acceptSuggestion: 'dispatch',
+  dismissSuggestion: 'dispatch',
   fireStaff: 'fireStaff',
   promoteDriver: 'personnel',
   takeLoan: 'loans',
@@ -425,8 +432,20 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       return r.ok ? { ok: true } : fail(r.error);
     }
     case 'hireStaff': {
-      const r = hireStaff(state, cmd.dept, cmd.locationId);
+      const r = hireStaff(state, cmd.dept, cmd.locationId, cmd.grade);
       return r.ok ? { ok: true, id: r.id } : fail(r.error);
+    }
+    case 'setAutoDispatch': {
+      const r = setAutoDispatch(state, cmd.mode, cmd.rules);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'acceptSuggestion': {
+      const r = acceptSuggestion(state, ctx, cmd.suggestionId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'dismissSuggestion': {
+      const r = dismissSuggestion(state, cmd.suggestionId);
+      return r.ok ? { ok: true } : fail(r.error);
     }
     case 'fireStaff': {
       const r = fireStaff(state, cmd.staffId);

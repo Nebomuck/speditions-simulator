@@ -2,7 +2,7 @@
 // Alle Hersteller- und Modellnamen sind frei erfunden (keine Markenrechte Dritter).
 
 import type { Industry } from './cities.ts';
-import type { Department, FacilityKind, LocationKind, Money, Qualification, TrailerType } from '../types.ts';
+import type { Department, FacilityKind, LocationKind, Money, Qualification, StaffGrade, TrailerType } from '../types.ts';
 
 export interface TruckModel {
   id: string;
@@ -206,13 +206,20 @@ export interface DepartmentDef {
 }
 
 export const DEPARTMENTS: Record<Department, DepartmentDef> = {
-  dispatch: { id: 'dispatch', name: 'Disposition', salary: 3_600_00, maxEffective: 99, text: 'Ein Disponent betreut 8 Fahrzeuge; bis 5 Fahrzeuge disponiert die Geschäftsführung selbst. Fehlt Disposition, sinkt die Fahrerzufriedenheit.' },
+  dispatch: { id: 'dispatch', name: 'Disposition', salary: 3_600_00, maxEffective: 99, text: 'Ein Disponent betreut 8 Fahrzeuge; bis 5 Fahrzeuge disponiert die Geschäftsführung selbst. Fehlt Disposition, sinkt die Fahrerzufriedenheit. Disponenten können teil- oder vollautomatisch planen (Disposition → KI-Disposition).' },
   sales: { id: 'sales', name: 'Vertrieb', salary: 3_900_00, maxEffective: 3, text: 'Je Mitarbeiter +12 % Angebote in der Auftragsbörse, +1,5 % bessere Preise und ein zusätzliches Rahmenvertragsangebot.' },
   accounting: { id: 'accounting', name: 'Buchhaltung', salary: 3_400_00, maxEffective: 2, text: 'Forderungsmanagement: weniger Zahlungsausfälle (−45 % / −65 %) und pünktlichere Zahlungen.' },
   fleet: { id: 'fleet', name: 'Fuhrparkmanagement', salary: 3_700_00, maxEffective: 2, text: 'Je Mitarbeiter −8 % Verschleiß und −30 % Pannen; fällige Fahrzeuge (< 60 %) kommen automatisch in die eigene Werkstatt.' },
 };
 
 export const STAFF_HIRING_COST: Money = 600_00;
+
+/** Erfahrungsstufen bei der Einstellung: Kompetenzspanne und Gehaltsfaktor */
+export const STAFF_GRADES: Record<StaffGrade, { name: string; skill: [number, number]; salaryFactor: number }> = {
+  junior: { name: 'Berufseinsteiger', skill: [20, 42], salaryFactor: 0.82 },
+  regular: { name: 'Erfahren', skill: [45, 68], salaryFactor: 1 },
+  senior: { name: 'Profi', skill: [72, 92], salaryFactor: 1.3 },
+};
 
 export interface CompanyLevelDef {
   level: number;

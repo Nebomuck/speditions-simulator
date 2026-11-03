@@ -109,6 +109,62 @@ export interface StaffMember {
   locationId: Id;
   /** aus dem Fahrerstamm befördert */
   promoted?: boolean;
+  /** Fachkompetenz 0–100 (bei Disponenten: Planungsqualität) */
+  skill: number;
+}
+
+export type StaffGrade = 'junior' | 'regular' | 'senior';
+
+/** manual = alles selbst, assist = Disponent schlägt vor, auto = Disponent plant selbst */
+export type DispatchMode = 'manual' | 'assist' | 'auto';
+
+/** Vorgaben des Spielers an die Disposition */
+export interface DispatchRules {
+  /** Mindestgewinn je Auftrag (gilt für neue Angebote) */
+  minProfit: Money;
+  /** maximale Leerfahrt bis zur Abholung */
+  maxEmptyKm: number;
+  /** bevorzugte Ladungsarten (leer = alle) */
+  cargoIds: string[];
+  /** Einsatzländer (leer = alle) – Abholung und Ziel müssen darin liegen */
+  countries: string[];
+  /** Stammkunden bevorzugen */
+  regularsFirst: boolean;
+  /** keine knappen Liefertermine (mind. 2 h Puffer) */
+  safeDeadlines: boolean;
+  /** nächstgelegenes Fahrzeug statt höchstem Gewinn */
+  nearestFirst: boolean;
+  /** Folgeaufträge (Rückladungen) für fahrende LKW planen */
+  chains: boolean;
+  /** LKW ohne Auftrag nach 12 h zum nächsten Standort überführen */
+  returnToBase: boolean;
+  /** Fahrzeuge, die nur manuell disponiert werden */
+  excludedVehicles: Id[];
+}
+
+export interface DispatchSuggestion {
+  id: Id;
+  kind: 'dispatch' | 'queue' | 'relocate';
+  orderId?: Id;
+  vehicleId: Id;
+  driverId: Id;
+  trailerId?: Id;
+  toCityId?: string;
+  profit: Money;
+  emptyKm: number;
+  staffId: Id;
+  reason: string;
+  created: GameTime;
+  expires: GameTime;
+}
+
+export interface AutoDispatchState {
+  mode: DispatchMode;
+  rules: DispatchRules;
+  suggestions: DispatchSuggestion[];
+  /** Stunden ohne passenden Auftrag je Fahrzeug */
+  idleHours: Record<Id, number>;
+  stats: { planned: number; profit: Money; relocations: number };
 }
 
 export interface Company {
@@ -521,4 +577,6 @@ export interface GameState {
   disruptions: Disruption[];
   /** Rahmenverträge (Angebote, laufende und beendete) */
   contracts: Record<Id, Contract>;
+  /** KI-Disposition: Modus, Regeln, Vorschläge */
+  autoDispatch: AutoDispatchState;
 }

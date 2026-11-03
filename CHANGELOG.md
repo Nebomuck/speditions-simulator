@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 – unveröffentlicht
+## 0.7.0 – 03.11.2026
 
 - **Neuer Name und neues Logo: Cargovia** – Logistik-Simulation Europa. Das Logo zeigt einen LKW auf einer Route, die ein „C“ bildet. Beim Update wird die alte Installation „Speditions-Simulator“ automatisch entfernt; Spielstände und Einstellungen bleiben erhalten.
 - **Unternehmensstufen 1–6** – vom Einzelunternehmen zum Europäischen Logistikkonzern. Der Fortschritt richtet sich nach Fahrzeugen, Lieferungen, Reputation, Standorten und Ländern. Jede Stufe erlaubt mehr Standorte und schaltet Einrichtungen frei.
@@ -16,6 +16,10 @@
   - Fuhrparkmanagement: weniger Verschleiß und Pannen, automatische Wartung.
 
   Erfahrene Fahrer lassen sich in der Personalakte ins Büro befördern.
+- **KI-Disponenten:** Die Disposition lässt sich teilautomatisch (Vorschläge zum Übernehmen) oder vollautomatisch an angestellte Disponenten übergeben.
+  - Regeln: Mindestgewinn, maximale Leerfahrt, Ladungsarten, Einsatzländer, Stammkunden, sichere Liefertermine, nächstes Fahrzeug, Rückladungen, Rückführung zum Standort, Fahrzeuge nur manuell.
+  - Angenommene Aufträge und Vertragstouren werden zuerst vergeben.
+  - Disponenten gibt es als Einsteiger, Erfahrene oder Profis: Unerfahrene verkalkulieren sich öfter und planen weniger wirtschaftlich.
 - **Fuhrpark:**
   - Übersicht mit Durchschnittszustand, Alter und Laufleistung.
   - Sammelwartung aller fälligen Fahrzeuge.

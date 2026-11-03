@@ -8,11 +8,12 @@ import { addLog, formatMoney } from './finance.ts';
 import { makeApplicant, makeVehicleOffer, plate, usedValue } from './generate.ts';
 import { freshHos } from './hos.ts';
 import { updateOrderMarket } from './orders.ts';
+import { defaultAutoDispatch } from './autodispatch.ts';
 import { newId } from './rng.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player } from './types.ts';
 
-export const STATE_VERSION = 5;
+export const STATE_VERSION = 6;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.15, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -92,6 +93,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     today: { revenue: 0, costs: 0 },
     disruptions: [],
     contracts: {},
+    autoDispatch: defaultAutoDispatch(),
   };
 
   const founderId = opts.founder.id ?? newId(state, 'pl');

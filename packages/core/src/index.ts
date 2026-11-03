@@ -15,6 +15,7 @@ export * from './disruptions.ts';
 export * from './contracts.ts';
 export * from './personnel.ts';
 export * from './company.ts';
+export * from './autodispatch.ts';
 export * from './trips.ts';
 export * from './sim.ts';
 export * from './commands.ts';

@@ -74,7 +74,8 @@ Stand: 02.11.2026 · Version 0.1.0
 ## 7 · KI-Disponenten
 | Anforderung | Status |
 |---|---|
-| Disponenten einstellen, manuelle/teil-/vollautomatische Disposition, Qualitätsstufen, Regeln | Geplant (Phase 7) |
+| Disponenten einstellen, manuelle/teil-/vollautomatische Disposition, Qualitätsstufen, Regeln | Getestet (Automatiktest: Auswahl nach Regeln, Vorrang angenommener Aufträge, Vorschläge, Rückladungen, Kompetenzvergleich) |
+| Rückladungen suchen, auf Verspätungen reagieren, Fahrzeuge zu Standorten zurückführen | Getestet (Folgeaufträge für fahrende LKW ab Kompetenz 40; verspätete Folgeaufträge werden ab Kompetenz 60 neu vergeben) |
 
 ## 8 · Fahrer & Personal
 | Anforderung | Status | Anmerkung |

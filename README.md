@@ -6,7 +6,7 @@
 
 Ein Speditions- und Unternehmenssimulator für Windows: Du gründest eine kleine Spedition mit einem gebrauchten LKW, einem Fahrer und wenig Kapital, nimmst Aufträge an, disponierst Fahrten über **echte europäische Straßen**, verfolgst deine LKW **live auf der Europakarte** und baust Schritt für Schritt ein internationales Logistikunternehmen auf – allein oder im **kooperativen Multiplayer**.
 
-> Entwicklungsstand: **Version 0.6.0 – Phasen 1–5 spielbar**, Teile von Phase 6, 8, 9 und 12 umgesetzt.
+> Entwicklungsstand: **Version 0.7.0 – Phasen 1–7 spielbar**, Teile von Phase 8, 9 und 12 umgesetzt.
 > Was genau funktioniert und getestet ist, steht in [FEATURE_CHECKLIST.md](FEATURE_CHECKLIST.md).
 
 ## Schnellstart (Entwicklung)

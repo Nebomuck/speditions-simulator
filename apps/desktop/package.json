@@ -1,6 +1,6 @@
 {
   "name": "@spedsim/desktop",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Windows-Desktop-Anwendung (Tauri 2) – bündelt den Client als native App",
   "scripts": {

@@ -79,6 +79,14 @@ Eine Fahrt besteht aus Fahrer, Zugmaschine und Auflieger, die am selben Ort steh
 
 **Ansichten:** Plantafel mit Drag-and-Drop (Auftrag auf eine Fahrzeugzeile ziehen) samt 72-h-Zeitstrahl (Gantt), Listenansicht, Fahreransicht (Lenkzeiten), Kartenansicht. Überführungsfahrten (leer) sind jederzeit möglich.
 
+### KI-Disposition
+
+Disponenten (Abteilung Disposition) betreuen je 8 Fahrzeuge. Drei Modi: **manuell**, **teilautomatisch** (stündliche Vorschläge, ein Klick übernimmt) und **vollautomatisch** (nimmt Angebote an und disponiert selbst).
+
+Je Fahrzeug sucht der Disponent passende Aufträge (Laderaum, Nutzlast, Qualifikationen, Abholfenster), rechnet die besten mit derselben Kalkulation wie die manuelle Disposition durch und entscheidet nach den Regeln des Spielers: Mindestgewinn, maximale Leerfahrt, bevorzugte Ladungsarten, Einsatzländer, Stammkunden bevorzugen, keine riskanten Termine (2 h Puffer), nächstes Fahrzeug statt höchstem Gewinn. Angenommene Aufträge und Vertragstouren haben immer Vorrang. Weitere Aufgaben: Rückladungen als Folgeauftrag für fahrende LKW (ab Kompetenz 40), verspätete Folgeaufträge neu vergeben (ab 60), LKW ohne Auftrag nach 12 h zum nächsten Standort zurückholen.
+
+**Kompetenz** (Einsteiger 20–42, Erfahren 45–68, Profi 72–92; Gehalt 82 % / 100 % / 130 %) bestimmt die Suchtiefe (4–30 Aufträge), den Kalkulationsfehler (bis ±25 % Gewinn, unterschätzte Leerfahrten, zu optimistische Fahrzeiten) und Fehlgriffe bei der Priorisierung. Jede Disposition bringt etwas Erfahrung. Beförderte Fahrer starten mit Kompetenz 25 + 0,6 × Erfahrung.
+
 ## 7. Lenk- und Ruhezeiten (vereinfachte VO (EG) 561/2006)
 
 | Regel | Umsetzung |

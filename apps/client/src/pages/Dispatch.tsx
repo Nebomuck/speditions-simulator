@@ -8,6 +8,7 @@ import {
   drivableNow, REST_KIND_LABEL, CITIES, vehicleSchedule,
 } from '@spedsim/core';
 import { CalendarView } from './Calendar.tsx';
+import { AutoDispatchBar } from './AutoDispatch.tsx';
 import { navigate, sendCommand, setUi, useGame, world } from '../game/store.ts';
 import { Badge, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
 import { activityLabel, cargoName, cityName, km, trailerName, tripLabel } from '../ui/format.ts';
@@ -23,6 +24,7 @@ export function DispatchPage() {
         subtitle="Aufträge per Drag-and-Drop auf ein Fahrzeug ziehen – auf freie LKW für den sofortigen Start, auf fahrende LKW als Beiladung oder Folgeauftrag."
         actions={<button className="btn primary" onClick={() => setUi({ dispatchDraft: {} })}><Send size={15} />Neue Fahrt planen</button>}
       />
+      <AutoDispatchBar />
       <div className="tabs">
         <button className={`tab ${tab === 'board' ? 'active' : ''}`} onClick={() => setTab('board')}><CalendarRange size={15} />Plantafel & Zeitstrahl</button>
         <button className={`tab ${tab === 'calendar' ? 'active' : ''}`} onClick={() => setTab('calendar')}><CalendarDays size={15} />Kalender</button>
