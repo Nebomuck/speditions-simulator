@@ -77,5 +77,5 @@ Gefunden und behoben durch die Messung: Wachsende Firmen ließen LKW am Firmensi
 
 - Diesel wird erst beim Tanken gebucht. Eine Fahrt ohne Tankstopp zeigt daher 0 € Dieselkosten im Fahrtprotokoll; die Kosten fallen beim nächsten Tanken an. Die Vorkalkulation berücksichtigt den Verbrauch korrekt.
 - Das Straßennetz verbindet nur benachbarte Städte. Manche Routen weichen deshalb von der realen Optimalroute ab (z. B. Dresden → Warschau über Berlin statt über Breslau).
-- Der Installer ist nicht mit einem Code-Signing-Zertifikat signiert; Windows SmartScreen warnt beim ersten Start. Die In-App-Updates sind per minisign signiert und werden geprüft.
+- Der Installer ist bewusst nicht mit einem Code-Signing-Zertifikat signiert (Kosten lohnen sich für das private Projekt nicht); Windows SmartScreen warnt beim ersten Start. Die In-App-Updates sind per minisign signiert und werden geprüft.
 - Im Modus „teilautomatisch“ schlägt der Disponent noch keine Fahrer-Anreise vor; die vollautomatische Disposition und das Kontextmenü können es.

@@ -7,7 +7,7 @@ Stand: 03.11.2026 · Version 0.12.0
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
 |---|---|---|
-| Eigenständiger Windows-Client | Getestet | Tauri 2, NSIS-Installer mit eingebautem Multiplayer-Server und In-App-Update (minisign); Update-Installation in benutzerdefinierten Ordner geprüft (0.11.1). Code-Signatur offen (Zertifikat nötig) |
+| Eigenständiger Windows-Client | Getestet | Tauri 2, NSIS-Installer mit eingebautem Multiplayer-Server und In-App-Update (minisign); Update-Installation in benutzerdefinierten Ordner geprüft (0.11.1). ohne Code-Signatur (bewusst, siehe TEST_PLAN.md) |
 | Fehlerbehandlung | Getestet | Fehlergrenzen je Ansicht und für die App (Notfall-Export), Fehlerprotokoll mit Bericht, Simulationsfehler hält das Spiel an (Einzelspieler und Server), Notfall-Spielstand |
 | Server-Konfiguration | Getestet | Kommandozeile, Umgebungsvariablen, `cargovia-server.json`; `/health`; belegter Port und ungültige Werte mit klarer Meldung |
 | Spielbarer Einzelspielermodus | Implementiert | Simulation im Web Worker |
