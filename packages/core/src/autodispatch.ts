@@ -9,6 +9,7 @@ import type { SimContext } from './context.ts';
 import { VEHICLES_PER_DISPATCHER } from './company.ts';
 import { createRelocation, createTrip, planEnd, queueJob, unqueueJob, validateDispatch, vehicleSchedule, type DispatchInput, type TripEstimate } from './dispatch.ts';
 import { addLog, formatMoney } from './finance.ts';
+import { driverTravel, sendDriver } from './personnel.ts';
 import { haversineKm } from './geo.ts';
 import { newId, rand } from './rng.ts';
 import type { AutoDispatchState, DispatchRules, DispatchSuggestion, Driver, GameState, Id, Order, StaffMember, Trailer, Vehicle } from './types.ts';
@@ -37,6 +38,9 @@ export const CHAIN_MIN_SKILL = 40;
 export const REACT_MIN_SKILL = 60;
 const SUGGESTION_TTL = 3 * 60;
 const RETURN_AFTER_HOURS = 24;
+/** ohne Fahrer vor Ort: nach so vielen Stunden einen Fahrer per Bahn holen, höchstens aus dieser Entfernung */
+const FETCH_DRIVER_AFTER_HOURS = 2;
+const MAX_FETCH_KM = 1200;
 
 const ll = (cityId: string): [number, number] => [CITY_BY_ID[cityId].lon, CITY_BY_ID[cityId].lat];
 
@@ -291,6 +295,8 @@ export function runAutoDispatch(state: GameState, ctx: SimContext): void {
     const here = Object.values(state.drivers).filter((d) => d.status === 'idle' && d.cityId === vehicle.cityId);
     if (here.length && here.every((d) => d.hos.requiredRest > 0)) continue;
     ad.idleHours[vehicle.id] = (ad.idleHours[vehicle.id] ?? 0) + 1;
+    // Kein Fahrer vor Ort: einen überzähligen freien Fahrer per Bahn holen (statt den LKW stehen zu lassen)
+    if (!here.length && ad.mode === 'auto' && ad.idleHours[vehicle.id] >= FETCH_DRIVER_AFTER_HOURS && fetchDriver(state, ctx, vehicle, staff, reserved)) continue;
     if (!ad.rules.returnToBase || ad.idleHours[vehicle.id] < RETURN_AFTER_HOURS) continue;
     if (state.company.locations.some((l) => l.cityId === vehicle.cityId)) continue;
     const to = nearestLocation(state, vehicle.cityId);
@@ -309,6 +315,32 @@ export function runAutoDispatch(state: GameState, ctx: SimContext): void {
         reason: `Seit ${RETURN_AFTER_HOURS} h kein passender Auftrag – Überführung nach ${CITY_BY_ID[to].name}`, created: state.time, expires: state.time + SUGGESTION_TTL,
       });
   }
+}
+
+/**
+ * Fahrer für einen LKW ohne Fahrer holen: nur Fahrer, die dort, wo sie sind, keinen freien LKW haben
+ * (überzählig), und die nächstgelegenen zuerst. Unterwegs befindliche Fahrer zum selben Ort zählen mit.
+ */
+function fetchDriver(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: StaffMember, reserved: Reserved): boolean {
+  const idleVehicles = (city: string) => Object.values(state.vehicles).filter((v) => v.status === 'idle' && v.cityId === city).length;
+  const drivers = Object.values(state.drivers);
+  const incoming = drivers.filter((d) => d.status === 'traveling' && d.travelTo === vehicle.cityId).length;
+  const present = drivers.filter((d) => d.status === 'idle' && d.cityId === vehicle.cityId).length;
+  if (incoming + present >= idleVehicles(vehicle.cityId)) return false;
+  const surplus = (d: Driver) => drivers.filter((o) => o.status === 'idle' && o.cityId === d.cityId && !reserved.drivers.has(o.id)).length > idleVehicles(d.cityId);
+  const best = drivers
+    .filter((d) => d.status === 'idle' && d.cityId !== vehicle.cityId && d.leavesAt === undefined && !reserved.drivers.has(d.id))
+    .filter(surplus)
+    .map((d) => ({ d, t: driverTravel(ctx, d.cityId, vehicle.cityId) }))
+    .filter((x) => x.t && x.t.km <= MAX_FETCH_KM)
+    .sort((a, b) => a.t!.km - b.t!.km || a.d.id.localeCompare(b.d.id))[0];
+  if (!best) return false;
+  const r = sendDriver(state, ctx, best.d.id, vehicle.cityId);
+  if (!r.ok) return false;
+  reserved.drivers.add(best.d.id);
+  state.autoDispatch.stats.relocations++;
+  addLog(state, { level: 'info', category: 'trip', text: `Disponent ${staff.name}: ${best.d.name} reist zu ${vehicle.plate} nach ${CITY_BY_ID[vehicle.cityId].name}.`, ref: { kind: 'vehicle', id: vehicle.id } });
+  return true;
 }
 
 // ---------------------------------------------------------------- Befehle

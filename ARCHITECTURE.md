@@ -138,6 +138,9 @@ Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx,
 - **Wiederverbindung:** Der Client speichert playerId und Token und verbindet sich bei Abbruch automatisch neu. Die Simulation bleibt unbeschädigt, weil sie serverseitig liegt.
 - **Gemeinsame Zeit:** Der Raum simuliert nur, solange Spieler verbunden sind. Ohne Spieler wird gespeichert (mit Backup) und der Raum entladen.
 - **Persistenz:** Autosave alle 30 s bei Änderungen, Backup alle 10 min (die letzten 10 je Firma), beim Beenden und beim Verlassen des letzten Spielers. Ist der Spielstand beschädigt, wird das letzte Backup geladen.
+- **Konfiguration (`apps/server/src/config.ts`):** Rangfolge Kommandozeile > Umgebungsvariablen (`CARGOVIA_PORT`/`PORT`, `CARGOVIA_HOST`, `CARGOVIA_DB`/`DB`, `CARGOVIA_SAVE_SECONDS`, `CARGOVIA_BACKUP_MINUTES`, `CARGOVIA_BACKUPS_KEEP`, `CARGOVIA_MAX_PLAYERS`) > `cargovia-server.json` (per `--config` oder im Arbeitsverzeichnis; relative Datenbankpfade beziehen sich auf den Ordner der Datei) > Standardwerte. Unbekannte Schlüssel und Werte außerhalb der Grenzen brechen den Start mit Meldung ab. Vorlage: `apps/server/cargovia-server.example.json`.
+- **HTTP:** Der WebSocket-Server hängt an einem eigenen `http.Server`. `GET /health` liefert `{ ok, version, uptimeSec, rooms, players }`. `startServer` gibt `ready` zurück (erfüllt nach dem Binden, abgelehnt z. B. bei belegtem Port); erst dann erscheint `server_started`, auf das die Desktop-App wartet.
+- **Fehler:** Wirft die Simulation eines Raums eine Ausnahme, hält `GameSession.advance` das Spiel an, setzt `fault` und schreibt eine Meldung ins Protokoll; der Server protokolliert `simulation_fault` und läuft für alle anderen Räume weiter. Unbehandelte Ausnahmen im Prozess führen zu Speichern aller Räume und Ende mit Code 1.
 - **Sicherheit:** Nachrichten maximal 64 KB, Eingaben werden bereinigt, Berechtigungen serverseitig geprüft, Spieler-Token mit 144 Bit Zufall. TLS (wss://) übernimmt ein vorgeschalteter Reverse Proxy (Beispiel für Caddy im README).
 - **Zusammenarbeit (`team.ts`):** Rollen als Rechtevorlagen (Geschäftsführung, Disposition, Fuhrparkleitung, Personalleitung, Individuell), Ausgabenlimit je Ausgabe und Beschränkung auf zugewiesene Niederlassungen, interne Nachrichten, Aufgaben, gemeinsame Aktivitäten und Abstimmungen.
   - Alles sind Commands und damit serverautoritativ. Stündlich verfallen offene Einladungen bzw. finden mit den Zusagen statt, und abgelaufene Abstimmungen werden ausgewertet (`hourlyTeam`).
@@ -151,8 +154,14 @@ Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx,
 ```
 
 - Die Prüfsumme läuft über den exakten JSON-Text von `state`. Beschädigte Dateien werden erkannt; dann wird die Sicherungskopie geladen.
-- `MIGRATIONS[n]` hebt Spielstände von Version n auf n+1. Neuere Spielstände werden abgelehnt.
+- `MIGRATIONS[n]` hebt Spielstände von Version n auf n+1. Neuere Spielstände werden abgelehnt. Ein Test baut einen Spielstand im Format von Version 1 nach (alle späteren Felder entfernt), migriert ihn und fährt die laufende Fahrt zu Ende.
 - Einzelspieler: Autosave bei jedem Tageswechsel in drei rotierenden Slots plus manuelles Speichern. Beim Überschreiben bleibt `.bak` erhalten. Export und Import als Datei sind möglich.
+
+## Fehlerbehandlung im Client
+
+- **Fehlergrenzen (`ui/ErrorBoundary.tsx`):** eine je Seite (Schlüssel = Seitenname, Wechsel der Seite setzt sie zurück) und eine um die gesamte App mit Notfallbildschirm (Neu laden, Spielstand als Datei sichern, Bericht kopieren).
+- **Fehlerprotokoll (`game/errors.ts`):** sammelt Abstürze der Oberfläche, unbehandelte Fehler (`error`, `unhandledrejection`), Simulationsfehler aus dem Worker und beschädigte Deltas; die letzten 30 Einträge mit Programmversion (`__APP_VERSION__` aus `apps/client/package.json`), Seite und Spielzeit liegen im localStorage.
+- **Worker:** Meldet die Simulation einen Fehler (`session.fault`), schickt der Worker `fault` und legt einen Notfall-Spielstand an. Stürzt der Worker selbst ab, beendet `LocalHost` alle offenen Anfragen mit Fehler, statt ewig zu warten.
 
 ## Kartendaten – Lizenzen & Betrieb
 

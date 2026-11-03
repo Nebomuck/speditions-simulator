@@ -1,0 +1,10 @@
+{
+  "$comment": "Vorlage: als cargovia-server.json ins Arbeitsverzeichnis kopieren oder mit --config angeben. Kommandozeile und Umgebungsvariablen haben Vorrang.",
+  "port": 8787,
+  "host": "0.0.0.0",
+  "db": "data/spedsim.db",
+  "saveSeconds": 30,
+  "backupMinutes": 10,
+  "backupsKeep": 10,
+  "maxPlayers": 8
+}

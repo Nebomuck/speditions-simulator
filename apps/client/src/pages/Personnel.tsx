@@ -1,16 +1,34 @@
 // Personal: Fahrerliste mit Personalakte (Urlaub, Schulungen, Gehalt, Gespräche) und Bewerbungen.
 
 import { useState } from 'react';
-import { UserPlus, UserMinus, FolderOpen, Palmtree, GraduationCap, MessageCircle, Euro, Briefcase } from 'lucide-react';
+import { UserPlus, UserMinus, FolderOpen, Palmtree, GraduationCap, MessageCircle, Euro, Briefcase, TrainFront } from 'lucide-react';
 import {
-  COURSES, DEPARTMENTS, MIN_PER_DAY, PROMOTION_MIN_EXPERIENCE, TALK_COOLDOWN_DAYS, formatDate, formatDateTime, formatDuration, drivableNow, marketSalary, satisfactionFactors, staffSeats,
-  type Department, type Driver, type TrainingCourse,
+  COURSES, DEPARTMENTS, MIN_PER_DAY, PROMOTION_MIN_EXPERIENCE, TALK_COOLDOWN_DAYS, formatDate, formatDateTime, formatDuration, drivableNow, marketSalary, satisfactionFactors, staffSeats, driverTravel,
+  type Department, type Driver, type GameState, type TrainingCourse,
 } from '@spedsim/core';
-import { sendCommand, useGame } from '../game/store.ts';
+import { sendCommand, useGame, world } from '../game/store.ts';
 import { Avatar, Badge, Bar, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
 import { cityName, km, QUAL_LABEL, tripLabel, activityLabel } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
-import { openMenu } from '../ui/ContextMenu.tsx';
+import { openMenu, type MenuItem } from '../ui/ContextMenu.tsx';
+
+/** Anreise-Ziele im Kontextmenü: Standorte und Städte mit einem freien LKW ohne Fahrer */
+function travelItems(s: GameState, d: Driver): MenuItem[] {
+  if (d.status !== 'idle' || d.leavesAt !== undefined) return [];
+  const driverless = Object.values(s.vehicles)
+    .filter((v) => v.status === 'idle' && !Object.values(s.drivers).some((o) => o.status === 'idle' && o.cityId === v.cityId))
+    .map((v) => v.cityId);
+  const cities = [...new Set([...driverless, ...s.company.locations.map((l) => l.cityId)])].filter((c) => c !== d.cityId);
+  return cities.slice(0, 6).flatMap((c, i) => {
+    const t = driverTravel(world, d.cityId, c);
+    if (!t) return [];
+    return [{
+      label: `Anreise nach ${cityName(c)}${driverless.includes(c) ? ' (LKW wartet)' : ''} · ${formatDuration(t.minutes)}, ${Math.round(t.cost / 100)} €`,
+      icon: <TrainFront size={14} />, sep: i === 0,
+      onClick: () => sendCommand({ type: 'sendDriver', driverId: d.id, toCityId: c }),
+    }];
+  });
+}
 
 export function PersonnelPage() {
   const s = useGame();
@@ -40,6 +58,7 @@ export function PersonnelPage() {
                           { label: 'Personalakte öffnen', icon: <FolderOpen size={14} />, onClick: () => setFileId(d.id) },
                           { label: 'Personalgespräch führen', icon: <MessageCircle size={14} />, onClick: () => sendCommand({ type: 'talkToDriver', driverId: d.id }) },
                           { label: 'Eine Woche Urlaub', icon: <Palmtree size={14} />, disabled: d.status !== 'idle' || (d.vacationLeft ?? 0) < 7, onClick: () => sendCommand({ type: 'sendVacation', driverId: d.id, days: 7 }) },
+                          ...travelItems(s, d),
                           {
                             label: 'Entlassen …', icon: <UserMinus size={14} />, danger: true, sep: true, disabled: !!trip,
                             onClick: async () => (await askConfirm(`${d.name} entlassen? Abfindung: 1 Monatsgehalt.`, { title: 'Fahrer entlassen?', confirmLabel: 'Entlassen', danger: true })) && sendCommand({ type: 'fireDriver', driverId: d.id }),
@@ -53,7 +72,9 @@ export function PersonnelPage() {
                       <div className="row"><Avatar seed={d.name} size={32} /><div><b>{d.name}</b><div className="dim">{d.age} J. · aus {cityName(d.homeCityId)}</div></div></div>
                     </td>
                     <td>
-                      {d.status === 'vacation' || d.status === 'sick' || d.status === 'training' ? (
+                      {d.status === 'traveling' ? (
+                        <Badge kind="info">Anreise nach {cityName(d.travelTo ?? d.cityId)}, an {formatDateTime(d.absentUntil ?? s.time)}</Badge>
+                      ) : d.status === 'vacation' || d.status === 'sick' || d.status === 'training' ? (
                         <Badge kind={d.status === 'sick' ? 'danger' : 'warning'}>{ABSENCE[d.status]} bis {formatDate(d.absentUntil ?? s.time)}</Badge>
                       ) : (
                         <Badge kind={trip ? 'info' : 'success'}>{trip ? activityLabel(trip, '') : `frei in ${cityName(d.cityId)}`}</Badge>

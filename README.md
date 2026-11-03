@@ -6,7 +6,7 @@
 
 Ein Speditions- und Unternehmenssimulator für Windows: Du gründest eine kleine Spedition mit einem gebrauchten LKW, einem Fahrer und wenig Kapital, nimmst Aufträge an, disponierst Fahrten über **echte europäische Straßen**, verfolgst deine LKW **live auf der Europakarte** und baust Schritt für Schritt ein internationales Logistikunternehmen auf – allein oder im **kooperativen Multiplayer**.
 
-> Entwicklungsstand: **Version 0.11.1 – Phasen 1–11 spielbar**, Teile von Phase 12 umgesetzt.
+> Entwicklungsstand: **Version 0.12.0 – Phasen 1–12 spielbar** (Code-Signatur des Installers offen).
 > Was genau funktioniert und getestet ist, steht in [FEATURE_CHECKLIST.md](FEATURE_CHECKLIST.md).
 
 ## Schnellstart (Entwicklung)
@@ -29,7 +29,7 @@ Danach <http://localhost:5173> öffnen. Die Simulation läuft vollständig lokal
 npm run server
 ```
 
-Startet den serverautoritativen Spielserver auf `ws://localhost:8787` (Port per `PORT` oder `--port`, Datenbank per `DB` oder `--db` änderbar). Nur für die Browser-Version und für dedizierte Server nötig – **die Desktop-App startet ihren mitgelieferten Server automatisch**, sobald du eine Multiplayer-Firma hostest oder fortsetzt, und beendet ihn beim Schließen (vorher wird gespeichert).
+Startet den serverautoritativen Spielserver auf `ws://localhost:8787`. Nur für die Browser-Version und für dedizierte Server nötig – **die Desktop-App startet ihren mitgelieferten Server automatisch**, sobald du eine Multiplayer-Firma hostest oder fortsetzt, und beendet ihn beim Schließen (vorher wird gespeichert).
 
 Im Spiel unter **Multiplayer → Neue Firma hosten** gründen. Die Desktop-App öffnet automatisch einen Internet-Zugang (Cloudflare Quick Tunnel, keine Portfreigabe nötig); unter „Team & Kommunikation“ steht die **Internet-Einladung** zum Kopieren. Freunde wählen **Einer Firma beitreten** und fügen sie ein. Im Heimnetz reichen Heimnetz-Adresse und Einladungscode. Alternativ: dedizierter Server mit Portfreigabe oder Reverse Proxy (siehe [ARCHITECTURE.md](ARCHITECTURE.md#multiplayer)).
 
@@ -41,7 +41,21 @@ spiel.example.de {
 }
 ```
 
-Den Server startest du dort mit `PORT=8787 DB=/var/lib/cargovia/spedsim.db npm run server`. Mitspieler geben als Server `https://spiel.example.de` (oder `wss://spiel.example.de`) und den Einladungscode ein. Eine Adresse ohne `https://` bzw. `wss://` verbindet unverschlüsselt auf Port 8787.
+Den Server startest du dort z. B. mit `npm run server -- --host 127.0.0.1 --db /var/lib/cargovia/spedsim.db` (nur lokal erreichbar, Caddy leitet weiter).
+
+#### Server-Konfiguration
+
+| Einstellung | Kommandozeile | Umgebung | Standard |
+|---|---|---|---|
+| Port | `--port` | `CARGOVIA_PORT` / `PORT` | 8787 |
+| Bind-Adresse | `--host` | `CARGOVIA_HOST` | 0.0.0.0 |
+| Datenbank | `--db` | `CARGOVIA_DB` / `DB` | `apps/server/data/spedsim.db` |
+| Speicherintervall (s) | `--save-seconds` | `CARGOVIA_SAVE_SECONDS` | 30 |
+| Abstand der Sicherungen (min) | `--backup-minutes` | `CARGOVIA_BACKUP_MINUTES` | 10 |
+| Sicherungen je Firma | `--backups-keep` | `CARGOVIA_BACKUPS_KEEP` | 10 |
+| Spieler je Firma (1–8) | `--max-players` | `CARGOVIA_MAX_PLAYERS` | 8 |
+
+Alternativ alles in einer Datei `cargovia-server.json` im Arbeitsverzeichnis oder per `--config <Datei>` (Vorlage: [apps/server/cargovia-server.example.json](apps/server/cargovia-server.example.json)). Die Kommandozeile hat Vorrang vor der Umgebung, diese vor der Datei. `npm run server -- --help` zeigt alle Optionen. Der Zustand ist unter `http://<server>:8787/health` abrufbar (Version, Laufzeit, Firmen, verbundene Spieler). Mitspieler geben als Server `https://spiel.example.de` (oder `wss://spiel.example.de`) und den Einladungscode ein. Eine Adresse ohne `https://` bzw. `wss://` verbindet unverschlüsselt auf Port 8787.
 
 ### Tests
 

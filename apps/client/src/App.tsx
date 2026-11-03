@@ -22,6 +22,7 @@ import { HelpDialog } from './ui/Help.tsx';
 import { ContextMenuHost } from './ui/ContextMenu.tsx';
 import { helpForPage } from './ui/help.ts';
 import { Tutorial } from './ui/Tutorial.tsx';
+import { ErrorBoundary } from './ui/ErrorBoundary.tsx';
 import { startBackground, stopBackground } from './ui/sound.ts';
 
 const PAGES = {
@@ -96,7 +97,9 @@ export function App() {
       <TopBar />
       <Sidebar />
       <main className="main">
-        <Page />
+        <ErrorBoundary scope="page" resetKey={page}>
+          <Page />
+        </ErrorBoundary>
       </main>
       <DispatchDialog />
       <Tutorial />

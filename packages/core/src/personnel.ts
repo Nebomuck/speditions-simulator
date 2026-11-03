@@ -6,8 +6,9 @@ import { addLog, book, formatMoney } from './finance.ts';
 import { wageLevel } from './generate.ts';
 import { dispatchShortfall } from './company.ts';
 import { rand } from './rng.ts';
-import { MIN_PER_DAY, formatDate, toDate } from './time.ts';
-import type { Driver, GameState, Id, Money, Qualification, TrainingCourse } from './types.ts';
+import { MIN_PER_DAY, formatDate, formatDateTime, toDate } from './time.ts';
+import type { SimContext } from './context.ts';
+import type { Driver, GameState, GameTime, Id, Money, Qualification, TrainingCourse } from './types.ts';
 
 export const VACATION_DAYS_PER_YEAR = 30;
 export const TALK_COOLDOWN_DAYS = 14;
@@ -16,6 +17,10 @@ export const RESIGN_THRESHOLD = 25;
 const RESIGN_AFTER_DAYS = 7;
 const NOTICE_DAYS = 14;
 const WITHDRAW_AT = 45;
+/** Anreise per Bahn: Reisegeschwindigkeit inkl. Umstiegen (km/h), Grundpreis und Preis je km */
+export const TRAVEL_KMH = 75;
+export const TRAVEL_BASE_FARE: Money = 35_00;
+export const TRAVEL_FARE_PER_KM: Money = 14;
 
 export interface CourseDef {
   id: TrainingCourse;
@@ -87,6 +92,36 @@ export function sendOnVacation(state: GameState, driverId: Id, days: number): { 
   return { ok: true };
 }
 
+/** Anreise per Bahn: Fahrkarte und Reisedauer zwischen zwei Städten (Straßen-km als Näherung der Bahnstrecke). */
+export function driverTravel(ctx: SimContext, fromCityId: string, toCityId: string): { minutes: number; cost: Money; km: number } | null {
+  const r = ctx.net.route(fromCityId, toCityId);
+  if (!r) return null;
+  return { minutes: Math.round(60 + (r.km / TRAVEL_KMH) * 60), cost: Math.round(TRAVEL_BASE_FARE + r.km * TRAVEL_FARE_PER_KM), km: r.km };
+}
+
+/** Freien Fahrer ohne Fahrzeug zu einem Standort oder einem wartenden LKW schicken. Die Reise gilt als Bereitschaft (keine Lenkzeit). */
+export function sendDriver(state: GameState, ctx: SimContext, driverId: Id, toCityId: string): { ok: true; until: GameTime } | { ok: false; error: string } {
+  const d = state.drivers[driverId];
+  if (!d) return { ok: false, error: 'Fahrer nicht gefunden.' };
+  const busy = available(d);
+  if (busy) return { ok: false, error: busy };
+  if (d.leavesAt !== undefined) return { ok: false, error: `${d.name} hat gekündigt.` };
+  const city = CITY_BY_ID[toCityId];
+  if (!city) return { ok: false, error: 'Unbekannte Stadt.' };
+  if (toCityId === d.cityId) return { ok: false, error: `${d.name} ist bereits in ${city.name}.` };
+  const target = state.company.locations.some((l) => l.cityId === toCityId) || Object.values(state.vehicles).some((v) => v.cityId === toCityId && v.status !== 'on_trip');
+  if (!target) return { ok: false, error: `In ${city.name} gibt es weder einen Standort noch ein Fahrzeug der Firma.` };
+  const t = driverTravel(ctx, d.cityId, toCityId);
+  if (!t) return { ok: false, error: `Keine Verbindung nach ${city.name}.` };
+  if (state.company.account.balance - t.cost < -10_000_00) return { ok: false, error: 'Nicht genügend Geld.' };
+  book(state, 'company', -t.cost, 'other', `Anreise ${d.name} nach ${city.name}`);
+  d.status = 'traveling';
+  d.travelTo = toCityId;
+  d.absentUntil = state.time + t.minutes;
+  addLog(state, { level: 'info', category: 'personnel', text: `${d.name} reist per Bahn von ${CITY_BY_ID[d.cityId].name} nach ${city.name} (Ankunft ${formatDateTime(d.absentUntil)}, ${formatMoney(t.cost)}).`, ref: { kind: 'driver', id: d.id } });
+  return { ok: true, until: d.absentUntil };
+}
+
 export function startTraining(state: GameState, driverId: Id, course: TrainingCourse): { ok: true } | { ok: false; error: string } {
   const d = state.drivers[driverId];
   const def = COURSES[course];
@@ -147,6 +182,13 @@ export function talkToDriver(state: GameState, driverId: Id): { ok: true; text: 
 /** Stündlich: Rückkehr aus Urlaub, Krankheit und Schulung; Austritte nach Kündigungsfrist. */
 export function hourlyPersonnel(state: GameState): void {
   for (const d of Object.values(state.drivers)) {
+    if (d.status === 'traveling' && d.absentUntil !== undefined && state.time >= d.absentUntil) {
+      d.cityId = d.travelTo ?? d.cityId;
+      d.status = 'idle';
+      d.absentUntil = undefined;
+      d.travelTo = undefined;
+      addLog(state, { level: 'info', category: 'personnel', text: `${d.name} ist in ${CITY_BY_ID[d.cityId].name} angekommen und verfügbar.`, ref: { kind: 'driver', id: d.id } });
+    }
     if (d.absentUntil !== undefined && state.time >= d.absentUntil && (d.status === 'vacation' || d.status === 'sick' || d.status === 'training')) {
       const was = d.status;
       d.status = 'idle';

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Save, Download, LogOut, Sun, Moon, Volume2, VolumeX, Music, Building, Phone } from 'lucide-react';
+import { Save, Download, LogOut, Sun, Moon, Volume2, VolumeX, Music, Building, Phone, Copy, Trash2, Bug } from 'lucide-react';
 import { DIFFICULTY_LABEL } from '@spedsim/core';
 import { getUi, localStorageSet, resetGameUi, setUi, toast, useGame, useUi } from '../game/store.ts';
 import { Card, PageHeader } from '../ui/components.tsx';
 import { applyVolumes, playPhone } from '../ui/sound.ts';
 import { askConfirm } from '../ui/confirm.tsx';
+import { clearErrors, errorReport, getErrors } from '../game/errors.ts';
 
 export function SettingsPage() {
   const s = useGame();
@@ -92,8 +93,10 @@ export function SettingsPage() {
             <dt>Schwierigkeit</dt><dd>{DIFFICULTY_LABEL[s.difficulty.id]}</dd>
             <dt>Seed</dt><dd>{s.seed}</dd>
             <dt>Speicherformat</dt><dd>Version {s.version}</dd>
+            <dt>Programmversion</dt><dd>{__APP_VERSION__}</dd>
           </dl>
         </Card>
+        <ErrorLog />
         <Card title="Lizenzen & Datenquellen">
           <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-2)', lineHeight: 1.7, fontSize: 13 }}>
             <li>Kartendaten & Straßennetz © OpenStreetMap-Mitwirkende (ODbL 1.0)</li>
@@ -106,5 +109,45 @@ export function SettingsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/** Fehlerprotokoll: letzte Abstürze und Simulationsfehler, als Bericht kopierbar */
+function ErrorLog() {
+  const [errors, setErrors] = useState(getErrors);
+  return (
+    <Card title="Fehlerprotokoll">
+      {errors.length === 0 ? (
+        <p className="muted"><Bug size={14} /> Keine Fehler aufgezeichnet.</p>
+      ) : (
+        <>
+          <ul className="error-log">
+            {errors.slice(-5).reverse().map((e, i) => (
+              <li key={i}>
+                <span className="dim">{new Date(e.at).toLocaleString('de-DE')} · {e.source}</span>
+                <div>{e.message}</div>
+              </li>
+            ))}
+          </ul>
+          <div className="row wrap">
+            <button
+              className="btn"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(errorReport(errors));
+                  toast('success', 'Fehlerbericht in die Zwischenablage kopiert.');
+                } catch {
+                  toast('danger', 'Zwischenablage nicht verfügbar.');
+                }
+              }}
+            >
+              <Copy size={15} />Bericht kopieren ({errors.length})
+            </button>
+            <button className="btn" onClick={() => (clearErrors(), setErrors([]))}><Trash2 size={15} />Leeren</button>
+          </div>
+        </>
+      )}
+      <p className="dim" style={{ fontSize: 12.5 }}>Das Protokoll bleibt auf diesem PC. Für eine Fehlermeldung den Bericht kopieren und mit einer kurzen Beschreibung einreichen.</p>
+    </Card>
   );
 }

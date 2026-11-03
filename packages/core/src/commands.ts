@@ -11,7 +11,7 @@ import { addCoLoad, createRelocation, createTrip, queueJob, removeCoLoad, unqueu
 import { acceptContract, cancelContract } from './contracts.ts';
 import { VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, addLog, annuity, book, factorInvoices, formatMoney, repayLoan, takeLoan, vehicleLoanRate, vehicleRentPerDay } from './finance.ts';
 import { plate, tradeInValue, vehicleMarketValue } from './generate.ts';
-import { sendOnVacation, setDriverSalary, startTraining, talkToDriver } from './personnel.ts';
+import { sendDriver, sendOnVacation, setDriverSalary, startTraining, talkToDriver } from './personnel.ts';
 import { buildFacility, closeBranch, fireStaff, hireStaff, openBranch, promoteDriver, serviceFleet, serviceVehicle, upgradeLocation } from './company.ts';
 import { freshHos } from './hos.ts';
 import { newId } from './rng.ts';
@@ -63,6 +63,7 @@ export type Command =
   | { type: 'acceptContract'; contractId: Id }
   | { type: 'cancelContract'; contractId: Id }
   | { type: 'sendVacation'; driverId: Id; days: number }
+  | { type: 'sendDriver'; driverId: Id; toCityId: string }
   | { type: 'trainDriver'; driverId: Id; course: TrainingCourse }
   | { type: 'setDriverSalary'; driverId: Id; salary: number }
   | { type: 'talkToDriver'; driverId: Id }
@@ -98,6 +99,7 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   coLoad: 'dispatch',
   removeCoLoad: 'dispatch',
   relocate: 'dispatch',
+  sendDriver: 'dispatch',
   buyUsedVehicle: 'purchase',
   buyNewVehicle: 'purchase',
   buyTrailer: 'purchase',
@@ -552,6 +554,10 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     }
     case 'cancelContract': {
       const r = cancelContract(state, cmd.contractId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'sendDriver': {
+      const r = sendDriver(state, ctx, cmd.driverId, String(cmd.toCityId));
       return r.ok ? { ok: true } : fail(r.error);
     }
     case 'sendVacation': {

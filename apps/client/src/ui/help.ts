@@ -112,12 +112,13 @@ export const HELP: HelpArticle[] = [
   {
     id: 'personnel',
     title: 'Fahrer und Personal',
-    keywords: 'fahrer einstellen bewerber gehalt zufriedenheit urlaub krank kündigung schulung adr gespräch',
+    keywords: 'fahrer einstellen bewerber gehalt zufriedenheit urlaub krank kündigung schulung adr gespräch anreise bahn',
     body: [
       'Täglich kommen neue Bewerbungen. Erfahrung macht Fahrer schneller und sicherer, Sparsamkeit senkt den Verbrauch.',
       '• Zufriedenheit hängt von Gehalt, Urlaub, Wochenlenkzeit, Firmenruf und Betriebszugehörigkeit ab. Liegt sie 7 Tage unter 25, kündigt der Fahrer.',
       '• Personalgespräche (alle 14 Tage), Gehaltserhöhungen und Urlaub helfen.',
       '• Schulungen: ADR, Kühltransport, Schwertransport, Spritsparen.',
+      '• Steht ein LKW ohne Fahrer an einem anderen Ort, schickst du einen freien Fahrer per Bahn hin: Rechtsklick auf den Fahrer → „Anreise nach …“. KI-Disponenten machen das selbst.',
     ],
   },
   {

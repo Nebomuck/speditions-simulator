@@ -4,6 +4,7 @@
 
 import { applyPatch, type Command, type CommandResult, type GameState, type NewGameOptions } from '@spedsim/core';
 import type { HostRequest, HostResponse, SaveMeta, Snapshot } from './protocol.ts';
+import { recordError } from './errors.ts';
 
 export interface HostEvents {
   onSnapshot(s: Snapshot): void;
@@ -33,10 +34,19 @@ export class LocalHost implements GameHost {
       const m = ev.data;
       if (m.type === 'snapshot') events.onSnapshot(m.snapshot);
       else if (m.type === 'error') events.onError(m.message);
+      else if (m.type === 'fault') recordError('simulation', Object.assign(new Error(m.message), { stack: m.stack }), { gameTime: m.time });
       else if (m.type === 'response') {
         this.pending.get(m.id)?.(m.res);
         this.pending.delete(m.id);
       }
+    };
+    // Absturz des Workers selbst (z. B. Ladefehler): offene Anfragen beenden statt ewig zu warten
+    this.worker.onerror = (ev) => {
+      ev.preventDefault();
+      recordError('worker', new Error(ev.message || 'Simulations-Worker abgestürzt'));
+      events.onError(`Simulationsfehler: ${ev.message || 'Worker abgestürzt'}. Bitte das Spiel neu laden; die Autosaves bleiben erhalten.`);
+      for (const resolve of this.pending.values()) resolve({ ok: false, error: 'Simulation nicht verfügbar.' });
+      this.pending.clear();
     };
   }
 
@@ -145,7 +155,15 @@ export class RemoteHost implements GameHost {
             this.rev = -2;
             return;
           }
-          this.state = applyPatch(this.state, m.ops);
+          try {
+            this.state = applyPatch(this.state, m.ops);
+          } catch (e) {
+            // beschädigtes Delta: verwerfen und Vollzustand holen
+            recordError('server', e);
+            ws.send(JSON.stringify({ t: 'resync' }));
+            this.rev = -2;
+            return;
+          }
         } else this.state = m.state as GameState;
         this.rev = m.rev;
         if (!this.companyReported && this.gameId) {

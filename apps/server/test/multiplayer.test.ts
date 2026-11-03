@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import WebSocket from 'ws';
 import { applyPatch, playerView, sameJson, type GameState } from '@spedsim/core';
 import { startServer } from '../src/server.ts';
+import { ConfigError, DEFAULT_CONFIG, loadConfig } from '../src/config.ts';
+import { writeFileSync } from 'node:fs';
 
 const dir = mkdtempSync(join(tmpdir(), 'spedsim-'));
 const dbPath = join(dir, 'test.db');
@@ -76,6 +78,7 @@ class TestClient {
 describe('Multiplayertest', () => {
   it('zwei Spieler greifen auf dieselbe Spedition zu, sehen konsistente Daten und Konflikte werden serverseitig verhindert', async () => {
     let server = startServer({ port: 18787, dbPath, log: () => {}, broadcastMs: 100 });
+    await server.ready;
     const a = new TestClient(18787, { t: 'create', companyName: 'Koop GmbH', hqCityId: 'prag', difficulty: 'easy', name: 'Anna' });
     await a.until(() => !!a.welcome && !!a.state);
     expect(a.state!.company.name).toBe('Koop GmbH');
@@ -163,6 +166,7 @@ describe('Multiplayertest', () => {
     await new Promise((r) => setTimeout(r, 200));
     await server.close();
     server = startServer({ port: 18788, dbPath, log: () => {} });
+    await server.ready;
     const a2 = new TestClient(18788, { t: 'join', code, playerId: a.welcome!.playerId, token: a.welcome!.token });
     await a2.until(() => !!a2.state);
     const tripAfter = a2.state!.trips[tripBefore.id];
@@ -172,6 +176,96 @@ describe('Multiplayertest', () => {
     console.log(`Zustandsgröße pro Schnappschuss: ${Math.round(JSON.stringify(a2.state).length / 1024)} KB`);
     a2.close();
     await new Promise((r) => setTimeout(r, 100));
+    await server.close();
+  });
+});
+
+describe('Server-Konfiguration', () => {
+  it('Standardwerte, Konfigurationsdatei, Umgebung und Kommandozeile in dieser Rangfolge', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'cargovia-cfg-'));
+    try {
+      const def = loadConfig([], {}, cwd);
+      expect(def.port).toBe(DEFAULT_CONFIG.port);
+      expect(def.host).toBe('0.0.0.0');
+      expect(def.db).toBe(join(cwd, 'apps/server/data/spedsim.db'));
+
+      // cargovia-server.json im Arbeitsverzeichnis wird automatisch gelesen; relative db zum Ordner der Datei
+      writeFileSync(join(cwd, 'cargovia-server.json'), JSON.stringify({ $comment: 'Test', port: 9000, db: 'daten/firmen.db', maxPlayers: 4, backupsKeep: 3 }));
+      const file = loadConfig([], {}, cwd);
+      expect(file).toMatchObject({ port: 9000, maxPlayers: 4, backupsKeep: 3, db: join(cwd, 'daten/firmen.db') });
+
+      // Umgebung schlägt Datei, Kommandozeile schlägt Umgebung
+      expect(loadConfig([], { CARGOVIA_PORT: '9100', PORT: '1' }, cwd).port).toBe(9100);
+      expect(loadConfig([], { PORT: '9200' }, cwd).port).toBe(9200);
+      expect(loadConfig(['--port', '9300', '--host', '127.0.0.1'], { CARGOVIA_PORT: '9100' }, cwd)).toMatchObject({ port: 9300, host: '127.0.0.1', maxPlayers: 4 });
+
+      // ausdrückliche Datei
+      writeFileSync(join(cwd, 'andere.json'), JSON.stringify({ saveSeconds: 60 }));
+      expect(loadConfig(['--config', 'andere.json'], {}, cwd)).toMatchObject({ saveSeconds: 60, port: 8787 });
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('ungültige Werte werden mit verständlicher Meldung abgelehnt', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'cargovia-cfg-'));
+    try {
+      expect(() => loadConfig(['--port', '70000'], {}, cwd)).toThrow(/1 bis 65535/);
+      expect(() => loadConfig(['--port'], {}, cwd)).toThrow(ConfigError);
+      expect(() => loadConfig(['--max-players', '20'], {}, cwd)).toThrow(/max/);
+      expect(() => loadConfig([], { CARGOVIA_SAVE_SECONDS: 'oft' }, cwd)).toThrow(/CARGOVIA_SAVE_SECONDS/);
+      expect(() => loadConfig(['--config', 'fehlt.json'], {}, cwd)).toThrow(/nicht lesbar/);
+      writeFileSync(join(cwd, 'cargovia-server.json'), JSON.stringify({ prot: 1 }));
+      expect(() => loadConfig([], {}, cwd)).toThrow(/unbekannte Einstellung „prot“/);
+      writeFileSync(join(cwd, 'cargovia-server.json'), '{ kaputt');
+      expect(() => loadConfig([], {}, cwd)).toThrow(/nicht lesbar/);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('Server-Betrieb', () => {
+  it('Health-Endpunkt, belegter Port, Spielerlimit und drei konsistente Clients', async () => {
+    const db = join(dir, 'betrieb.db');
+    const server = startServer({ port: 18790, dbPath: db, log: () => {}, broadcastMs: 100, maxPlayers: 3, version: '9.9.9' });
+    await server.ready;
+
+    // zweiter Server auf demselben Port: Start schlägt sauber fehl statt abzustürzen
+    const clash = startServer({ port: 18790, dbPath: join(dir, 'clash.db'), log: () => {} });
+    await expect(clash.ready).rejects.toMatchObject({ code: 'EADDRINUSE' });
+
+    const health = await (await fetch('http://127.0.0.1:18790/health')).json();
+    expect(health).toMatchObject({ ok: true, name: 'cargovia-server', version: '9.9.9', rooms: 0, players: 0 });
+
+    const a = new TestClient(18790, { t: 'create', companyName: 'Drei Freunde', hqCityId: 'wien', difficulty: 'normal', name: 'Ada' });
+    await a.until(() => !!a.welcome && !!a.state);
+    const code = a.welcome!.inviteCode;
+    const b = new TestClient(18790, { t: 'join', code, name: 'Bo' });
+    const c = new TestClient(18790, { t: 'join', code, name: 'Cem' });
+    await b.until(() => !!b.state && Object.keys(b.state.players).length === 3);
+    await c.until(() => !!c.state && Object.keys(c.state.players).length === 3);
+    const d = new TestClient(18790, { t: 'join', code, name: 'Dora' });
+    await d.until(() => d.errors.length > 0);
+    expect(d.errors[0]).toMatch(/voll/);
+    d.close();
+
+    expect((await fetch('http://127.0.0.1:18790/health').then((r) => r.json())).players).toBe(3);
+
+    // Zeit laufen lassen, alle drei Clients müssen dieselbe Sicht wie der Server haben
+    expect((await a.cmd({ type: 'setSpeed', speed: 60 })).ok).toBe(true);
+    expect((await a.cmd({ type: 'setPaused', paused: false })).ok).toBe(true);
+    await new Promise((r) => setTimeout(r, 1500));
+    expect((await a.cmd({ type: 'setPaused', paused: true })).ok).toBe(true);
+    await new Promise((r) => setTimeout(r, 400));
+    const room = [...server.rooms.values()][0];
+    expect(room.session.state.time).toBeGreaterThan(a.state!.company.founded);
+    for (const cl of [a, b, c]) expect(sameJson(cl.state, JSON.parse(JSON.stringify(playerView(room.session.state, cl.welcome!.playerId))))).toBe(true);
+
+    a.close();
+    b.close();
+    c.close();
+    await new Promise((r) => setTimeout(r, 150));
     await server.close();
   });
 });

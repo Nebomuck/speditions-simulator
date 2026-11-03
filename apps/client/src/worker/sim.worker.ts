@@ -47,6 +47,13 @@ function loop() {
   lastTick = now;
   if (session) {
     session.advance(dt);
+    if (session.fault) {
+      const f = session.fault;
+      session.fault = null;
+      post({ type: 'fault', message: f.message, stack: f.stack, time: f.time });
+      // Notfall-Spielstand vom Zeitpunkt des Fehlers (die rotierenden Autosaves bleiben unangetastet)
+      save(`Notfall – ${session.state.company.name}`, true).catch(() => {});
+    }
     const day = dayIndex(session.state.time);
     if (lastAutosaveDay === -1) lastAutosaveDay = day;
     if (day !== lastAutosaveDay) {

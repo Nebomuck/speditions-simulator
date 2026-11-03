@@ -119,6 +119,7 @@ Fahrer haben Name, Alter, Heimatort, Erfahrung, Führerscheinklassen, Qualifikat
 - **Kündigung:** Liegt die Zufriedenheit 7 Tage unter 25, kündigt der Fahrer mit 14 Tagen Frist. Steigt sie wieder auf 45 (Gespräch, Gehaltserhöhung, Urlaub), zieht er zurück.
 - **Personalgespräch** (alle 14 Tage): +5 bzw. +10 Zufriedenheit und nennt die Gründe.
 - **Urlaub:** 30 Tage pro Jahr, erhöht die Zufriedenheit; **Krankheit** tritt zufällig zwischen Fahrten auf (1–6 Tage, Lohn läuft weiter).
+- **Anreise:** Freie Fahrer ohne Fahrzeug reisen per Bahn zu einem Standort oder einem wartenden LKW (Fahrkarte 35 € + 0,14 €/km Straßenentfernung, Dauer 1 h + Strecke bei 75 km/h; die Reise gilt als Bereitschaft, nicht als Lenkzeit). KI-Disponenten holen nach 2 h Standzeit einen überzähligen Fahrer (dort, wo er ist, steht kein freier LKW) aus höchstens 1.200 km, den nächsten zuerst; unterwegs befindliche Fahrer zählen mit, damit kein LKW zwei bekommt.
 - **Schulungen:** ADR (4 Tage, 890 €), Kühltransport (2 Tage, 420 €), Schwertransport (5 Tage, 1.350 €, ab Erfahrung 35), Spritsparen (1 Tag, 380 €, +15 Sparsamkeit).
 
 ## 10. Wirtschaft & Finanzen

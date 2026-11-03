@@ -5,6 +5,7 @@
 
 import { applyCommand, type Command, type CommandResult } from './commands.ts';
 import type { SimContext } from './context.ts';
+import { addLog } from './finance.ts';
 import { tickMinute } from './sim.ts';
 import type { GameState, Id } from './types.ts';
 
@@ -18,6 +19,8 @@ export class GameSession {
 
   state: GameState;
   readonly ctx: SimContext;
+  /** letzter Simulationsfehler: das Spiel wird angehalten statt abzustürzen. Der Host meldet ihn und setzt ihn zurück. */
+  fault: { message: string; time: number; stack?: string } | null = null;
 
   constructor(state: GameState, ctx: SimContext) {
     this.state = state;
@@ -45,9 +48,22 @@ export class GameSession {
     const minutes = Math.min(MAX_CATCHUP_MIN, Math.floor(this.carry));
     this.carry -= minutes;
     if (this.carry > MAX_CATCHUP_MIN) this.carry = 0;
-    for (let i = 0; i < minutes; i++) tickMinute(this.state, this.ctx);
-    if (minutes > 0) this.revision++;
-    return minutes;
+    let done = 0;
+    try {
+      for (; done < minutes; done++) tickMinute(this.state, this.ctx);
+    } catch (e) {
+      const err = e as Error;
+      this.fault = { message: err?.message ?? String(e), time: this.state.time, stack: err?.stack };
+      this.state.paused = true;
+      this.carry = 0;
+      try {
+        addLog(this.state, { level: 'danger', category: 'company', text: `Simulationsfehler – das Spiel wurde angehalten: ${this.fault.message}` });
+      } catch {
+        // Protokoll selbst defekt: Fehler bleibt in `fault` erhalten
+      }
+    }
+    if (done > 0 || this.state.paused) this.revision++;
+    return done;
   }
 
   /** Bruchteil der aktuellen Minute (für flüssige Interpolation auf dem Client). */

@@ -2,12 +2,14 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 02.11.2026 · Version 0.1.0
+Stand: 03.11.2026 · Version 0.12.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
 |---|---|---|
-| Eigenständiger Windows-Client | Implementiert | Tauri 2, NSIS-Installer 2,5 MB gebaut; App startet mit Fenster (Starttest). Spielablauf in der nativen App noch nicht manuell durchgespielt |
+| Eigenständiger Windows-Client | Getestet | Tauri 2, NSIS-Installer mit eingebautem Multiplayer-Server und In-App-Update (minisign); Update-Installation in benutzerdefinierten Ordner geprüft (0.11.1). Code-Signatur offen (Zertifikat nötig) |
+| Fehlerbehandlung | Getestet | Fehlergrenzen je Ansicht und für die App (Notfall-Export), Fehlerprotokoll mit Bericht, Simulationsfehler hält das Spiel an (Einzelspieler und Server), Notfall-Spielstand |
+| Server-Konfiguration | Getestet | Kommandozeile, Umgebungsvariablen, `cargovia-server.json`; `/health`; belegter Port und ungültige Werte mit klarer Meldung |
 | Spielbarer Einzelspielermodus | Implementiert | Simulation im Web Worker |
 | Echter kooperativer Multiplayer | Getestet | WebSocket-Server, serverautoritativ |
 | Gemeinsame Simulationslogik | Getestet | `@spedsim/core` in Worker und Server |
@@ -87,6 +89,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Gespräche, Gehaltsverhandlung, Schulungen, Beförderung, Urlaub, Verträge, Kündigung bei Unzufriedenheit | Getestet | Personalakte: Gespräch (Gründe der Zufriedenheit), Gehalt (70–160 % vom Markt), Urlaub (30 Tage/Jahr), Schulungen ADR/Kühl/Schwer/Spritsparen, Krankheit, Kündigung nach 7 Tagen Unzufriedenheit mit 14 Tagen Frist (abwendbar); Beförderung erfahrener Fahrer ins Büro (Abteilungen) |
 | Lenk-/Arbeits-/Ruhezeiten (vereinfachte EU-Regeln) | Getestet | Vereinfachungen siehe GAME_DESIGN.md §7 |
 | Fahrerwechsel unterwegs | Geplant | |
+| Anreise freier Fahrer per Bahn zu Standort oder wartendem LKW | Getestet | manuell (Kontextmenü) und durch KI-Disponenten |
 
 ## 9 · Fahrzeuge & Fuhrpark
 | Anforderung | Status | Anmerkung |
@@ -156,7 +159,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Aufgabenverteilung (Bereich, Zuständige, Fälligkeit, Offen/In Arbeit/Erledigt) | Getestet |
 | Abstimmungen über Unternehmensentscheidungen | Getestet |
 | Wiederverbindung ohne Schaden | Getestet |
-| Backups | Implementiert |
+| Backups | Getestet (Anzahl und Intervall konfigurierbar) |
 | Eigene Charaktere/Privatkonten je Spieler | Implementiert |
 | Gemeinsame Aktivitäten (Essen, Veranstaltung, Freizeit, Geschäftsbesprechung) | Getestet (Einladung, Zusage, Wirkung, Verfall nach 12 h) |
 | Gemeinsam Immobilienprojekte planen | Offen (später) |
@@ -207,7 +210,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Anforderung | Status |
 |---|---|
 | Alle geforderten Daten im Spielstand | Getestet |
-| Autosave, manuelles Speichern, Wiederherstellung, Schutz vor Beschädigung, Versionierung, Migrationen, MP-Backups | Getestet / Implementiert |
+| Autosave, manuelles Speichern, Wiederherstellung, Schutz vor Beschädigung, Versionierung, Migrationen, MP-Backups | Getestet (Migration eines Spielstands im Format von Version 1 bis Version 9; Ablehnung neuerer, fremder und abgeschnittener Dateien) |
 | Fahrzeuge nach dem Laden an exakt gleicher Position | Getestet |
 
 ## 24 · Audio

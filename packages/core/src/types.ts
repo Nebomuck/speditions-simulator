@@ -297,7 +297,7 @@ export interface HoursOfService {
   requiredRestKind: 'none' | 'break' | 'daily' | 'weekly';
 }
 
-export type DriverStatus = 'idle' | 'on_trip' | 'resting' | 'sick' | 'vacation' | 'training';
+export type DriverStatus = 'idle' | 'on_trip' | 'resting' | 'sick' | 'vacation' | 'training' | 'traveling';
 
 export type TrainingCourse = 'adr' | 'eco' | 'reefer' | 'heavy';
 
@@ -321,8 +321,10 @@ export interface Driver {
   tripId?: Id;
   hos: HoursOfService;
   kmDriven: number;
-  /** Ende von Urlaub, Krankheit oder Schulung */
+  /** Ende von Urlaub, Krankheit, Schulung oder Anreise */
   absentUntil?: GameTime;
+  /** Anreise per Bahn (ohne Fahrzeug) zu dieser Stadt */
+  travelTo?: string;
   trainingCourse?: TrainingCourse;
   /** verbleibende Urlaubstage im Kalenderjahr */
   vacationLeft?: number;
@@ -338,7 +340,7 @@ export interface Driver {
 
 export interface Applicant extends Omit<
   Driver,
-  'status' | 'hired' | 'tripId' | 'hos' | 'kmDriven' | 'satisfaction' | 'absentUntil' | 'trainingCourse' | 'vacationLeft' | 'lastVacation' | 'lastTalk' | 'unhappyDays' | 'leavesAt'
+  'status' | 'hired' | 'tripId' | 'hos' | 'kmDriven' | 'satisfaction' | 'absentUntil' | 'travelTo' | 'trainingCourse' | 'vacationLeft' | 'lastVacation' | 'lastTalk' | 'unhappyDays' | 'leavesAt'
 > {
   expires: GameTime;
 }

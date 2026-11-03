@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.12.0 – 03.11.2026
+
+- **Fahrer-Anreise per Bahn:** Freie Fahrer ohne Fahrzeug können zu einem Standort oder einem wartenden LKW reisen (Rechtsklick auf den Fahrer → „Anreise nach …“). Fahrkarte 35 € + 0,14 €/km, Dauer 1 h + Strecke bei 75 km/h. KI-Disponenten holen nach 2 h Standzeit selbst einen überzähligen Fahrer zu einem LKW ohne Fahrer. Vorher standen bei wachsenden Firmen LKW am Firmensitz, während die neuen Fahrer an einer Niederlassung warteten; im Langzeittest waren mit 17 LKW nur 9 unterwegs, jetzt 17 von 20.
+- **Fehlerbehandlung:**
+  - Stürzt eine Ansicht ab, erscheint statt einer leeren Seite eine Meldung mit „Erneut versuchen“, „Zum Dashboard“ und „Fehlerbericht kopieren“; das Spiel läuft weiter. Ein Fehler außerhalb der Ansichten zeigt einen Notfallbildschirm, auf dem sich der Spielstand als Datei sichern lässt.
+  - Ein Fehler in der Simulation hält das Spiel an, statt es einfrieren zu lassen. Zusätzlich wird ein Notfall-Spielstand angelegt.
+  - Unter **Einstellungen → Fehlerprotokoll** stehen die letzten Fehler mit Programmversion; der Bericht lässt sich kopieren. Die Einstellungen zeigen außerdem die Programmversion.
+- **Multiplayer-Server:**
+  - Konfigurierbar über Kommandozeile, Umgebungsvariablen (`CARGOVIA_PORT`, `CARGOVIA_HOST`, `CARGOVIA_DB` …) oder eine Datei `cargovia-server.json`: Port, Bind-Adresse, Datenbank, Speicher- und Sicherungsintervall, Anzahl der Sicherungen, Spieler je Firma. Ungültige Werte werden beim Start mit klarer Meldung abgelehnt. `--help` und `--version` sind neu.
+  - Zustandsabruf unter `GET /health` (Version, Laufzeit, Firmen, verbundene Spieler) für Monitoring und Reverse Proxy.
+  - Ein belegter Port wird sauber gemeldet. Bei einem unerwarteten Fehler speichert der Server alle Firmen, bevor er sich beendet.
+  - Ein beschädigtes Delta auf dem Client führt zu einer Neusynchronisation statt zu einem Absturz.
+- **Abschlusstests:**
+  - Ein vollständiger Spielablauf von der Gründung bis Unternehmensstufe 4 läuft als automatischer Test (Prüfung der Grundregeln zu jeder Spielstunde, Speichern/Laden im Betrieb).
+  - Spielstände im Format von Version 1 werden vollständig migriert und laufen weiter.
+  - Neu getestet sind außerdem Server-Konfiguration, Health-Endpunkt, Spielerlimit und drei gleichzeitige Clients.
 ## 0.11.1 – 03.11.2026
 
 - **Update-Fehler behoben:** Updates landeten bei Installationen in einem eigenen Ordner (z. B. E:\Spiele\Cargovia) teils im Standardordner unter %LOCALAPPDATA%. Dann lief die neue Version nur direkt nach dem Update, die Desktop-Verknüpfung startete weiter die alte. Das Update wird jetzt immer in den Ordner des laufenden Programms installiert.

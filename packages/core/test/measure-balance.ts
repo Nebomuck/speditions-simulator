@@ -3,87 +3,26 @@
 // gebrauchter LKW + Fahrer + Auflieger, sobald genug Puffer da ist; Standort ausbauen, wenn die Stellplätze voll sind.
 // Aufruf: node packages/core/test/measure-balance.ts [Tage] [Schwierigkeit] [Seed]
 
-import {
-  LOCATION_DEFS, LOCATION_ORDER, MIN_PER_DAY, TRUCK_BY_ID, applyCommand, capacity, createNewGame, tickMinutes,
-  type DifficultyId, type GameState, type StaffMember,
-} from '../src/index.ts';
+import { MIN_PER_DAY, createNewGame, type DifficultyId, type GameState } from '../src/index.ts';
+import { createBot } from './bot.ts';
 import { ctx } from './helpers.ts';
 
 const DAYS = Number(process.argv[2] ?? 365);
 const DIFF = (process.argv[3] ?? 'normal') as DifficultyId;
 const SEED = Number(process.argv[4] ?? 11);
 const s: GameState = createNewGame(ctx, { seed: SEED, companyName: 'Bot Logistik', hqCityId: 'leipzig', difficulty: DIFF, founder: { id: 'p1', name: 'Bot' } });
-s.paused = false;
 if (process.env.NOCOMP) for (const c of Object.values(s.competitors)) { c.status = 'bankrupt'; c.trucks = 0; }
 const eur = (c: number) => `${Math.round(c / 100).toLocaleString('de-DE')} €`;
 
-/** virtuelle Disponenten ohne Gehalt: ersetzen den Spieler, der selbst disponiert */
-function ensureDispatchers() {
-  const need = Math.ceil(Object.keys(s.vehicles).length / 8);
-  const bots = s.company.staff.filter((m) => m.id.startsWith('bot'));
-  for (let i = bots.length; i < need; i++)
-    s.company.staff.push({ id: `bot${i}`, name: `Bot ${i}`, dept: 'dispatch', salary: 0, hired: s.time, locationId: s.company.locations[0].id, skill: 80 } as StaffMember);
-}
-ensureDispatchers();
-const ad = applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto', rules: { safeDeadlines: true, chains: true } });
-if (!ad.ok) throw new Error(ad.error);
-
-/** Pflege wie ein umsichtiger Spieler: Wartung unter 50 % Zustand, Urlaub alle drei Monate */
-function care() {
-  for (const v of Object.values(s.vehicles))
-    if (v.status === 'idle' && v.condition < 50) applyCommand(s, ctx, 'p1', { type: 'serviceVehicle', vehicleId: v.id });
-  for (const d of Object.values(s.drivers))
-    if (d.status === 'idle' && (d.vacationLeft ?? 0) >= 7 && s.time - (d.lastVacation ?? d.hired) > 90 * MIN_PER_DAY) applyCommand(s, ctx, 'p1', { type: 'sendVacation', driverId: d.id, days: 7 });
-}
-
-const BUFFER = 18_000_00;
-const LEASE = !process.env.NOLEASE;
-let lastLease = -Infinity;
-function grow() {
-  const bal = s.company.account.balance;
-  const cap = capacity(s);
-  const hq = s.company.locations[0];
-  if (cap.vehicles >= cap.parking || cap.trailers >= cap.trailerParking) {
-    const next = LOCATION_ORDER[LOCATION_ORDER.indexOf(hq.kind) + 1];
-    if (next && bal > LOCATION_DEFS[next].deposit + BUFFER * 1.5) {
-      const r = applyCommand(s, ctx, 'p1', { type: 'upgradeLocation', locationId: hq.id, kind: next });
-      if (r.ok) console.log(`  Tag ${day()}: Standort → ${next}`);
-    }
-    return;
-  }
-  const idleDrivers = Object.values(s.drivers).filter((d) => d.status === 'idle').length;
-  const offers = Object.values(s.vehicleOffers)
-    .filter((o) => !TRUCK_BY_ID[o.modelId].body && o.condition >= 55)
-    .sort((a, b) => a.price - b.price);
-  const off = offers[0];
-  const app = Object.values(s.applicants).sort((a, b) => a.salary - b.salary)[0];
-  if (!app && idleDrivers === 0) return;
-  if (off && bal >= off.price + BUFFER) {
-    if (!applyCommand(s, ctx, 'p1', { type: 'buyUsedVehicle', offerId: off.id }).ok) return;
-  } else if (LEASE && bal >= 10_000_00 && s.time - lastLease > 30 * MIN_PER_DAY) {
-    // Leasing: kein Kapital nötig, aber 1.500 € Rate im Monat
-    if (!applyCommand(s, ctx, 'p1', { type: 'buyNewVehicle', modelId: 'trasko-m380', financing: 'lease' }).ok) return;
-    lastLease = s.time;
-    console.log(`  Tag ${day()}: +1 LKW geleast`);
-  } else return;
-  if (app) applyCommand(s, ctx, 'p1', { type: 'hireDriver', applicantId: app.id });
-  applyCommand(s, ctx, 'p1', { type: 'buyTrailer', trailerType: 'curtain', financing: 'lease' });
-  console.log(`  Tag ${day()}: jetzt ${Object.keys(s.vehicles).length} LKW`);
-}
 const day = () => Math.floor(s.time / MIN_PER_DAY);
+const bot = createBot(s, { lease: !process.env.NOLEASE, log: (t) => console.log(`  Tag ${day()}: ${t}`) });
 
 let lastBal = s.company.account.balance;
 let minBal = lastBal;
 let lastTotals = { ...s.company.totals };
 console.log(`${DIFF}, Seed ${SEED}: Start ${eur(lastBal)}, ${Object.keys(s.vehicles).length} LKW, ${Object.keys(s.drivers).length} Fahrer`);
 for (let d = 1; d <= DAYS; d++) {
-  ensureDispatchers();
-  for (let h = 0; h < 24; h++) {
-    tickMinutes(s, ctx, 60);
-    care();
-  }
-  minBal = Math.min(minBal, s.company.account.balance);
-  grow();
+  bot.day(() => (minBal = Math.min(minBal, s.company.account.balance)));
   if (d % 30 === 0) {
     const t = s.company.totals;
     const del = t.deliveries - lastTotals.deliveries;

@@ -12,7 +12,7 @@ import {
   diffState, applyPatch, sameJson,
   weatherWeights, tickTrip, banUntil, banApplies, validateDispatch, isCustomsBorder, startPhase, dailyEconomy, crisisPaymentFactor, setRegionalTrend, regionFactor,
   activeCompetitors, hourlyCompetition, dailyCompetition, monthlyCompetition, foundCompetitor, dailyEvents, type Trip,
-  pickupWaitMin, freshHos, type StaffMember,
+  pickupWaitMin, freshHos, type StaffMember, checksum, MIGRATIONS, driverTravel,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -1678,3 +1678,135 @@ describe('Feinschliff: Planung und Balancing (Phase 11)', () => {
   });
 });
 
+describe('Veröffentlichung: Speichermigration, Fehlerbehandlung, Fahrer-Anreise (Phase 12)', () => {
+  /** Spielstand-Datei mit beliebiger Formatversion (wie von einer älteren Spielversion geschrieben) */
+  const legacySave = (state: unknown, version: number) => {
+    const json = JSON.stringify(state);
+    return `{"format":"spedsim-save","version":${version},"savedAt":"2026-01-01T00:00:00.000Z","name":"Alt","checksum":"${checksum(json)}","meta":{"company":"Alt","time":0,"balance":0},"state":${json}}`;
+  };
+
+  it('die Migrationskette ist lückenlos', () => {
+    for (let v = 1; v < STATE_VERSION; v++) expect(MIGRATIONS[v], `Migration ${v} → ${v + 1}`).toBeTypeOf('function');
+  });
+
+  it('ein Spielstand im Format von Version 1 wird vollständig migriert und läuft fehlerfrei weiter', () => {
+    const s = newGame(7);
+    const order = addOrder(s, 'leipzig', 'prag');
+    const d = first(s.drivers), v = first(s.vehicles), t = first(s.trailers);
+    expect(applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: order.id, driverId: d.id, vehicleId: v.id, trailerId: t.id }).ok).toBe(true);
+    tickMinutes(s, ctx, 120);
+    // alles entfernen, was seit Version 1 hinzugekommen ist
+    const old = JSON.parse(JSON.stringify(s)) as Record<string, any>;
+    delete old.company.loans;
+    for (const trip of Object.values(old.trips) as Record<string, unknown>[]) delete trip.stops;
+    for (const k of ['disruptions', 'contracts', 'autoDispatch', 'team', 'weather', 'economy', 'competitors', 'events']) delete old[k];
+    for (const drv of Object.values(old.drivers) as Record<string, unknown>[]) {
+      delete drv.vacationLeft;
+      delete drv.lastVacation;
+    }
+    for (const l of old.company.locations) delete l.facilities;
+    delete old.company.staff;
+    delete old.company.level;
+    for (const p of Object.values(old.players) as Record<string, any>[]) {
+      delete p.role;
+      for (const k of ['background', 'skills', 'goals', 'workStyle', 'furniture', 'relations']) delete p.character[k];
+    }
+    old.version = 1;
+
+    const migrated = deserializeSave(legacySave(old, 1));
+    expect(migrated.version).toBe(STATE_VERSION);
+    expect(migrated.company.loans).toEqual([]);
+    expect(migrated.trips[d.tripId!].stops?.map((x) => x.kind)).toEqual(['pickup', 'delivery']);
+    expect(migrated.autoDispatch.mode).toBe('manual');
+    expect(migrated.team.messages).toEqual([]);
+    expect(migrated.players.p1.role).toBe('ceo');
+    expect(migrated.players.p1.character.skills.logistics).toBeGreaterThan(0);
+    expect(migrated.economy.phase).toBeDefined();
+    expect(migrated.company.level).toBe(1);
+    // die laufende Fahrt wird nach der Migration zu Ende gefahren
+    const session = new GameSession(migrated, ctx);
+    migrated.paused = false;
+    migrated.speed = 60;
+    for (let i = 0; i < 2 * 24 * 60 && migrated.orders[order.id].status !== 'delivered'; i++) session.advance(1000);
+    expect(session.fault).toBeNull();
+    expect(migrated.orders[order.id].status).toBe('delivered');
+    expect(Object.keys(migrated.weather).length).toBeGreaterThan(0);
+  });
+
+  it('neuere, fremde und abgeschnittene Spielstände werden mit klarer Meldung abgelehnt', () => {
+    const s = newGame();
+    expect(() => deserializeSave(legacySave(s, STATE_VERSION + 1))).toThrow(/neueren Spielversion/);
+    expect(() => deserializeSave(legacySave(s, 1).replace('spedsim-save', 'anderes-spiel'))).toThrow(/Unbekanntes Dateiformat/);
+    const text = serializeSave(s, 'Test');
+    expect(() => deserializeSave(text.slice(0, text.length / 2))).toThrow(SaveError);
+    expect(() => deserializeSave('')).toThrow(SaveError);
+  });
+
+  it('ein Fehler in der Simulation hält das Spiel an, statt den Host abstürzen zu lassen', () => {
+    const s = newGame();
+    s.paused = false;
+    s.speed = 60;
+    const session = new GameSession(s, ctx);
+    const drivers = s.drivers;
+    let broken = true;
+    Object.defineProperty(s, 'drivers', {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        if (broken) throw new Error('Testfehler');
+        return drivers;
+      },
+    });
+    const t0 = s.time;
+    expect(() => session.advance(5000)).not.toThrow();
+    expect(session.fault?.message).toBe('Testfehler');
+    expect(s.paused).toBe(true);
+    expect(s.log.at(-1)?.text).toMatch(/Simulationsfehler.*Testfehler/);
+    // Ursache behoben: Spieler setzt fort, die Zeit läuft weiter
+    broken = false;
+    session.fault = null;
+    s.paused = false;
+    session.advance(5000);
+    expect(session.fault).toBeNull();
+    expect(s.time).toBeGreaterThan(t0);
+  });
+
+  it('Fahrer reisen per Bahn zu einem wartenden LKW; der KI-Disponent holt überzählige Fahrer selbst', () => {
+    const s = newGame();
+    const d = first(s.drivers), v = first(s.vehicles), t = first(s.trailers);
+    // LKW und Auflieger stehen in Dresden, der Fahrer ist in Leipzig
+    v.cityId = 'dresden';
+    t.cityId = 'dresden';
+    expect(applyCommand(s, ctx, 'p1', { type: 'sendDriver', driverId: d.id, toCityId: d.cityId }).ok).toBe(false);
+    expect(applyCommand(s, ctx, 'p1', { type: 'sendDriver', driverId: d.id, toCityId: 'lissabon' }).ok).toBe(false);
+    const travel = driverTravel(ctx, d.cityId, 'dresden')!;
+    const bal = s.company.account.balance;
+    expect(applyCommand(s, ctx, 'p1', { type: 'sendDriver', driverId: d.id, toCityId: 'dresden' }).ok).toBe(true);
+    expect(s.company.account.balance).toBe(bal - travel.cost);
+    expect(d.status).toBe('traveling');
+    expect(d.absentUntil! - s.time).toBe(travel.minutes);
+    expect(travel.minutes).toBeGreaterThan(60);
+    expect(travel.minutes).toBeLessThan(4 * 60);
+    // unterwegs nicht disponierbar
+    const order = addOrder(s, 'dresden', 'prag');
+    expect(applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: order.id, driverId: d.id, vehicleId: v.id, trailerId: t.id }).ok).toBe(false);
+    tickMinutes(s, ctx, travel.minutes + 60);
+    expect(d.status).toBe('idle');
+    expect(d.cityId).toBe('dresden');
+    expect(d.travelTo).toBeUndefined();
+
+    // Automatik: LKW in Hamburg ohne Fahrer, überzähliger Fahrer am Firmensitz → Disponent schickt ihn
+    const s2 = newGame(3);
+    const d2 = first(s2.drivers), v2 = first(s2.vehicles), t2 = first(s2.trailers);
+    v2.cityId = 'hamburg';
+    t2.cityId = 'hamburg';
+    s2.company.staff.push({ id: 'st1', name: 'Dana Dispo', dept: 'dispatch', salary: 0, hired: s2.time, locationId: s2.company.locations[0].id, skill: 70 } as StaffMember);
+    expect(applyCommand(s2, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto' }).ok).toBe(true);
+    for (let h = 0; h < 3; h++) runAutoDispatch(s2, ctx);
+    expect(d2.status).toBe('traveling');
+    expect(d2.travelTo).toBe('hamburg');
+    // kein zweiter Fahrer für denselben LKW
+    runAutoDispatch(s2, ctx);
+    expect(Object.values(s2.drivers).filter((x) => x.status === 'traveling')).toHaveLength(1);
+  });
+});

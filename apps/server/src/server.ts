@@ -9,6 +9,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -21,6 +22,16 @@ import {
 export interface ServerOptions {
   port: number;
   dbPath: string;
+  /** Bind-Adresse (Standard: alle Schnittstellen) */
+  host?: string;
+  /** maximale Spieler je Firma (Standard 8) */
+  maxPlayers?: number;
+  /** Abstand der Sicherungskopien je Firma in Minuten (Standard 10) */
+  backupMinutes?: number;
+  /** so viele Sicherungskopien je Firma behalten (Standard 10) */
+  backupsKeep?: number;
+  /** Programmversion für /health */
+  version?: string;
   /** Intervall für Zustandsübertragung (ms) */
   broadcastMs?: number;
   /** Intervall für automatisches Speichern (ms) */
@@ -56,7 +67,6 @@ interface Room {
 }
 
 const ctx = createSimContext(roadnet as RoadNetData);
-const MAX_PLAYERS = 8;
 
 function inviteCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -84,6 +94,9 @@ function sanitizeCharacter(c: unknown, name: string): Partial<Character> {
 const cleanName = (v: unknown, fallback: string) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 40) : fallback);
 
 export function startServer(opts: ServerOptions) {
+  const maxPlayers = opts.maxPlayers ?? 8;
+  const backupMs = (opts.backupMinutes ?? 10) * 60_000;
+  const started = Date.now();
   const log = opts.log ?? ((msg, data) => console.log(JSON.stringify({ t: new Date().toISOString(), msg, ...data })));
   mkdirSync(dirname(opts.dbPath), { recursive: true });
   const db = new DatabaseSync(opts.dbPath);
@@ -101,7 +114,7 @@ export function startServer(opts: ServerOptions) {
     insertPlayer: db.prepare('INSERT INTO players (game_id, player_id, token) VALUES (?, ?, ?)'),
     playerToken: db.prepare('SELECT token FROM players WHERE game_id = ? AND player_id = ?'),
     insertBackup: db.prepare('INSERT INTO backups (game_id, created, save) VALUES (?, ?, ?)'),
-    pruneBackups: db.prepare('DELETE FROM backups WHERE game_id = ? AND id NOT IN (SELECT id FROM backups WHERE game_id = ? ORDER BY id DESC LIMIT 10)'),
+    pruneBackups: db.prepare('DELETE FROM backups WHERE game_id = ? AND id NOT IN (SELECT id FROM backups WHERE game_id = ? ORDER BY id DESC LIMIT ?)'),
     latestBackup: db.prepare('SELECT save FROM backups WHERE game_id = ? ORDER BY id DESC LIMIT 1'),
   };
 
@@ -115,7 +128,7 @@ export function startServer(opts: ServerOptions) {
       q.updateGame.run(text, now, room.session.state.company.name, room.id);
       if (backup) {
         q.insertBackup.run(room.id, now, text);
-        q.pruneBackups.run(room.id, room.id);
+        q.pruneBackups.run(room.id, room.id, opts.backupsKeep ?? 10);
       }
       db.exec('COMMIT');
     } catch (e) {
@@ -235,7 +248,7 @@ export function startServer(opts: ServerOptions) {
       for (const other of room.clients) if (other.playerId === m.playerId && other !== c) other.ws.close(4000, 'Neu verbunden');
       return attach(c, room, m.playerId, tk.token);
     }
-    if (Object.keys(room.session.state.players).length >= MAX_PLAYERS) return send(c, { t: 'error', message: 'Die Firma ist voll.' });
+    if (Object.keys(room.session.state.players).length >= maxPlayers) return send(c, { t: 'error', message: 'Die Firma ist voll.' });
     const name = cleanName(m.name, 'Mitspieler/in');
     const playerId = `pl${randomBytes(5).toString('hex')}`;
     const t = token();
@@ -258,7 +271,20 @@ export function startServer(opts: ServerOptions) {
     }
   }
 
-  const wss = new WebSocketServer({ port: opts.port, maxPayload: 64 * 1024, perMessageDeflate: { threshold: 4096 } });
+  // HTTP nur für den Zustandsabruf (Monitoring, Reverse Proxy); alles andere läuft über WebSocket
+  const http = createServer((req, res) => {
+    if (req.method === 'GET' && (req.url === '/health' || req.url === '/')) {
+      const players = [...rooms.values()].reduce((n, r) => n + r.clients.size, 0);
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(JSON.stringify({ ok: true, name: 'cargovia-server', version: opts.version ?? null, uptimeSec: Math.round((Date.now() - started) / 1000), rooms: rooms.size, players }));
+      return;
+    }
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+    res.end('Cargovia-Multiplayer-Server: Verbindung per WebSocket.');
+  });
+  const wss = new WebSocketServer({ server: http, maxPayload: 64 * 1024, perMessageDeflate: { threshold: 4096 } });
+  // Fehler des HTTP-Servers (z. B. belegter Port) reicht ws weiter; sie werden über `ready` gemeldet
+  wss.on('error', (e) => log('ws_error', { error: e.message }));
 
   wss.on('connection', (ws) => {
     const c: Client = { ws, rev: 0 };
@@ -313,6 +339,10 @@ export function startServer(opts: ServerOptions) {
     for (const room of rooms.values()) {
       if (room.clients.size === 0) continue;
       room.session.advance(dt);
+      if (room.session.fault) {
+        log('simulation_fault', { game: room.id, error: room.session.fault.message, stack: room.session.fault.stack, time: room.session.fault.time });
+        room.session.fault = null;
+      }
     }
     if (sinceBroadcast >= broadcastMs) {
       sinceBroadcast = 0;
@@ -324,17 +354,30 @@ export function startServer(opts: ServerOptions) {
     for (const room of rooms.values()) {
       if (room.session.revision === room.lastSavedRev) continue;
       try {
-        persist(room, Date.now() - room.lastBackup > 10 * 60_000);
+        persist(room, Date.now() - room.lastBackup > backupMs);
       } catch (e) {
         log('save_failed', { game: room.id, error: (e as Error).message });
       }
     }
   }, opts.saveMs ?? 30_000);
 
-  log('server_started', { port: opts.port, db: opts.dbPath });
+  /** erfüllt, sobald der Port gebunden ist; abgelehnt z. B. bei belegtem Port */
+  const ready = new Promise<void>((resolveReady, rejectReady) => {
+    http.once('error', (e) => {
+      clearInterval(tick);
+      clearInterval(saver);
+      db.close();
+      rejectReady(e);
+    });
+    http.listen(opts.port, opts.host ?? '0.0.0.0', () => {
+      log('server_started', { port: opts.port, host: opts.host ?? '0.0.0.0', db: opts.dbPath, version: opts.version });
+      resolveReady();
+    });
+  });
 
   return {
     port: opts.port,
+    ready,
     rooms,
     stats,
     async close() {
@@ -343,6 +386,8 @@ export function startServer(opts: ServerOptions) {
       for (const room of rooms.values()) persist(room, true);
       for (const c of wss.clients) c.terminate();
       await new Promise<void>((r) => wss.close(() => r()));
+      http.closeAllConnections();
+      await new Promise<void>((r) => http.close(() => r()));
       db.close();
     },
   };
