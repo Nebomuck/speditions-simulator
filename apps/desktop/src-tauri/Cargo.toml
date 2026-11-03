@@ -1,6 +1,6 @@
 [package]
 name = "spedsim-desktop"
-version = "0.13.1"
+version = "0.13.2"
 description = "Cargovia – Logistik-Simulation Europa"
 edition = "2021"
 

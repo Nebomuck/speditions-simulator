@@ -6,7 +6,7 @@
 
 Ein Speditions- und Unternehmenssimulator für Windows: Du gründest eine kleine Spedition mit einem gebrauchten LKW, einem Fahrer und wenig Kapital, nimmst Aufträge an, disponierst Fahrten über **echte europäische Straßen**, verfolgst deine LKW **live auf der Europakarte** und baust Schritt für Schritt ein internationales Logistikunternehmen auf – allein oder im **kooperativen Multiplayer**.
 
-> Entwicklungsstand: **Version 0.13.1 – Phasen 1–12 abgeschlossen, erweiterte Welt**.
+> Entwicklungsstand: **Version 0.13.2 – Phasen 1–12 abgeschlossen, erweiterte Welt**.
 >
 > Der Installer ist nicht mit einem Code-Signing-Zertifikat signiert. Windows SmartScreen kann deshalb beim ersten Start warnen: „Weitere Informationen“ → „Trotzdem ausführen“. Updates aus dem Spiel heraus sind signiert und werden geprüft.
 > Was genau funktioniert und getestet ist, steht in [FEATURE_CHECKLIST.md](FEATURE_CHECKLIST.md).

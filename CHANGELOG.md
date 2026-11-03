@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.2 – 03.11.2026
+
+- **Update-Ordner, zweiter Teil:** Versionen bis 0.11.0 haben jedes Update weiter nach %LOCALAPPDATA%\Cargovia installiert. Die Desktop-Verknüpfung startete deshalb immer wieder die alte Version, und das Update wurde erneut angeboten. Der Fix aus 0.11.1 steckte in der laufenden App und kam darum bei diesen Installationen nie an.
+  - Jetzt prüft der Installer selbst, wohin die Desktop- oder Startmenü-Verknüpfung zeigt, und aktualisiert genau diesen Ordner.
+  - Eine Fehlinstallation im Standardordner wird dabei entfernt. Spielstände und Einstellungen sind davon nicht betroffen.
+
 ## 0.13.1 – 03.11.2026
 
 - **Fahrzeugfotos:**
