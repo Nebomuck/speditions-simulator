@@ -10,6 +10,7 @@ import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibr
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CITIES, CITY_BY_ID, FACILITY_DEFS, disruptionLabel, formatDateTime, vehicleMarker, isTripLate, type GameState } from '@spedsim/core';
 import { getUi, setUi, useUi, world } from '../game/store.ts';
+import { MAP_ICON_URLS, profileKey } from './VehicleImage.tsx';
 
 export type MapFilter = 'all' | 'active' | 'idle' | 'late' | 'loaded' | 'empty';
 
@@ -236,10 +237,11 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
       refreshStatic(map);
     });
 
-    map.on('click', 'vehicles', (e) => {
-      const id = e.features?.[0]?.properties?.id as string | undefined;
-      if (id) setUi({ selectedVehicleId: id, page: mini ? 'map' : getUi().page });
-    });
+    for (const l of ['vehicles', 'vehicles-art'])
+      map.on('click', l, (e) => {
+        const id = e.features?.[0]?.properties?.id as string | undefined;
+        if (id) setUi({ selectedVehicleId: id, page: mini ? 'map' : getUi().page });
+      });
     // Fahrzeuggruppe: hineinzoomen, bis sie sich auflöst
     map.on('click', 'vehicle-clusters', async (e) => {
       const f = e.features?.[0];
@@ -257,7 +259,7 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
       if (name) new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(`<b>${name}</b><br/>Eigener Standort`).addTo(map);
     });
     map.on('dragstart', () => getUi().followVehicle && setUi({ followVehicle: false }));
-    for (const l of ['vehicles', 'cities-own', 'vehicle-clusters', 'poi', 'poi-own']) {
+    for (const l of ['vehicles', 'vehicles-art', 'cities-own', 'vehicle-clusters', 'poi', 'poi-own']) {
       map.on('mouseenter', l, () => (map.getCanvas().style.cursor = 'pointer'));
       map.on('mouseleave', l, () => (map.getCanvas().style.cursor = ''));
     }
@@ -265,6 +267,8 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
     // Animationsschleife: Fahrzeugpositionen interpolieren
     let raf = 0;
     let lastFrame = 0;
+    // Blickrichtung des Seitenprofils; stehende Fahrzeuge behalten die letzte
+    const facing = new Map<string, 'l' | 'r'>();
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       if (now - lastFrame < 33) return; // ~30 fps
@@ -284,9 +288,12 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
         const extraKm = trip ? (trip.speedKmh / 60) * gameMin : 0;
         const m = vehicleMarker(st, world, id, extraKm);
         if (id === u.selectedVehicleId) followPos = m.pos;
+        const moving = m.activity === 'driving' || m.activity === 'ferry';
+        if (moving) facing.set(id, m.bearing > 180 && m.bearing < 360 ? 'l' : 'r');
+        const art = profileKey(v.modelId, trip?.trailerId ? st.trailers[trip.trailerId]?.type : null);
         features.push({
           type: 'Feature',
-          properties: { id, activity: m.activity, bearing: m.bearing, late: m.late, moving: m.activity === 'driving' || m.activity === 'ferry', selected: id === u.selectedVehicleId, plate: v.plate },
+          properties: { id, activity: m.activity, bearing: m.bearing, late: m.late, moving, selected: id === u.selectedVehicleId, plate: v.plate, facing: facing.get(id) ?? 'r', ...(art ? { art } : {}) },
           geometry: { type: 'Point', coordinates: m.pos },
         });
       }
@@ -351,6 +358,29 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
   return <div ref={ref} className="map-wrap" />;
 }
 
+/** Seitenprofile als Kartensymbole laden, je nach rechts (-r) und gespiegelt nach links (-l) */
+function loadVehicleIcons(map: maplibregl.Map) {
+  for (const [key, url] of Object.entries(MAP_ICON_URLS)) {
+    if (map.hasImage(`veh-${key}-r`)) continue;
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const g = c.getContext('2d', { willReadFrequently: true })!;
+      g.drawImage(img, 0, 0);
+      const right = g.getImageData(0, 0, c.width, c.height);
+      g.clearRect(0, 0, c.width, c.height);
+      g.setTransform(-1, 0, 0, 1, c.width, 0);
+      g.drawImage(img, 0, 0);
+      const left = g.getImageData(0, 0, c.width, c.height);
+      if (!map.hasImage(`veh-${key}-r`)) map.addImage(`veh-${key}-r`, right, { pixelRatio: 2 });
+      if (!map.hasImage(`veh-${key}-l`)) map.addImage(`veh-${key}-l`, left, { pixelRatio: 2 });
+    };
+    img.src = url;
+  }
+}
+
 function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
   const dark = theme === 'dark';
   if (!map.hasImage('arrow')) map.addImage('arrow', arrowImage(), { sdf: true });
@@ -362,6 +392,7 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     ['poi-own-warehouse', 'L', '#f59e0b', false],
   ] as const)
     if (!map.hasImage(id)) map.addImage(id, poiImage(letter, color, square), { pixelRatio: 2 });
+  loadVehicleIcons(map);
   map.addSource('roads', { type: 'geojson', data: roadsGeoJSON() });
   map.addSource('cities', { type: 'geojson', data: citiesGeoJSON(null) });
   map.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
@@ -532,6 +563,21 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
       'circle-radius': ['case', ['get', 'selected'], 16, 11],
       'circle-color': ['case', ['get', 'late'], '#f87171', colorExpr],
       'circle-opacity': ['case', ['get', 'selected'], 0.35, 0.18],
+    },
+  });
+  map.addLayer({
+    id: 'vehicles-art',
+    type: 'symbol',
+    source: 'vehicles',
+    filter: ['all', single, ['has', 'art']],
+    minzoom: 7,
+    layout: {
+      'icon-image': ['concat', 'veh-', ['get', 'art'], '-', ['get', 'facing']],
+      'icon-anchor': 'bottom',
+      'icon-offset': [0, -4],
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 7, 0.7, 9, 0.95, 12, 1.4],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
     },
   });
   map.addLayer({

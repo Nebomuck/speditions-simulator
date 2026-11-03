@@ -74,7 +74,7 @@ Die Abhängigkeiten zeigen nur in eine Richtung: `types/data/geo/time/rng` → `
 - Zufall nur über `rng.ts` mit Zustand im Spielstand. Gleicher Spielstand + gleiche Befehle ergeben den gleichen Verlauf; der Speichertest prüft das.
 - Fahrten speichern nur Knotenfolgen und km-Fortschritt. Die Geometrie kommt aus dem Straßennetz, deshalb bleiben Spielstände klein.
 - Der Generator (`tools/roadnet`) verbindet jede Stadt mit ihren 5 nächsten Nachbarn und übernimmt alle Kanten der vorhandenen `roadnet.json`. Das Netz wächst also nur; Knotenfolgen laufender Fahrten aus alten Spielständen bleiben gültig.
-- Aussehen von Charakteren (`avatar.ts`) ist ein Satz kleiner Indizes (`AvatarLook`), der Server und `setAvatar` begrenzen jeden Wert. Porträts von Angestellten werden im Client deterministisch aus dem Namen erzeugt und nicht gespeichert; Fahrzeugbilder sind SVG aus Modell und Aufliegertyp.
+- Aussehen von Charakteren (`avatar.ts`) ist ein Satz kleiner Indizes (`AvatarLook`), der Server und `setAvatar` begrenzen jeden Wert. Porträts von Angestellten werden im Client deterministisch aus dem Namen erzeugt und nicht gespeichert; Fahrzeugbilder sind WebP-Dateien in `apps/client/src/assets/vehicles` (`photo/` Markt und Fuhrpark, `profile/` Fahrzeugfenster, `map/` Kartensymbole mit 12 px je Meter Fahrzeuglänge), eingebunden über `ui/VehicleImage.tsx`; fehlt eine Datei, zeichnet `ui/VehicleArt.tsx` eine SVG-Ansicht.
 
 ## Simulationsschleife
 

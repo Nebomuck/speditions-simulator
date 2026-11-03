@@ -11,3 +11,6 @@ apps/desktop/src-tauri/binaries/
 
 # Signaturschlüssel niemals einchecken
 *.key
+
+# Rohbilder (KI-generiert, umgewandelt nach apps/client/src/assets/vehicles)
+/Assets/

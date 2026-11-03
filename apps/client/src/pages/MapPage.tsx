@@ -8,7 +8,8 @@ import { localStorageSet, sendCommand, setUi, useGame, useUi, world } from '../g
 import { Badge, Bar, Money } from '../ui/components.tsx';
 import { MapView, type MapFilter } from '../ui/MapView.tsx';
 import { Resizer } from '../ui/Resizer.tsx';
-import { VehicleArt, artSeed } from '../ui/VehicleArt.tsx';
+import { artSeed } from '../ui/VehicleArt.tsx';
+import { VehicleProfile } from '../ui/VehicleImage.tsx';
 import { activityLabel, cityName, countryName, km, tons, modelName, tripLabel } from '../ui/format.ts';
 
 const FILTERS: [MapFilter, string][] = [
@@ -133,7 +134,7 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
         </button>
         <button className="icon-btn" onClick={() => setUi({ selectedVehicleId: null, followVehicle: false })}><X size={16} /></button>
       </div>
-      <div className="panel-art"><VehicleArt modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={trip?.trailerId ? 300 : 110} seed={artSeed(v.id)} /></div>
+      <div className="panel-art"><VehicleProfile modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={320} seed={artSeed(v.id)} /></div>
       <div className="row wrap">
         <Badge kind={trip ? (trip.activity === 'breakdown' || trip.activity === 'accident' ? 'danger' : trip.activity === 'ban' || trip.activity === 'border' ? 'warning' : 'info') : 'success'}>{activityLabel(trip, v.status)}</Badge>
         {late && <Badge kind="danger">Verspätet</Badge>}

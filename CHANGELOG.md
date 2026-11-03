@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.1 – 03.11.2026
+
+- **Fahrzeugfotos:**
+  - Alle 10 LKW-Modelle und 9 Aufliegertypen zeigen jetzt detaillierte Bilder.
+  - Sie erscheinen im Fuhrpark, auf dem Neu- und Gebrauchtmarkt, im Kaufdialog und beim Aufliegermarkt.
+- **Seitenprofile:**
+  - Das Fahrzeugfenster auf der Karte zeigt den Zug in der Seitenansicht.
+  - Beim Hineinzoomen erscheint das Fahrzeug auf der Karte als kleines Seitenprofil und blickt in Fahrtrichtung.
+  - Für Sattelzüge gibt es je Zugmaschine ein Profil mit einem typischen Auflieger. Passt der gezogene Auflieger nicht dazu, wird das Profil der Zugmaschine gezeigt.
+  - Eine Zugmaschine ohne Auflieger zeigt ihr Foto.
+
 ## 0.13.0 – 03.11.2026
 
 - **Größere Welt:**
