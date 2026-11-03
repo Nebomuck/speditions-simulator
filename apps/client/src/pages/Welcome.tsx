@@ -1,14 +1,15 @@
 // Startbildschirm: Firma gründen, Spielstand laden, Multiplayer-Firma erstellen oder beitreten.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server, Download } from 'lucide-react';
-import { BACKGROUNDS, CITIES, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type CharacterBackground, type Difficulty, type DifficultyId } from '@spedsim/core';
+import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server, Download, Pencil, Dices } from 'lucide-react';
+import { BACKGROUNDS, CITIES, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type AvatarLook, type CharacterBackground, type Difficulty, type DifficultyId } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
 import { appVersion, checkForUpdate, installUpdate, type Update } from '../game/updater.ts';
 import { connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
 import type { SaveMeta } from '../game/protocol.ts';
 import { localStorageSet, receiveSnapshot, setUi, toast } from '../game/store.ts';
 import { Avatar, Modal } from '../ui/components.tsx';
+import { CharacterEditor, DEFAULT_LOOK, randomLook } from '../ui/CharacterEditor.tsx';
 import { countryName } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
 
@@ -50,7 +51,8 @@ export function Welcome() {
   const [hq, setHq] = useState('leipzig');
   const [difficulty, setDifficulty] = useState<DifficultyId>('normal');
   const [custom, setCustom] = useState<Partial<Difficulty>>({ ...DIFFICULTIES.normal });
-  const [avatar, setAvatar] = useState({ skin: 1, hair: 1, hairColor: 1, shirt: 0 });
+  const [avatar, setAvatar] = useState<AvatarLook>(DEFAULT_LOOK);
+  const [editLook, setEditLook] = useState(false);
   const [age, setAge] = useState(32);
   const [background, setBackground] = useState<CharacterBackground>('career_changer');
   const [saves, setSaves] = useState<SaveMeta[]>([]);
@@ -202,19 +204,21 @@ export function Welcome() {
 
           {(tab === 'new' || (tab === 'mp' && mpMode !== 'list')) && (
             <>
+              {editLook && <CharacterEditor value={avatar} name={player} onSave={setAvatar} onClose={() => setEditLook(false)} />}
               <div className="row" style={{ gap: 14, alignItems: 'flex-start' }}>
-                <Avatar size={64} avatar={avatar} />
+                <button className="avatar-edit" title="Aussehen gestalten" onClick={() => setEditLook(true)}>
+                  <Avatar size={84} avatar={avatar} />
+                  <span><Pencil size={12} /> Aussehen</span>
+                </button>
                 <div style={{ flex: 1 }}>
                   <div className="field">
                     <label>Dein Name (Geschäftsführer/in)</label>
                     <input className="input" value={player} onChange={(e) => setPlayer(e.target.value)} />
                   </div>
                   <div className="row wrap" style={{ gap: 6 }}>
-                    {(['skin', 'hair', 'hairColor', 'shirt'] as const).map((k) => (
-                      <button key={k} className="btn small" onClick={() => setAvatar((a) => ({ ...a, [k]: (a[k] + 1) % 6 }))}>
-                        {{ skin: 'Hautton', hair: 'Frisur', hairColor: 'Haarfarbe', shirt: 'Kleidung' }[k]}
-                      </button>
-                    ))}
+                    <button className="btn small" onClick={() => setEditLook(true)}><Pencil size={13} />Aussehen gestalten</button>
+                    <button className="btn small" title="Zufälliges Aussehen" onClick={() => setAvatar(randomLook())}><Dices size={13} /></button>
+                    <label className="dim" style={{ fontSize: 12.5 }}>Alter</label>
                     <input className="input" type="number" min={21} max={65} value={age} onChange={(e) => setAge(Number(e.target.value))} style={{ width: 80 }} title="Alter" />
                   </div>
                   <div className="field mt">

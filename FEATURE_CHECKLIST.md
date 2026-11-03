@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 03.11.2026 · Version 0.12.0
+Stand: 03.11.2026 · Version 0.13.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -22,11 +22,11 @@ Stand: 03.11.2026 · Version 0.12.0
 | Anforderung | Status | Anmerkung |
 |---|---|---|
 | Zoom/Verschieben | Implementiert | |
-| Reale Städte | Implementiert | 161 Städte, 29 Länder |
-| Reale Straßen, Autobahnen | Implementiert | Grundkarte + 384 echte OSM-Routen |
+| Reale Städte | Getestet | 240 Städte, 32 Länder |
+| Reale Straßen, Autobahnen | Getestet | Grundkarte + 764 echte OSM-Routen, Fähren Calais–Dover und Tallinn–Helsinki |
 | Ländergrenzen | Implementiert | Grundkarte |
 | Firmenstandorte | Implementiert | orange markiert |
-| Werkstätten, Tankstellen, Rastplätze | Geplant | Phase 10 (POI-Layer) |
+| Werkstätten, Tankstellen, Rastplätze | Implementiert | POI-Ebene „Rastplätze & Werkstätten“, eigene Anlagen hervorgehoben |
 | Liefer-/Abholorte | Implementiert | Routenvorschau in der Börse |
 | Lagerhäuser/Logistikzentren | Getestet | Lagerhalle je Standort (ab Stufe 3): Lagererlöse nach Auslastung, zieht Aufträge an |
 | Verkehrsmeldungen & Ereignisse auf der Karte | Implementiert | Sperrungen (auch wetterbedingt) und Staus auf der Karte und in „Verkehrslage“; Wetter, Fahrverbote und Ereignisse unter „Markt & Wettbewerb“ |
@@ -44,7 +44,7 @@ Stand: 03.11.2026 · Version 0.12.0
 | Filter: Niederlassung, Vertragsaufträge | Teilweise | Fuhrpark nach Standort filterbar; Vertragstouren gekennzeichnet |
 | Fahrzeug verfolgen (Auto-Zentrierung) | Implementiert | |
 | Heatmaps Nachfrage/Verkehr, Korridore, Flottenverteilung | Geplant | Phase 10 |
-| Clustering bei sehr vielen Fahrzeugen | Geplant | Phase 11 |
+| Clustering bei sehr vielen Fahrzeugen | Implementiert | Gruppen ab 4 Fahrzeugen bis Zoom 7, Klick zoomt hinein |
 
 ## 5 · Auftragssystem
 | Anforderung | Status | Anmerkung |
@@ -133,7 +133,7 @@ Stand: 03.11.2026 · Version 0.12.0
 ## 13–14 · Lebenssimulation & Geldkreislauf
 | Anforderung | Status |
 |---|---|
-| Charakter mit 2D-Avatar, Name, Alter, Hintergrund (Startfähigkeiten) | Implementiert |
+| Charakter mit 2D-Avatar, Name, Alter, Hintergrund (Startfähigkeiten) | Getestet (Charakter-Editor mit 14 Merkmalen, im Spiel änderbar; Porträts für alle Angestellten; Fahrzeugbilder je Modell und Aufliegertyp) |
 | Getrenntes Privat-/Firmenvermögen | Getestet |
 | GF-Gehalt beeinflusst Privateinkommen und Firma | Getestet |
 | Bedürfnisse mit tatsächlicher Wirkung (Leistungsfähigkeit, Erschöpfung) | Getestet (Arbeitsstil → Stress/Energie, Burnout legt die eigene Disposition lahm) |
@@ -193,7 +193,7 @@ Stand: 03.11.2026 · Version 0.12.0
 | Dashboard mit allen geforderten Kennzahlen + Mini-Karte | Implementiert |
 | Tabellen, Diagramme, Dialoge, Drag-and-Drop, Tooltips, Benachrichtigungen | Implementiert |
 | Kontextmenüs | Implementiert (Rechtsklick auf Fahrzeuge, Aufträge und Fahrer) |
-| Anpassbare Panelgrößen | Geplant |
+| Anpassbare Panelgrößen | Implementiert (Seitenleiste, Dispositionsliste, Fahrzeugfenster; gespeichert, Doppelklick setzt zurück) |
 | Tutorial „Erste Schritte“ | Implementiert (9 Schritte, erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor) |
 | Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 15 Artikel) |
 | Dezente Animationen | Implementiert (Seitenwechsel, Meldungen, Dialoge; respektiert „Bewegung reduzieren“) |

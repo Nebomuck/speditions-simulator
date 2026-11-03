@@ -2,6 +2,8 @@
 // Der gesamte Zustand ist ein reines JSON-Objekt: serialisierbar, synchronisierbar, deterministisch.
 // Geldbeträge sind immer ganze Euro-Cent (Money), Zeiten immer Spielminuten seit Spielbeginn (GameTime).
 
+import type { AvatarLook } from './avatar.ts';
+
 export type Id = string;
 export type Money = number; // Cent
 export type GameTime = number; // Minuten seit Epoche (siehe time.ts)
@@ -204,7 +206,7 @@ export interface Loan {
 export interface Character {
   name: string;
   age: number;
-  avatar: { skin: number; hair: number; hairColor: number; shirt: number };
+  avatar: AvatarLook;
   privateAccount: Account;
   /** Monatliches Geschäftsführergehalt (brutto ≈ netto im Spielmodell). */
   salary: Money;

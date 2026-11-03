@@ -133,7 +133,7 @@ export const CARGO_BY_ID: Record<string, CargoDef> = Object.fromEntries(CARGOS.m
 export const TOLL_CENT_PER_KM: Record<string, number> = {
   DE: 35, AT: 44, CH: 110, FR: 24, IT: 20, ES: 12, PT: 18, NL: 14, BE: 15, LU: 10, GB: 4,
   PL: 9, CZ: 21, SK: 18, HU: 26, SI: 25, HR: 18, RS: 12, BA: 8, MK: 8, RO: 7, BG: 9, GR: 15,
-  DK: 15, SE: 3, NO: 10, LT: 5, LV: 5, EE: 5,
+  DK: 15, SE: 3, NO: 10, LT: 5, LV: 5, EE: 5, FI: 0, ME: 6, AL: 6,
 };
 
 export const COUNTRY_NAMES: Record<string, string> = {
@@ -142,6 +142,7 @@ export const COUNTRY_NAMES: Record<string, string> = {
   PL: 'Polen', CZ: 'Tschechien', SK: 'Slowakei', HU: 'Ungarn', SI: 'Slowenien', HR: 'Kroatien',
   RS: 'Serbien', BA: 'Bosnien und Herzegowina', MK: 'Nordmazedonien', RO: 'Rumänien', BG: 'Bulgarien',
   GR: 'Griechenland', DK: 'Dänemark', SE: 'Schweden', NO: 'Norwegen', LT: 'Litauen', LV: 'Lettland', EE: 'Estland',
+  FI: 'Finnland', ME: 'Montenegro', AL: 'Albanien',
 };
 
 export interface LocationDef {

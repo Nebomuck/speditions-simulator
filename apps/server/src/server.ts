@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { WebSocketServer, type WebSocket } from 'ws';
 import roadnet from '@spedsim/core/roadnet.json' with { type: 'json' };
 import {
-  GameSession, addPlayer, applyPatch, createNewGame, createSimContext, deserializeSave, diffState, playerView, serializeSave, sanitizeDifficulty, CITY_BY_ID, LIFE_GOALS,
+  GameSession, addPlayer, sanitizeAvatar, applyPatch, createNewGame, createSimContext, deserializeSave, diffState, playerView, serializeSave, sanitizeDifficulty, CITY_BY_ID, LIFE_GOALS,
   type Character, type Command, type Difficulty, type DifficultyId, type RoadNetData,
 } from '@spedsim/core';
 
@@ -80,12 +80,10 @@ const token = () => randomBytes(18).toString('base64url');
 
 function sanitizeCharacter(c: unknown, name: string): Partial<Character> {
   const o = (c && typeof c === 'object' ? c : {}) as Record<string, unknown>;
-  const av = (o.avatar && typeof o.avatar === 'object' ? o.avatar : {}) as Record<string, unknown>;
-  const n = (v: unknown, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.round(v))) : 0);
   return {
     name,
     age: typeof o.age === 'number' ? Math.max(18, Math.min(80, Math.round(o.age))) : 32,
-    avatar: { skin: n(av.skin, 10), hair: n(av.hair, 10), hairColor: n(av.hairColor, 10), shirt: n(av.shirt, 10) },
+    avatar: sanitizeAvatar(o.avatar),
     ...(o.background === 'driver' || o.background === 'merchant' || o.background === 'career_changer' ? { background: o.background } : {}),
     ...(Array.isArray(o.goals) ? { goals: o.goals.filter((g): g is string => typeof g === 'string' && g in LIFE_GOALS).slice(0, 4) } : {}),
   };

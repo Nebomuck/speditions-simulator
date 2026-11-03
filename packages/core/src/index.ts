@@ -1,6 +1,7 @@
 // Öffentliche Schnittstelle des Simulationskerns.
 
 export * from './types.ts';
+export * from './avatar.ts';
 export * from './geo.ts';
 export * from './time.ts';
 export * from './rng.ts';

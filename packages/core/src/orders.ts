@@ -20,8 +20,8 @@ import type { GameState, Order } from './types.ts';
 
 const ll = (c: CityDef): [number, number] => [c.lon, c.lat];
 
-/** Ziel-Größe der Börse (offene Angebote). */
-export const MARKET_TARGET = 320;
+/** Ziel-Größe der Börse (offene Angebote); seit der Erweiterung auf 240 Städte im Verhältnis der Einwohner angehoben. */
+export const MARKET_TARGET = 350;
 /** Anteil der Aufträge aus dem Einzugsgebiet der eigenen Standorte/Fahrzeuge. */
 const LOCAL_SHARE = 0.45;
 const LOCAL_RADIUS_KM = 450;

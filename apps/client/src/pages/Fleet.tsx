@@ -8,6 +8,7 @@ import { sendCommand, setUi, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Modal, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { activityLabel, bodyName, cityName, dec, km, modelName, trailerName } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
+import { TrailerArt, VehicleArt, artSeed } from '../ui/VehicleArt.tsx';
 import { openMenu, type MenuItem } from '../ui/ContextMenu.tsx';
 import type { GameState } from '@spedsim/core';
 
@@ -102,7 +103,12 @@ export function FleetPage() {
                 return (
                   <tr key={v.id} onContextMenu={(e) => openMenu(e, vehicleMenu(s, v), `${v.plate} · ${m.maker} ${m.name}`)}>
                     <td><b>{v.plate}</b></td>
-                    <td>{m.maker} {m.name}<div className="dim">{kindText(v.modelId)} · {v.year} · {m.hp} PS · {m.emission} · Ø {dec(m.consumption)} l/100 km</div></td>
+                    <td>
+                      <div className="row">
+                        <VehicleArt modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={trip?.trailerId ? 120 : 64} seed={artSeed(v.id)} />
+                        <div>{m.maker} {m.name}<div className="dim">{kindText(v.modelId)} · {v.year} · {m.hp} PS · {m.emission} · Ø {dec(m.consumption)} l/100 km</div></div>
+                      </div>
+                    </td>
                     <td><Badge kind={trip ? 'info' : v.status === 'workshop' ? 'warning' : 'success'}>{activityLabel(trip, v.status)}</Badge>{v.busyUntil && <div className="dim" style={{ fontSize: 12 }}>bis {formatDateTime(v.busyUntil)}</div>}</td>
                     <td>{trip ? 'unterwegs' : cityName(v.cityId)}</td>
                     <td><div className="row"><Bar value={v.condition} />{Math.round(v.condition)} %</div></td>
@@ -144,7 +150,7 @@ export function FleetPage() {
               {trailers.map((t) => (
                 <tr key={t.id}>
                   <td><b>{t.plate}</b></td>
-                  <td>{trailerName(t.type)}</td>
+                  <td><div className="row"><TrailerArt type={t.type} width={84} seed={artSeed(t.id)} />{trailerName(t.type)}</div></td>
                   <td><Badge kind={t.status === 'idle' ? 'success' : 'info'}>{t.status === 'idle' ? 'frei' : 'im Einsatz'}</Badge></td>
                   <td>{t.status === 'idle' ? cityName(t.cityId) : 'unterwegs'}</td>
                   <td><div className="row"><Bar value={t.condition} />{Math.round(t.condition)} %</div></td>
@@ -179,7 +185,7 @@ function UsedMarket({ onClose }: { onClose: () => void }) {
           <tbody>
             {offers.map((o) => (
               <tr key={o.id}>
-                <td><b>{modelName(o.modelId)}</b><div className="dim">{TRUCK_BY_ID[o.modelId].hp} PS · {TRUCK_BY_ID[o.modelId].emission}</div></td>
+                <td><div className="row"><VehicleArt modelId={o.modelId} width={64} /><div><b>{modelName(o.modelId)}</b><div className="dim">{TRUCK_BY_ID[o.modelId].hp} PS · {TRUCK_BY_ID[o.modelId].emission}</div></div></div></td>
                 <td>{o.year}</td>
                 <td className="num">{km(o.odometerKm)}</td>
                 <td><div className="row"><Bar value={o.condition} />{o.condition} %</div></td>
@@ -234,6 +240,7 @@ function Purchase({ model: m, onBack, onDone }: { model: TruckModel; onBack: () 
         <b style={{ fontSize: 16 }}>{m.maker} {m.name}</b>
         <span className="dim">{kindText(m.id)} · Listenpreis <Money value={m.price} /></span>
       </div>
+      <div className="purchase-art"><VehicleArt modelId={m.id} trailer={m.body ? null : 'curtain'} width={m.body ? 260 : 420} /></div>
       <div className="grid grid-2">
         <div>
           <div className="field">
@@ -308,7 +315,7 @@ function NewMarket({ onClose }: { onClose: () => void }) {
           <tbody>
             {TRUCK_MODELS.map((m) => (
               <tr key={m.id}>
-                <td><b>{m.maker} {m.name}</b><div className="dim">{kindText(m.id)} · {m.emission}</div></td>
+                <td><div className="row"><VehicleArt modelId={m.id} width={m.kind === 'rigid' ? 96 : 64} /><div><b>{m.maker} {m.name}</b><div className="dim">{kindText(m.id)} · {m.emission}</div></div></div></td>
                 <td>{m.hp} PS</td>
                 <td>{dec(m.consumption)} l/100 km</td>
                 <td>{m.tankL} l</td>
@@ -352,7 +359,7 @@ function TrailerMarket({ onClose }: { onClose: () => void }) {
           <tbody>
             {TRAILERS.map((t) => (
               <tr key={t.type}>
-                <td><b>{t.name}</b></td>
+                <td><div className="row"><TrailerArt type={t.type} width={110} /><b>{t.name}</b></div></td>
                 <td>{t.payloadT} t</td>
                 <td className="num"><Money value={t.price} /></td>
                 <td className="num"><Money value={t.leaseRate} /></td>

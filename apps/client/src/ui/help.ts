@@ -80,6 +80,7 @@ export const HELP: HelpArticle[] = [
       '• Ausgenommen: Transporter, leichte Solo-LKW und beladene Kühltransporte.',
       '• Zollgrenzen zur Schweiz, zu Norwegen, Großbritannien und zum Westbalkan: im Schnitt 35 min, am Westbalkan 2 h Wartezeit.',
       'Übersicht je Land unter „Markt & Wettbewerb“ → „Regionen & Wetter“.',
+      '• Auf der Karte zeigt der Schalter „Rastplätze & Werkstätten“ Rastplätze, Werkstätten und deine eigenen Anlagen. Viele Fahrzeuge an einem Ort erscheinen als Zahl – ein Klick zoomt hinein.',
     ],
   },
   {
@@ -174,6 +175,7 @@ export const HELP: HelpArticle[] = [
       'Dein Charakter hat Bedürfnisse, ein Privatkonto und ein Leben neben der Firma. Wer zu viel arbeitet, wird erschöpft und disponiert schlechter.',
       '• Das Geschäftsführergehalt fließt aufs Privatkonto; Gewinnausschüttungen sind möglich.',
       '• Wohnen, Freizeit, Beziehungen und Ziele kosten Geld und Zeit, geben aber Energie zurück.',
+      '• Ein Klick auf dein Bild öffnet den Charakter-Editor für dein Aussehen.',
     ],
   },
   {

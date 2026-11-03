@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.13.0 – 03.11.2026
+
+- **Größere Welt:**
+  - 240 Städte in 32 Ländern (vorher 161 in 29), darunter Bielefeld, Karlsruhe, Chemnitz, Rouen, Grenoble, A Coruña, Bozen, Rzeszów, Iași, Niš, Liverpool, Edinburgh, Umeå und Luleå.
+  - Neu sind Finnland (Fähre Tallinn–Helsinki oder Landweg über Lappland), Montenegro und Albanien, jeweils mit Maut, Wetter, Rechtsformen und Zollgrenzen auf dem Westbalkan.
+- **Dichteres Straßennetz:**
+  - 764 echte Straßenverbindungen, vorher 384.
+  - Routen folgen jetzt eher der realen Strecke, z. B. Dresden → Warschau 710 km über Breslau statt 811 km über Berlin, Paris → Lissabon 1.867 km statt 2.143 km.
+  - Alle bisherigen Verbindungen bleiben erhalten, laufende Fahrten in alten Spielständen fahren unverändert weiter.
+  - Die Frachtbörse ist auf rund 350 offene Angebote vergrößert.
+- **Karte:**
+  - Viele Fahrzeuge an einem Ort werden zu einer Zahl zusammengefasst. Ein Klick zoomt hinein, rot markiert eine Gruppe mit Verspätung.
+  - Neue Ebene „Rastplätze & Werkstätten“ mit Rastplätzen entlang der Strecken, Werkstätten in größeren Städten und den eigenen Werkstätten, Tankanlagen und Lagern.
+- **Anpassbare Panelgrößen:** Seitenleiste, Dispositionsliste und Fahrzeugfenster lassen sich am Rand breiter oder schmaler ziehen. Ein Doppelklick setzt die Breite zurück. Die Breiten bleiben gespeichert.
+- **Fahrzeugbilder:** Jedes LKW-Modell und jeder Aufliegertyp hat eine eigene Seitenansicht im Fuhrpark, auf den Märkten und im Fahrzeugfenster. Dazu gehören Sattelzugmaschine, Solo-LKW und Transporter sowie Plane, Koffer, Kühlkoffer, Tank, Silo, Kipper, Tieflader, Containerchassis und Autotransporter, mit eigenem Stil je Hersteller.
+- **Porträts:** Fahrer, Bewerber und Büropersonal haben eigene, zum Namen passende Porträts. Fahrer tragen eher Arbeitskleidung und Kappe, im Büro gibt es Hemd oder Headset, Ältere haben öfter graue Haare.
+- **Charakter-Editor:**
+  - Bei der Gründung und jederzeit unter **Privatleben** (Klick auf das Bild) lässt sich das Aussehen gestalten.
+  - Wählbar sind Hautton, Gesichtsform, Mund, Augenform und -farbe, Brauen, Brille, 12 Frisuren, Haarfarbe, Bart, Kleidung und Farbe, Accessoire und Hintergrund.
+  - Jede Option erscheint als Vorschau; ein Würfel erzeugt ein zufälliges Aussehen.
+  - Im Multiplayer ändert jeder nur sein eigenes Aussehen.
+
 ## 0.12.0 – 03.11.2026
 
 - **Fahrer-Anreise per Bahn:** Freie Fahrer ohne Fahrzeug können zu einem Standort oder einem wartenden LKW reisen (Rechtsklick auf den Fahrer → „Anreise nach …“). Fahrkarte 35 € + 0,14 €/km, Dauer 1 h + Strecke bei 75 km/h. KI-Disponenten holen nach 2 h Standzeit selbst einen überzähligen Fahrer zu einem LKW ohne Fahrer. Vorher standen bei wachsenden Firmen LKW am Firmensitz, während die neuen Fahrer an einer Niederlassung warteten; im Langzeittest waren mit 17 LKW nur 9 unterwegs, jetzt 17 von 20.

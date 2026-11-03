@@ -28,7 +28,7 @@ export function citiesNear(cityId: string, maxKm: number): CityDef[] {
 
 /** Lohnniveau eines Landes relativ zu Deutschland. */
 export function wageLevel(country: string): number {
-  return ['DE', 'AT', 'CH', 'NL', 'BE', 'LU', 'DK', 'SE', 'NO', 'FR', 'GB'].includes(country) ? 1 : 0.88;
+  return ['DE', 'AT', 'CH', 'NL', 'BE', 'LU', 'DK', 'SE', 'NO', 'FI', 'FR', 'GB'].includes(country) ? 1 : 0.88;
 }
 
 /** Bewerber für den Fahrerberuf, Wohnort in der Nähe eines Firmenstandorts. */

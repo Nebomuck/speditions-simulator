@@ -12,7 +12,7 @@ import {
   diffState, applyPatch, sameJson,
   weatherWeights, tickTrip, banUntil, banApplies, validateDispatch, isCustomsBorder, startPhase, dailyEconomy, crisisPaymentFactor, setRegionalTrend, regionFactor,
   activeCompetitors, hourlyCompetition, dailyCompetition, monthlyCompetition, foundCompetitor, dailyEvents, type Trip,
-  pickupWaitMin, freshHos, type StaffMember, checksum, MIGRATIONS, driverTravel,
+  pickupWaitMin, freshHos, type StaffMember, checksum, MIGRATIONS, driverTravel, AVATAR_OPTIONS, sanitizeAvatar, type AvatarLook,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -507,13 +507,16 @@ describe('Beiladung (mehrere Aufträge auf einem Fahrzeug)', () => {
 
   it('zweiter Auftrag auf der Strecke wird zugeladen, beide werden in sinnvoller Reihenfolge zugestellt', async () => {
     const { s, v, a } = setup();
-    const b = addOrder(s, 'erfurt', 'nuernberg', { weightT: 3, partial: true, pickupStart: s.time, pickupEnd: s.time + 12 * 60, deliveryEnd: s.time + 2 * 1440 });
+    // Beiladung zwischen zwei Städten auf der gefahrenen Strecke
+    const via = ctx.net.route('leipzig', 'muenchen')!.nodes;
+    const [from, to] = [via[1], via[via.length - 2]];
+    const b = addOrder(s, from, to, { weightT: 3, partial: true, pickupStart: s.time, pickupEnd: s.time + 12 * 60, deliveryEnd: s.time + 2 * 1440 });
     const { plan } = planCoLoad(s, ctx, v.id, b.id);
     expect(plan).not.toBeNull();
     expect(plan!.extraKm).toBeLessThan(30); // liegt auf dem Weg
     expect(applyCommand(s, ctx, 'p1', { type: 'coLoad', orderId: b.id, vehicleId: v.id }).ok).toBe(true);
     const trip = s.trips[v.tripId!];
-    expect(trip.stops!.map((st) => `${st.kind}:${st.cityId}`)).toEqual(['pickup:leipzig', 'pickup:erfurt', 'delivery:nuernberg', 'delivery:muenchen']);
+    expect(trip.stops!.map((st) => `${st.kind}:${st.cityId}`)).toEqual(['pickup:leipzig', `pickup:${from}`, `delivery:${to}`, 'delivery:muenchen']);
     expect(b.status).toBe('planned');
     expect(b.tripId).toBe(trip.id);
     const sched = vehicleSchedule(s, ctx, v.id)[0];
@@ -577,16 +580,17 @@ describe('Verkehrsstörungen und Umleitung', () => {
     applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
     await runUntil(s, () => o.status === 'in_transit', 600);
     const trip = s.trips[v.tripId!];
-    const before = trip.legs[trip.legIndex].nodes.join(' ');
-    expect(before).toContain('nuernberg ingolstadt');
-    closure(s, 'nuernberg', 'ingolstadt');
+    // ein Abschnitt in der Mitte der gefahrenen Strecke wird gesperrt
+    const nodes = trip.legs[trip.legIndex].nodes;
+    const [x, y] = [nodes[nodes.length - 3], nodes[nodes.length - 2]];
+    closure(s, x, y);
     rerouteAffected(s, ctx);
     const after = trip.legs[trip.legIndex].nodes.join(' ');
-    expect(after).not.toContain('nuernberg ingolstadt');
+    expect(after).not.toContain(`${x} ${y}`);
     expect(after.endsWith('muenchen')).toBe(true);
     expect(s.log.some((l) => l.text.startsWith('Umleitung'))).toBe(true);
     // neue Planungen umfahren die Sperrung ebenfalls
-    expect(routeNow(s, ctx, 'nuernberg', 'muenchen')!.nodes.join(' ')).not.toContain('nuernberg ingolstadt');
+    expect(routeNow(s, ctx, x, 'muenchen')!.nodes.join(' ')).not.toContain(`${x} ${y}`);
     expect(await runUntil(s, () => o.status === 'delivered', 2 * 1440)).toBeGreaterThan(0);
   });
 
@@ -1808,5 +1812,57 @@ describe('Veröffentlichung: Speichermigration, Fehlerbehandlung, Fahrer-Anreise
     // kein zweiter Fahrer für denselben LKW
     runAutoDispatch(s2, ctx);
     expect(Object.values(s2.drivers).filter((x) => x.status === 'traveling')).toHaveLength(1);
+  });
+});
+
+describe('Erweiterte Welt und Aussehen (0.13.0)', () => {
+  it('neue Länder und Städte sind über das Straßennetz erreichbar; Finnland per Fähre oder über Lappland', () => {
+    expect(CITIES.length).toBeGreaterThanOrEqual(240);
+    for (const [from, to] of [['berlin', 'helsinki'], ['muenchen', 'tirana'], ['wien', 'podgorica'], ['hamburg', 'oulu'], ['madrid', 'a_coruna'], ['london', 'edinburgh']]) {
+      const r = ctx.net.route(from, to);
+      expect(r, `${from} → ${to}`).not.toBeNull();
+    }
+    // Helsinki – Tallinn ist eine definierte Fährverbindung
+    expect(ctx.net.edgeBetween('tallinn', 'helsinki')?.ferry).toBe(true);
+    // dichteres Netz: Dresden – Warschau nicht mehr über Berlin
+    const dw = ctx.net.route('dresden', 'warschau')!;
+    expect(dw.nodes).not.toContain('berlin');
+    expect(dw.km).toBeLessThan(760);
+    // neue Länder haben Maut, Namen und Zoll (Westbalkan)
+    expect(isCustomsBorder('HR', 'ME')).toBe(true);
+    expect(isCustomsBorder('FI', 'SE')).toBe(false);
+  });
+
+  it('ältere Spielstände bekommen Wetter und Nachfrage für die neuen Länder', () => {
+    const s = newGame(5);
+    tickMinutes(s, ctx, 60);
+    // Zustand wie vor der Erweiterung: keine Einträge für FI, ME, AL
+    for (const c of ['FI', 'ME', 'AL']) {
+      delete s.weather[c];
+      delete s.economy.regions[c];
+    }
+    const loaded = deserializeSave(serializeSave(s, 'alt'));
+    tickMinutes(loaded, ctx, 120);
+    for (const c of ['FI', 'ME', 'AL']) expect(loaded.weather[c], c).toBeDefined();
+    // Aufträge entstehen auch in den neuen Ländern
+    const t0 = loaded.time;
+    tickMinutes(loaded, ctx, 3 * 1440);
+    expect(loaded.time - t0).toBe(3 * 1440);
+  });
+
+  it('Aussehen: nur das eigene, ungültige Werte werden begrenzt', () => {
+    const s = newGame();
+    addPlayer(s, { id: 'p2', name: 'Kim Koop', role: 'dispatcher' });
+    const r = applyCommand(s, ctx, 'p2', { type: 'setAvatar', avatar: { skin: 99, hair: 3, hairColor: -4, shirt: 2.6, beard: 3, glasses: 1, outfit: 5, accessory: 1 } as AvatarLook });
+    expect(r.ok).toBe(true);
+    const look = s.players.p2.character.avatar;
+    expect(look.skin).toBe(AVATAR_OPTIONS.skin - 1);
+    expect(look.hairColor).toBe(0);
+    expect(look.shirt).toBe(3);
+    expect(look.beard).toBe(3);
+    expect(look.eyes).toBe(0);
+    // der Gründer bleibt unverändert
+    expect(s.players.p1.character.avatar.skin).not.toBe(AVATAR_OPTIONS.skin - 1);
+    expect(sanitizeAvatar('Unsinn')).toEqual(Object.fromEntries(Object.keys(AVATAR_OPTIONS).map((k) => [k, 0])));
   });
 });

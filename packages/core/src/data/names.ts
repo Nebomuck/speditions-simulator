@@ -46,5 +46,5 @@ export const COMPANY_CORE: Record<string, string[]> = {
 export const LEGAL_FORM: Record<string, string> = {
   DE: 'GmbH', AT: 'GmbH', CH: 'AG', FR: 'SAS', IT: 'S.p.A.', ES: 'S.L.', PT: 'Lda.', NL: 'B.V.', BE: 'NV', LU: 'S.à r.l.',
   GB: 'Ltd', PL: 'Sp. z o.o.', CZ: 's.r.o.', SK: 's.r.o.', HU: 'Kft.', SI: 'd.o.o.', HR: 'd.o.o.', RS: 'd.o.o.', BA: 'd.o.o.',
-  MK: 'DOOEL', RO: 'S.R.L.', BG: 'OOD', GR: 'A.E.', DK: 'A/S', SE: 'AB', NO: 'AS', LT: 'UAB', LV: 'SIA', EE: 'OÜ',
+  MK: 'DOOEL', RO: 'S.R.L.', BG: 'OOD', GR: 'A.E.', DK: 'A/S', SE: 'AB', NO: 'AS', LT: 'UAB', LV: 'SIA', EE: 'OÜ', FI: 'Oy', ME: 'd.o.o.', AL: 'sh.p.k.',
 };

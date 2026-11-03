@@ -69,7 +69,7 @@ export function PersonnelPage() {
                     }
                   >
                     <td>
-                      <div className="row"><Avatar seed={d.name} size={32} /><div><b>{d.name}</b><div className="dim">{d.age} J. · aus {cityName(d.homeCityId)}</div></div></div>
+                      <div className="row"><Avatar seed={d.name} size={36} age={d.age} /><div><b>{d.name}</b><div className="dim">{d.age} J. · aus {cityName(d.homeCityId)}</div></div></div>
                     </td>
                     <td>
                       {d.status === 'traveling' ? (
@@ -112,7 +112,7 @@ export function PersonnelPage() {
           {applicants.map((a) => (
             <div key={a.id} className="card" style={{ background: 'var(--panel-2)' }}>
               <div className="row">
-                <Avatar seed={a.name} size={40} />
+                <Avatar seed={a.name} size={48} age={a.age} />
                 <div style={{ flex: 1 }}>
                   <b>{a.name}</b>
                   <div className="dim" style={{ fontSize: 12 }}>{a.age} Jahre · {cityName(a.homeCityId)}</div>

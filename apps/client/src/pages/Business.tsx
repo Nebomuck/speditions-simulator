@@ -9,6 +9,7 @@ import {
 } from '@spedsim/core';
 import { sendCommand, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
+import { Avatar } from '../ui/Portrait.tsx';
 import { cityLabel, cityName, countryName, km, tons, trailerName, QUAL_LABEL } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
 
@@ -318,7 +319,7 @@ function Departments() {
               <div className="list">
                 {members.map((m) => (
                   <div key={m.id} className="list-item" style={{ alignItems: 'center' }}>
-                    <span style={{ flex: 1 }}>{m.name} <Badge kind={m.skill >= 70 ? 'success' : m.skill >= 45 ? 'info' : 'warning'} title="Kompetenz">{Math.round(m.skill)}</Badge>{m.promoted && <span className="dim"> · ehem. Fahrer</span>}<div className="dim" style={{ fontSize: 12 }}>{cityName(s.company.locations.find((l) => l.id === m.locationId)?.cityId ?? '')} · seit {formatDate(m.hired)}</div></span>
+                    <Avatar seed={m.name} size={34} role="office" /><span style={{ flex: 1 }}>{m.name} <Badge kind={m.skill >= 70 ? 'success' : m.skill >= 45 ? 'info' : 'warning'} title="Kompetenz">{Math.round(m.skill)}</Badge>{m.promoted && <span className="dim"> · ehem. Fahrer</span>}<div className="dim" style={{ fontSize: 12 }}>{cityName(s.company.locations.find((l) => l.id === m.locationId)?.cityId ?? '')} · seit {formatDate(m.hired)}</div></span>
                     <Money value={m.salary} />
                     <button className="btn small danger" onClick={async () => (await askConfirm(`${m.name} entlassen? Abfindung ein Monatsgehalt.`, { title: 'Entlassen?', confirmLabel: 'Entlassen', danger: true })) && sendCommand({ type: 'fireStaff', staffId: m.id })}><UserMinus size={13} /></button>
                   </div>

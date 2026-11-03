@@ -33,8 +33,8 @@ Langfristig: Niederlassungen, Abteilungen, KI-Disponenten, Konzernsteuerung, gem
 
 ## 4. Welt & Karte
 
-- 161 europäische Städte in 29 Ländern mit Einwohnerzahl und Branchenprofil (Hafen, Chemie, Automobil, Lebensmittel, Landwirtschaft, Stahl, Handel, Logistik, Elektronik, Pharma, Maschinenbau, Holz, Bau).
-- **Straßennetz:** 384 echte Straßenverbindungen zwischen benachbarten Städten, einmalig aus OpenStreetMap-Routen erzeugt (OSRM) und als Geometrie gespeichert. Im Spiel wird offline per Dijkstra geroutet (schnellste LKW-Route).
+- 240 europäische Städte in 32 Ländern mit Einwohnerzahl und Branchenprofil (Hafen, Chemie, Automobil, Lebensmittel, Landwirtschaft, Stahl, Handel, Logistik, Elektronik, Pharma, Maschinenbau, Holz, Bau).
+- **Straßennetz:** 764 echte Straßenverbindungen zwischen benachbarten Städten (je Stadt bis zu 5 Nachbarn) plus Fähren Calais–Dover und Tallinn–Helsinki, einmalig aus OpenStreetMap-Routen erzeugt (OSRM) und als Geometrie gespeichert. Im Spiel wird offline per Dijkstra geroutet (schnellste LKW-Route).
 - Die LKW-Geschwindigkeit je Abschnitt ergibt sich aus der echten Durchschnittsgeschwindigkeit der Straße (Autobahn vs. Landstraße), ist auf 80 km/h begrenzt und wird durch Berufsverkehr in Ballungsräumen sowie die Erfahrung des Fahrers beeinflusst.
 - Fährverbindungen sind nur an definierten Übergängen erlaubt (Calais–Dover). Auf der Fähre gilt die Zeit als Ruhezeit.
 - Grundkarte (Vektorkacheln) mit Ländergrenzen, Städten und Straßen. Fällt sie aus (offline), bleibt das spieleigene Straßennetz sichtbar.
@@ -148,7 +148,7 @@ Kleines Büro (2 Stellplätze, 1 Büroplatz) → Büro mit Betriebshof (8, 4) �
 
 ## 13. Lebenssimulation
 
-Jeder Spieler hat einen Charakter mit 2D-Avatar, Alter, Hintergrund, Privatkonto, Wohnung und Bedürfnissen. **Privat- und Firmenvermögen sind getrennt.** Das Geschäftsführergehalt geht am Monatsersten von der Firma aufs Privatkonto; Miete (kleine Wohnung 650 €) und Lebenshaltung (800 €, je Kind +450 €) gehen vom Privatkonto ab. Eine **Gewinnausschüttung** bringt Firmengeld aufs Privatkonto (nur aus Guthaben, 26,375 % Kapitalertragsteuer).
+Jeder Spieler hat einen Charakter mit 2D-Avatar (im Charakter-Editor gestaltet: Gesicht, Augen, Haare, Bart, Brille, Kleidung, Accessoire, Hintergrund), Alter, Hintergrund, Privatkonto, Wohnung und Bedürfnissen. **Privat- und Firmenvermögen sind getrennt.** Das Geschäftsführergehalt geht am Monatsersten von der Firma aufs Privatkonto; Miete (kleine Wohnung 650 €) und Lebenshaltung (800 €, je Kind +450 €) gehen vom Privatkonto ab. Eine **Gewinnausschüttung** bringt Firmengeld aufs Privatkonto (nur aus Guthaben, 26,375 % Kapitalertragsteuer).
 
 - **Hintergrund und Fähigkeiten:** Berufskraftfahrer/in (Logistik 55), Speditionskaufmann/-frau (Verhandlung 55), Quereinsteiger/in (alles 30). Verhandlung bringt bis +4 % in der Börse, Mitarbeiterführung zufriedenere Fahrer, Logistikplanung mehr selbst disponierte Fahrzeuge. Weiterbildungen (900 €) +5.
 - **Work-Life-Balance:** Der Arbeitsstil legt die Arbeitszeit fest (12 h selbst disponieren, 9 h nur wichtige Kunden, 8 h Unternehmensentwicklung, 5 h teilweise delegieren mit Disponent, 2 h mit angestelltem Geschäftsführer für 8.500 €/Monat ab Stufe 3) und damit, wie viele Fahrzeuge die Geschäftsführung selbst disponiert (5/3/2/1/0, mal Leistungsfähigkeit). Kundenbetreuung macht Stammkunden zufriedener, Unternehmensentwicklung hebt die Reputation.

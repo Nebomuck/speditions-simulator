@@ -23,6 +23,7 @@ import { ContextMenuHost } from './ui/ContextMenu.tsx';
 import { helpForPage } from './ui/help.ts';
 import { Tutorial } from './ui/Tutorial.tsx';
 import { ErrorBoundary } from './ui/ErrorBoundary.tsx';
+import { Resizer } from './ui/Resizer.tsx';
 import { startBackground, stopBackground } from './ui/sound.ts';
 
 const PAGES = {
@@ -96,6 +97,7 @@ export function App() {
     <div className="app">
       <TopBar />
       <Sidebar />
+      <Resizer panel="sidebar" className="sidebar-resizer" />
       <main className="main">
         <ErrorBoundary scope="page" resetKey={page}>
           <Page />

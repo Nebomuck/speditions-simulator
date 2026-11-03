@@ -33,7 +33,7 @@ export const WEATHER: Record<WeatherKind, WeatherDef> = {
 };
 
 /** Länder mit Gebirgsanteil: mehr Schnee */
-const MOUNTAIN = new Set(['CH', 'AT', 'NO', 'SI', 'SK']);
+const MOUNTAIN = new Set(['CH', 'AT', 'NO', 'SI', 'SK', 'ME']);
 
 export const COUNTRIES: string[] = [...new Set(CITIES.map((c) => c.country))].sort();
 
@@ -202,8 +202,8 @@ export function routeCountries(nodes: string[]): string[] {
 // ---------------------------------------------------------------- Grenzen
 
 /** Länder außerhalb der EU-Zollunion: an ihren Grenzen wird kontrolliert und verzollt */
-export const CUSTOMS = new Set(['CH', 'NO', 'GB', 'RS', 'BA', 'MK']);
-const BALKAN = new Set(['RS', 'BA', 'MK']);
+export const CUSTOMS = new Set(['CH', 'NO', 'GB', 'RS', 'BA', 'MK', 'ME', 'AL']);
+const BALKAN = new Set(['RS', 'BA', 'MK', 'ME', 'AL']);
 
 export function isCustomsBorder(a: string, b: string): boolean {
   if (a === b) return false;

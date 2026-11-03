@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Crosshair, X, Navigation, PackagePlus, MapPin, TriangleAlert } from 'lucide-react';
+import { Crosshair, X, Navigation, PackagePlus, MapPin, TriangleAlert, Wrench } from 'lucide-react';
 import {
   CARGO_BY_ID, TRUCK_BY_ID, CITY_BY_ID, drivableNow, formatDateTime, formatDuration, formatHours, nearestCity, remainingKm, vehicleSchedule, vehicleMarker, isTripLate, ordersOnBoard,
   REST_KIND_LABEL, loadSpace, disruptionLabel, WEATHER, BAN_RULES, weatherIn, banUntil, banApplies,
 } from '@spedsim/core';
-import { sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
+import { localStorageSet, sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Bar, Money } from '../ui/components.tsx';
 import { MapView, type MapFilter } from '../ui/MapView.tsx';
+import { Resizer } from '../ui/Resizer.tsx';
+import { VehicleArt, artSeed } from '../ui/VehicleArt.tsx';
 import { activityLabel, cityName, countryName, km, tons, modelName, tripLabel } from '../ui/format.ts';
 
 const FILTERS: [MapFilter, string][] = [
@@ -24,10 +26,17 @@ export function MapPage() {
   const s = useGame();
   const selected = useUi((u) => u.selectedVehicleId);
   const [traffic, setTraffic] = useState(false);
+  const [poi, setPoi] = useState(() => {
+    try {
+      return localStorage.getItem('cargovia.map.poi') === '1';
+    } catch {
+      return false;
+    }
+  });
   const disruptions = s.disruptions ?? [];
   return (
     <div className="page-full">
-      <MapView filter={filter} driverId={driverId} />
+      <MapView filter={filter} driverId={driverId} poi={poi} />
       <div className="map-panel map-filters">
         {FILTERS.map(([f, label]) => (
           <button key={f} className={`chip ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>{label}</button>
@@ -38,6 +47,16 @@ export function MapPage() {
         </select>
         <button className={`chip ${traffic ? 'active' : ''}`} onClick={() => setTraffic(!traffic)}>
           <TriangleAlert size={13} /> Verkehrslage ({disruptions.length})
+        </button>
+        <button
+          className={`chip ${poi ? 'active' : ''}`}
+          title="Rastplätze, LKW-Werkstätten und eigene Einrichtungen"
+          onClick={() => {
+            setPoi(!poi);
+            localStorageSet('cargovia.map.poi', poi ? '0' : '1');
+          }}
+        >
+          <Wrench size={13} /> Rastplätze & Werkstätten
         </button>
       </div>
       {traffic && (
@@ -76,6 +95,8 @@ export function MapPage() {
         <span><i className="dot" style={{ background: '#f59e0b' }} />Standort</span>
         <span><i className="dot" style={{ background: '#ef4444' }} />Sperrung</span>
         <span><i className="dot" style={{ background: '#f97316' }} />Stau</span>
+        {poi && <span><i className="dot square" style={{ background: '#2563eb' }} />Rastplatz</span>}
+        {poi && <span><i className="dot" style={{ background: '#475569' }} />Werkstatt</span>}
       </div>
       {selected && s.vehicles[selected] && <VehiclePanel vehicleId={selected} />}
     </div>
@@ -100,6 +121,7 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
   const drive = driver ? drivableNow(driver.hos) : 0;
   return (
     <div className="map-panel vehicle-panel">
+      <Resizer panel="vehicle" edge="left" />
       <div className="row">
         <div>
           <div style={{ fontWeight: 650, fontSize: 16 }}>{v.plate}</div>
@@ -111,7 +133,8 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
         </button>
         <button className="icon-btn" onClick={() => setUi({ selectedVehicleId: null, followVehicle: false })}><X size={16} /></button>
       </div>
-      <div className="row wrap mt">
+      <div className="panel-art"><VehicleArt modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={trip?.trailerId ? 300 : 110} seed={artSeed(v.id)} /></div>
+      <div className="row wrap">
         <Badge kind={trip ? (trip.activity === 'breakdown' || trip.activity === 'accident' ? 'danger' : trip.activity === 'ban' || trip.activity === 'border' ? 'warning' : 'info') : 'success'}>{activityLabel(trip, v.status)}</Badge>
         {late && <Badge kind="danger">Verspätet</Badge>}
         {trip && <Badge>{trip.legs[trip.legIndex].loaded ? 'Beladen' : 'Leer'}</Badge>}

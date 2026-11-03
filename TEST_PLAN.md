@@ -2,7 +2,7 @@
 
 Automatisierte Tests: `npm test` (Vitest). Typprüfung: `npm run typecheck`.
 
-**Stand 03.11.2026: 99/99 bestanden** (4 Testdateien, Laufzeit ≈ 80 s; davon ≈ 70 s für den Abschlusstest, der parallel läuft).
+**Stand 03.11.2026: 102/102 bestanden** (4 Testdateien, Laufzeit ≈ 80 s; davon ≈ 70 s für den Abschlusstest, der parallel läuft).
 
 | Datei | Tests | Inhalt |
 |---|---|---|
@@ -76,6 +76,6 @@ Gefunden und behoben durch die Messung: Wachsende Firmen ließen LKW am Firmensi
 ## Bekannte Probleme
 
 - Diesel wird erst beim Tanken gebucht. Eine Fahrt ohne Tankstopp zeigt daher 0 € Dieselkosten im Fahrtprotokoll; die Kosten fallen beim nächsten Tanken an. Die Vorkalkulation berücksichtigt den Verbrauch korrekt.
-- Das Straßennetz verbindet nur benachbarte Städte. Manche Routen weichen deshalb von der realen Optimalroute ab (z. B. Dresden → Warschau über Berlin statt über Breslau).
+- Das Straßennetz verbindet nur benachbarte Städte (bis zu 5 je Stadt). Einzelne Routen können noch von der realen Optimalroute abweichen.
 - Der Installer ist bewusst nicht mit einem Code-Signing-Zertifikat signiert (Kosten lohnen sich für das private Projekt nicht); Windows SmartScreen warnt beim ersten Start. Die In-App-Updates sind per minisign signiert und werden geprüft.
 - Im Modus „teilautomatisch“ schlägt der Disponent noch keine Fahrer-Anreise vor; die vollautomatische Disposition und das Kontextmenü können es.

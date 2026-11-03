@@ -2,7 +2,7 @@
 // Beziehungen, persönliche Entwicklung und Privatkonto. Privat- und Firmenvermögen sind strikt getrennt.
 
 import { Fragment, useState } from 'react';
-import { Home, Heart, Briefcase, Palmtree, Car, Sofa, Target, Wallet, Users, GraduationCap, Baby, Gift } from 'lucide-react';
+import { Home, Heart, Briefcase, Palmtree, Car, Sofa, Target, Wallet, Users, GraduationCap, Baby, Gift, Pencil } from 'lucide-react';
 import {
   ACTIVITIES, BACKGROUNDS, CAR_RESALE, FAMILY_MIN_CLOSENESS, FURNITURE_LEVELS, HOBBIES, HOLIDAY_HOME, HOMES, HOME_ORDER, LIFE_GOALS, MORTGAGE, MOVING_COST,
   DIVIDEND_TAX, PRIVATE_CARS, PROPERTY_SALE_FACTOR, PROPOSE_MIN_CLOSENESS, VACATIONS, WORK_STYLES, annuity, comfort, formatDate, formatDateTime, goalDone, isAway,
@@ -10,6 +10,7 @@ import {
 } from '@spedsim/core';
 import { sendCommand, useGame, useUi } from '../game/store.ts';
 import { Avatar, Badge, Bar, Card, Money, PageHeader } from '../ui/components.tsx';
+import { CharacterEditor } from '../ui/CharacterEditor.tsx';
 import { cityName } from '../ui/format.ts';
 
 const NEED_LABEL = { energy: 'Energie', hunger: 'Sättigung', stress: 'Stress', health: 'Gesundheit', happiness: 'Zufriedenheit', social: 'Soziale Kontakte', leisure: 'Freizeit' };
@@ -68,12 +69,17 @@ export function PrivatePage() {
 
 function Overview({ c }: { c: Character }) {
   const s = useGame();
+  const [editLook, setEditLook] = useState(false);
   const perf = performance(c);
   return (
     <div className="grid grid-2">
       <Card title="Befinden">
         <div className="row" style={{ gap: 14 }}>
-          <Avatar avatar={c.avatar} size={72} />
+          <button className="avatar-edit" title="Aussehen ändern" onClick={() => setEditLook(true)}>
+            <Avatar avatar={c.avatar} size={84} />
+            <span><Pencil size={12} /> Ändern</span>
+          </button>
+          {editLook && <CharacterEditor value={c.avatar} name={c.name} onSave={(avatar) => sendCommand({ type: 'setAvatar', avatar })} onClose={() => setEditLook(false)} />}
           <div>
             <div style={{ fontSize: 18, fontWeight: 650 }}>{c.name}</div>
             <div className="dim">{BACKGROUNDS[c.background]?.name} · Geschäftsführung {s.company.name}</div>

@@ -139,25 +139,7 @@ export function useSort<K extends string>(initial: K, initialDir: 1 | -1 = -1) {
 }
 
 /** 2D-Avatar aus einfachen SVG-Formen (eigene Grafik). */
-export function Avatar({ seed, size = 36, avatar }: { seed?: string; size?: number; avatar?: { skin: number; hair: number; hairColor: number; shirt: number } }) {
-  let h = 0;
-  for (const ch of seed ?? '') h = (h * 31 + ch.charCodeAt(0)) | 0;
-  const a = avatar ?? { skin: Math.abs(h) % 5, hair: Math.abs(h >> 3) % 4, hairColor: Math.abs(h >> 6) % 5, shirt: Math.abs(h >> 9) % 6 };
-  const skins = ['#f5d0b5', '#e8b796', '#c98e68', '#9a6747', '#6b4630'];
-  const hairs = ['#1f1a17', '#4a3426', '#8b5a2b', '#c9a15b', '#9aa0a6'];
-  const shirts = ['#38bdf8', '#34d399', '#f59e0b', '#a78bfa', '#f87171', '#64748b'];
-  return (
-    <svg className="avatar" width={size} height={size} viewBox="0 0 40 40">
-      <rect width="40" height="40" fill="var(--panel-2)" />
-      <path d="M6 40c1-9 7-13 14-13s13 4 14 13z" fill={shirts[a.shirt % shirts.length]} />
-      <circle cx="20" cy="17" r="8" fill={skins[a.skin % skins.length]} />
-      {a.hair % 4 === 0 && <path d="M12 16c0-6 4-9 8-9s8 3 8 9c-2-3-5-4-8-4s-6 1-8 4z" fill={hairs[a.hairColor % hairs.length]} />}
-      {a.hair % 4 === 1 && <path d="M11 18c-1-8 4-11 9-11s10 3 9 11c-1-4-4-6-9-6s-8 2-9 6z" fill={hairs[a.hairColor % hairs.length]} />}
-      {a.hair % 4 === 2 && <path d="M11 20c-2-9 3-13 9-13s11 4 9 13l-2-5c-2-2-4-3-7-3s-5 1-7 3z" fill={hairs[a.hairColor % hairs.length]} />}
-      {a.hair % 4 === 3 && <path d="M13 13c2-4 5-5 7-5s5 1 7 5c-3-1-5-1-7-1s-4 0-7 1z" fill={hairs[a.hairColor % hairs.length]} />}
-    </svg>
-  );
-}
+export { Avatar } from './Portrait.tsx';
 
 /** Kleines Liniendiagramm (SVG). */
 export function LineChart({ series, height = 160, format }: { series: { label: string; color: string; values: number[] }[]; height?: number; format?: (v: number) => string }) {

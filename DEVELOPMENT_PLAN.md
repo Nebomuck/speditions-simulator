@@ -19,7 +19,7 @@
 
 ## Nächste Schritte (in dieser Reihenfolge)
 
-1. Offene Kleinigkeiten: anpassbare Panelgrößen, Clustering sehr vieler Fahrzeuge auf der Karte, POI-Layer (Werkstätten, Rastplätze)
+Alle geplanten Punkte sind umgesetzt (zuletzt: anpassbare Panelgrößen, Fahrzeug-Clustering, POI-Ebene, 240 Städte mit dichterem Straßennetz, Fahrzeugbilder, Porträts und Charakter-Editor). Weitere Ideen nach Rückmeldung aus dem Spielbetrieb.
 
 ## Arbeitsweise
 
@@ -31,6 +31,6 @@
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 99/99 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
+1. `npm install`, dann `npm test` (erwartet: 102/102 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
-3. Alle Phasen sind abgeschlossen; mit den offenen Kleinigkeiten oben fortfahren. Balancing prüfen mit `node packages/core/test/measure-balance.ts [Tage] [easy|normal|realistic] [Seed]` (Spieler-Bot aus `test/bot.ts`), Welt mit `measure-world.ts`, Störungen mit `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).
+3. Alle Phasen sind abgeschlossen. Städte ergänzen in `data/cities.ts`, danach `npm run roadnet` (behält alle bisherigen Kanten, K=5 Nachbarn, OSRM-Antworten werden zwischengespeichert). Balancing prüfen mit `node packages/core/test/measure-balance.ts [Tage] [easy|normal|realistic] [Seed]` (Spieler-Bot aus `test/bot.ts`), Welt mit `measure-world.ts`, Störungen mit `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

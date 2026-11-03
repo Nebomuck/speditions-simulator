@@ -22,7 +22,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const CACHE = join(here, 'cache');
 const OUT = join(here, '../../packages/core/src/data/roadnet.json');
 const OSRM = process.env.OSRM_URL ?? 'https://router.project-osrm.org';
-const K = 4;
+const K = 5;
 const MAX_DETOUR = 2.2;
 const SIMPLIFY_TOL = 0.0006; // ~50 m
 
@@ -42,6 +42,11 @@ for (const a of CITIES) {
 }
 const byId = Object.fromEntries(CITIES.map((x) => [x.id, x]));
 for (const [a, b] of CROSSINGS) pairs.set(key(a, b), [byId[a], byId[b], true]);
+// Bisherige Kanten immer behalten: Laufende Fahrten in Spielständen bestehen aus Knotenfolgen über diese Kanten.
+if (existsSync(OUT)) {
+  const prev = JSON.parse(readFileSync(OUT, 'utf8')) as { edges: { a: string; b: string; ferry?: boolean }[] };
+  for (const e of prev.edges) if (byId[e.a] && byId[e.b] && !pairs.has(key(e.a, e.b))) pairs.set(key(e.a, e.b), e.a < e.b ? [byId[e.a], byId[e.b], !!e.ferry] : [byId[e.b], byId[e.a], !!e.ferry]);
+}
 
 // Zusammenhang sicherstellen: Komponenten über nächstes Städtepaar verbinden (je Landmasse)
 function components(edges: Iterable<[CityDef, CityDef, boolean]>) {

@@ -3,6 +3,7 @@
 // Im Multiplayer führt ausschließlich der Server Befehle aus (serverautoritativ) – dadurch sind
 // Doppelbelegungen und widersprüchliche Aktionen ausgeschlossen, da Befehle sequenziell verarbeitet werden.
 
+import { sanitizeAvatar, type AvatarLook } from './avatar.ts';
 import { applyLife, payDividend, type LifeAction } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
@@ -47,6 +48,7 @@ export type Command =
   | { type: 'hireDriver'; applicantId: Id }
   | { type: 'fireDriver'; driverId: Id }
   | { type: 'setCeoSalary'; playerId: Id; salary: number }
+  | { type: 'setAvatar'; avatar: AvatarLook }
   | { type: 'upgradeLocation'; locationId: Id; kind: LocationKind }
   | { type: 'openBranch'; cityId: string; kind: LocationKind }
   | { type: 'closeBranch'; locationId: Id }
@@ -131,6 +133,7 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   factorInvoices: 'finance',
   chat: null,
   life: null,
+  setAvatar: null,
   payDividend: 'finance',
   setPermissions: 'admin',
   setRole: 'admin',
@@ -477,6 +480,11 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       delete state.drivers[d.id];
       for (const o of Object.values(state.drivers)) o.satisfaction = Math.max(0, o.satisfaction - 3);
       addLog(state, { level: 'warning', category: 'personnel', text: `${d.name} wurde entlassen (Abfindung ${formatMoney(severance)}).` });
+      return { ok: true };
+    }
+    case 'setAvatar': {
+      // nur das eigene Aussehen
+      actor.character.avatar = sanitizeAvatar(cmd.avatar);
       return { ok: true };
     }
     case 'setCeoSalary': {

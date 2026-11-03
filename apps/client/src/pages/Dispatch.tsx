@@ -11,6 +11,7 @@ import { CalendarView } from './Calendar.tsx';
 import { AutoDispatchBar } from './AutoDispatch.tsx';
 import { navigate, sendCommand, setUi, useGame, world } from '../game/store.ts';
 import { Badge, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
+import { Resizer } from '../ui/Resizer.tsx';
 import { activityLabel, cargoName, cityName, km, trailerName, tripLabel } from '../ui/format.ts';
 
 const HOURS = 72;
@@ -56,6 +57,7 @@ function Board() {
 
   return (
     <div className="dispatch-grid">
+      <Resizer panel="dispatch" className="dispatch-resizer" />
       <Card title="Angenommene Aufträge" sub={`${accepted.length}`}>
         {accepted.length === 0 && (
           <Empty>

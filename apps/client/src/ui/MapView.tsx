@@ -8,7 +8,7 @@
 import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CITIES, CITY_BY_ID, disruptionLabel, formatDateTime, vehicleMarker, isTripLate, type GameState } from '@spedsim/core';
+import { CITIES, CITY_BY_ID, FACILITY_DEFS, disruptionLabel, formatDateTime, vehicleMarker, isTripLate, type GameState } from '@spedsim/core';
 import { getUi, setUi, useUi, world } from '../game/store.ts';
 
 export type MapFilter = 'all' | 'active' | 'idle' | 'late' | 'loaded' | 'empty';
@@ -122,6 +122,61 @@ function previewGeoJSON(state: GameState, orderId: string | null): GeoJSON.Featu
   return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: world.net.geometry(r.nodes) } }] };
 }
 
+/** Rastplätze entlang der Fernstraßen (etwa alle 110 km) und LKW-Werkstätten in größeren Städten; eigene Einrichtungen hervorgehoben. */
+function poiGeoJSON(state: GameState | null): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = [];
+  for (const e of world.net.edges) {
+    if (e.ferry) continue;
+    const total = e.cum[e.cum.length - 1];
+    for (let d = 55; d < total - 40; d += 110) {
+      let i = 1;
+      while (i < e.cum.length - 1 && e.cum[i] < d) i++;
+      const f = (d - e.cum[i - 1]) / Math.max(1e-9, e.cum[i] - e.cum[i - 1]);
+      const [a, b] = [e.coords[i - 1], e.coords[i]];
+      const near = d < total / 2 ? e.a : e.b;
+      features.push({
+        type: 'Feature',
+        properties: { kind: 'rest', text: `Rastplatz bei ${CITY_BY_ID[near].name}\nLKW-Stellplätze, Duschen, Tankstelle` },
+        geometry: { type: 'Point', coordinates: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f] },
+      });
+    }
+  }
+  const own = new Map((state?.company.locations ?? []).map((l) => [l.cityId, l.facilities]));
+  for (const c of CITIES) {
+    const fac = own.get(c.id) ?? [];
+    for (const [k, kind] of [['workshop', 'own-workshop'], ['fuel', 'own-fuel'], ['warehouse', 'own-warehouse']] as const) {
+      if (!fac.includes(k)) continue;
+      const dx = kind === 'own-workshop' ? 0.06 : kind === 'own-fuel' ? -0.06 : 0;
+      features.push({ type: 'Feature', properties: { kind, text: `${FACILITY_DEFS[k].name} · ${c.name}` }, geometry: { type: 'Point', coordinates: [c.lon + dx, c.lat - 0.05] } });
+    }
+    if (c.pop >= 150 && !fac.includes('workshop'))
+      features.push({ type: 'Feature', properties: { kind: 'workshop', text: `LKW-Werkstatt ${c.name}\nWartung und Reparatur` }, geometry: { type: 'Point', coordinates: [c.lon + 0.06, c.lat - 0.05] } });
+  }
+  return { type: 'FeatureCollection', features };
+}
+
+/** Kleine Kartensymbole: Buchstabe auf farbiger Fläche */
+function poiImage(letter: string, color: string, square: boolean): ImageData {
+  const s = 40;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d')!;
+  g.fillStyle = color;
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 3;
+  g.beginPath();
+  if (square) g.roundRect(4, 4, s - 8, s - 8, 7);
+  else g.arc(s / 2, s / 2, s / 2 - 4, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 21px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(letter, s / 2, s / 2 + 1);
+  return g.getImageData(0, 0, s, s);
+}
+
 function arrowImage(): ImageData {
   const s = 48;
   const c = document.createElement('canvas');
@@ -138,15 +193,15 @@ function arrowImage(): ImageData {
   return g.getImageData(0, 0, s, s);
 }
 
-export function MapView({ mini = false, filter = 'all', driverId = '' }: { mini?: boolean; filter?: MapFilter; driverId?: string }) {
+export function MapView({ mini = false, filter = 'all', driverId = '', poi = false }: { mini?: boolean; filter?: MapFilter; driverId?: string; poi?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const loadedRef = useRef(false);
   const theme = useUi((u) => u.theme);
   const state = useUi((u) => u.state);
   const focusOrderId = useUi((u) => u.focusOrderId);
-  const filterRef = useRef({ filter, driverId });
-  filterRef.current = { filter, driverId };
+  const filterRef = useRef({ filter, driverId, poi });
+  filterRef.current = { filter, driverId, poi };
 
   // Karte erstellen
   useEffect(() => {
@@ -185,12 +240,24 @@ export function MapView({ mini = false, filter = 'all', driverId = '' }: { mini?
       const id = e.features?.[0]?.properties?.id as string | undefined;
       if (id) setUi({ selectedVehicleId: id, page: mini ? 'map' : getUi().page });
     });
+    // Fahrzeuggruppe: hineinzoomen, bis sie sich auflöst
+    map.on('click', 'vehicle-clusters', async (e) => {
+      const f = e.features?.[0];
+      const id = f?.properties?.cluster_id as number | undefined;
+      if (id === undefined || f?.geometry.type !== 'Point') return;
+      const zoom = await (map.getSource('vehicles') as GeoJSONSource).getClusterExpansionZoom(id);
+      map.easeTo({ center: f.geometry.coordinates as [number, number], zoom: zoom + 0.3, duration: 500 });
+    });
+    map.on('click', 'poi', (e) => {
+      const text = e.features?.[0]?.properties?.text as string | undefined;
+      if (text) new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setText(text.replace('\n', ' · ')).addTo(map);
+    });
     map.on('click', 'cities-own', (e) => {
       const name = e.features?.[0]?.properties?.name;
       if (name) new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(`<b>${name}</b><br/>Eigener Standort`).addTo(map);
     });
     map.on('dragstart', () => getUi().followVehicle && setUi({ followVehicle: false }));
-    for (const l of ['vehicles', 'cities-own']) {
+    for (const l of ['vehicles', 'cities-own', 'vehicle-clusters', 'poi', 'poi-own']) {
       map.on('mouseenter', l, () => (map.getCanvas().style.cursor = 'pointer'));
       map.on('mouseleave', l, () => (map.getCanvas().style.cursor = ''));
     }
@@ -244,9 +311,12 @@ export function MapView({ mini = false, filter = 'all', driverId = '' }: { mini?
     (map.getSource('routes') as GeoJSONSource | undefined)?.setData(routesGeoJSON(st, filterRef.current.filter, filterRef.current.driverId));
     (map.getSource('preview') as GeoJSONSource | undefined)?.setData(previewGeoJSON(st, getUi().focusOrderId));
     (map.getSource('disruptions') as GeoJSONSource | undefined)?.setData(disruptionsGeoJSON(st));
+    (map.getSource('poi') as GeoJSONSource | undefined)?.setData(poiGeoJSON(st));
+    for (const l of ['poi', 'poi-own']) if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', filterRef.current.poi ? 'visible' : 'none');
   }
 
   // Routen/Städte bei neuen Schnappschüssen aktualisieren (nicht pro Frame)
+  const facilitiesKey = state?.company.locations.map((l) => l.facilities.join('+')).join('|') ?? '';
   const tripsKey = state
     ? Object.values(state.trips).map((t) => `${t.id}:${t.legIndex}:${t.phase}:${t.legs.length}:${t.legs[t.legIndex]?.km}`).join('|') +
       state.company.locations.length +
@@ -255,7 +325,7 @@ export function MapView({ mini = false, filter = 'all', driverId = '' }: { mini?
   useEffect(() => {
     const map = mapRef.current;
     if (map && loadedRef.current) refreshStatic(map);
-  }, [tripsKey, filter, driverId, focusOrderId]);
+  }, [tripsKey, filter, driverId, focusOrderId, poi, facilitiesKey]);
 
   // Punkt fokussieren (z. B. Verkehrsstörung aus der Liste)
   const mapFocus = useUi((u) => u.mapFocus);
@@ -284,11 +354,29 @@ export function MapView({ mini = false, filter = 'all', driverId = '' }: { mini?
 function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
   const dark = theme === 'dark';
   if (!map.hasImage('arrow')) map.addImage('arrow', arrowImage(), { sdf: true });
+  for (const [id, letter, color, square] of [
+    ['poi-rest', 'P', '#2563eb', true],
+    ['poi-workshop', 'W', '#475569', false],
+    ['poi-own-workshop', 'W', '#f59e0b', false],
+    ['poi-own-fuel', 'T', '#f59e0b', false],
+    ['poi-own-warehouse', 'L', '#f59e0b', false],
+  ] as const)
+    if (!map.hasImage(id)) map.addImage(id, poiImage(letter, color, square), { pixelRatio: 2 });
   map.addSource('roads', { type: 'geojson', data: roadsGeoJSON() });
   map.addSource('cities', { type: 'geojson', data: citiesGeoJSON(null) });
   map.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addSource('preview', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-  map.addSource('vehicles', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  // Fahrzeuge bei kleinem Maßstab zu Gruppen zusammenfassen (ab 4 Fahrzeugen, bis Zoomstufe 7)
+  map.addSource('vehicles', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+    cluster: true,
+    clusterRadius: 38,
+    clusterMaxZoom: 7,
+    clusterMinPoints: 4,
+    clusterProperties: { late: ['max', ['case', ['get', 'late'], 1, 0]] },
+  });
+  map.addSource('poi', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addSource('disruptions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
   map.addLayer({
@@ -353,6 +441,27 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
   });
   map.on('mouseenter', 'disruption-points', () => (map.getCanvas().style.cursor = 'pointer'));
   map.on('mouseleave', 'disruption-points', () => (map.getCanvas().style.cursor = ''));
+  const poiLayout: maplibregl.SymbolLayerSpecification['layout'] = {
+    visibility: 'none',
+    'icon-image': ['concat', 'poi-', ['get', 'kind']],
+    'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.7, 9, 1],
+  };
+  // Rastplätze und fremde Werkstätten erst beim Hineinzoomen, eigene Einrichtungen immer
+  map.addLayer({
+    id: 'poi',
+    type: 'symbol',
+    source: 'poi',
+    minzoom: 6,
+    filter: ['in', ['get', 'kind'], ['literal', ['rest', 'workshop']]],
+    layout: { ...poiLayout, 'symbol-sort-key': ['match', ['get', 'kind'], 'workshop', 0, 1] },
+  });
+  map.addLayer({
+    id: 'poi-own',
+    type: 'symbol',
+    source: 'poi',
+    filter: ['!', ['in', ['get', 'kind'], ['literal', ['rest', 'workshop']]]],
+    layout: { ...poiLayout, 'icon-allow-overlap': true },
+  });
   map.addLayer({
     id: 'cities',
     type: 'circle',
@@ -392,10 +501,33 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     },
   });
   const colorExpr = ['match', ['get', 'activity'], ...ACTIVITY_COLOR.flat(), '#38bdf8'] as unknown as maplibregl.ExpressionSpecification;
+  const single: maplibregl.ExpressionSpecification = ['!', ['has', 'point_count']];
+  map.addLayer({
+    id: 'vehicle-clusters',
+    type: 'circle',
+    source: 'vehicles',
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-radius': ['step', ['get', 'point_count'], 13, 10, 16, 30, 20],
+      'circle-color': ['case', ['>', ['get', 'late'], 0], '#f87171', '#38bdf8'],
+      'circle-opacity': 0.9,
+      'circle-stroke-width': 3,
+      'circle-stroke-color': dark ? '#0b1120' : '#ffffff',
+    },
+  });
+  map.addLayer({
+    id: 'vehicle-cluster-count',
+    type: 'symbol',
+    source: 'vehicles',
+    filter: ['has', 'point_count'],
+    layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-allow-overlap': true },
+    paint: { 'text-color': '#0b1120' },
+  });
   map.addLayer({
     id: 'vehicles-halo',
     type: 'circle',
     source: 'vehicles',
+    filter: single,
     paint: {
       'circle-radius': ['case', ['get', 'selected'], 16, 11],
       'circle-color': ['case', ['get', 'late'], '#f87171', colorExpr],
@@ -406,6 +538,7 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     id: 'vehicles',
     type: 'circle',
     source: 'vehicles',
+    filter: single,
     paint: {
       'circle-radius': ['case', ['get', 'selected'], 8, 6.5],
       'circle-color': ['case', ['get', 'late'], '#f87171', colorExpr],
@@ -417,7 +550,7 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     id: 'vehicles-dir',
     type: 'symbol',
     source: 'vehicles',
-    filter: ['get', 'moving'],
+    filter: ['all', single, ['==', ['get', 'moving'], true]],
     layout: {
       'icon-image': 'arrow',
       'icon-size': 0.24,
@@ -432,6 +565,7 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     id: 'vehicles-label',
     type: 'symbol',
     source: 'vehicles',
+    filter: single,
     minzoom: 6.5,
     layout: { 'text-field': ['get', 'plate'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-allow-overlap': false },
     paint: { 'text-color': dark ? '#e2e8f0' : '#0f172a', 'text-halo-color': dark ? '#0b1120' : '#ffffff', 'text-halo-width': 1.2 },
