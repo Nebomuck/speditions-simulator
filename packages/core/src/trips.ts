@@ -1,6 +1,7 @@
 // VehicleSystem / Fahrtsimulation: bewegt LKW minutengenau entlang der echten Straßengeometrie
 // unter Berücksichtigung von Straßentyp, Verkehr, Lenk-/Ruhezeiten, Tankstopps, Be-/Entladung und Pannen.
 
+import { fleetBreakdownFactor, fleetWearFactor } from './company.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
@@ -133,7 +134,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   trip.costs.toll += toll;
 
   // Verschleiß – abhängig von Haltbarkeit, Beladung und Fahrweise
-  const wear = (0.0006 / model.durability) * (1 + loadFrac * 0.3) * (1.1 - driver.ecoDriving / 500) * km;
+  const wear = (0.0006 / model.durability) * (1 + loadFrac * 0.3) * (1.1 - driver.ecoDriving / 500) * km * fleetWearFactor(state);
   vehicle.condition = Math.max(0, vehicle.condition - wear);
   if (trip.trailerId) {
     const tr = state.trailers[trip.trailerId];
@@ -142,7 +143,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
 
   // Panne bei schlechtem Zustand
   if (vehicle.condition < 45) {
-    const p = ((45 - vehicle.condition) / 45) * 0.0005 * km * state.difficulty.eventFactor;
+    const p = ((45 - vehicle.condition) / 45) * 0.0005 * km * state.difficulty.eventFactor * fleetBreakdownFactor(state);
     if (rand.chance(state, p)) breakdown(state, trip);
   }
 }

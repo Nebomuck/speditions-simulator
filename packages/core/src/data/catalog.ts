@@ -2,7 +2,7 @@
 // Alle Hersteller- und Modellnamen sind frei erfunden (keine Markenrechte Dritter).
 
 import type { Industry } from './cities.ts';
-import type { LocationKind, Money, Qualification, TrailerType } from '../types.ts';
+import type { Department, FacilityKind, LocationKind, Money, Qualification, TrailerType } from '../types.ts';
 
 export interface TruckModel {
   id: string;
@@ -159,5 +159,84 @@ export const LOCATION_DEFS: Record<LocationKind, LocationDef> = {
   office_yard: { kind: 'office_yard', name: 'Büro mit Betriebshof', rent: 2_400_00, parking: 8, trailerParking: 10, staff: 4, deposit: 7_500_00 },
   depot: { kind: 'depot', name: 'Großer Betriebshof', rent: 6_800_00, parking: 25, trailerParking: 30, staff: 12, deposit: 25_000_00 },
 };
+
+export const LOCATION_ORDER: LocationKind[] = ['office_small', 'office_yard', 'depot'];
+
+/** einmalige Einrichtungskosten einer neuen Niederlassung (zusätzlich zur Kaution) */
+export const BRANCH_SETUP_COST: Money = 6_000_00;
+
+export interface FacilityDef {
+  kind: FacilityKind;
+  name: string;
+  cost: Money; // Bau/Einrichtung einmalig
+  monthly: Money; // Betriebskosten inkl. Personal
+  minLevel: number;
+  /** setzt mindestens diesen Standorttyp voraus */
+  minKind: LocationKind;
+  text: string;
+}
+
+export const FACILITY_DEFS: Record<FacilityKind, FacilityDef> = {
+  workshop: {
+    kind: 'workshop', name: 'Eigene Werkstatt', cost: 85_000_00, monthly: 3_400_00, minLevel: 2, minKind: 'office_yard',
+    text: 'Wartung am Standort 35 % günstiger und 30 % schneller. Das Fuhrparkmanagement schickt fällige Fahrzeuge automatisch hierher.',
+  },
+  fuel: {
+    kind: 'fuel', name: 'Betriebstankstelle', cost: 42_000_00, monthly: 520_00, minLevel: 2, minKind: 'office_yard',
+    text: 'Fahrzeuge tanken bei Abfahrt am Standort voll – Diesel aus Großabnahme 9 % unter Tankstellenpreis.',
+  },
+  warehouse: {
+    kind: 'warehouse', name: 'Lagerhalle (2.000 Palettenplätze)', cost: 140_000_00, monthly: 3_900_00, minLevel: 3, minKind: 'office_yard',
+    text: 'Lagerlogistik für Kunden: monatliche Lagererlöse je nach Auslastung (Ruf, Vertrieb); zusätzliche Aufträge ab dem Standort.',
+  },
+};
+
+export const WAREHOUSE_SLOTS = 2000;
+/** Lagerentgelt je belegtem Palettenplatz und Monat */
+export const WAREHOUSE_RATE: Money = 6_50;
+
+export interface DepartmentDef {
+  id: Department;
+  name: string;
+  /** Monatsgehalt brutto (Lohnniveau DE) */
+  salary: Money;
+  /** wirksame Mitarbeiterzahl (darüber kein zusätzlicher Effekt) */
+  maxEffective: number;
+  text: string;
+}
+
+export const DEPARTMENTS: Record<Department, DepartmentDef> = {
+  dispatch: { id: 'dispatch', name: 'Disposition', salary: 3_600_00, maxEffective: 99, text: 'Ein Disponent betreut 8 Fahrzeuge; bis 5 Fahrzeuge disponiert die Geschäftsführung selbst. Fehlt Disposition, sinkt die Fahrerzufriedenheit.' },
+  sales: { id: 'sales', name: 'Vertrieb', salary: 3_900_00, maxEffective: 3, text: 'Je Mitarbeiter +12 % Angebote in der Auftragsbörse, +1,5 % bessere Preise und ein zusätzliches Rahmenvertragsangebot.' },
+  accounting: { id: 'accounting', name: 'Buchhaltung', salary: 3_400_00, maxEffective: 2, text: 'Forderungsmanagement: weniger Zahlungsausfälle (−45 % / −65 %) und pünktlichere Zahlungen.' },
+  fleet: { id: 'fleet', name: 'Fuhrparkmanagement', salary: 3_700_00, maxEffective: 2, text: 'Je Mitarbeiter −8 % Verschleiß und −30 % Pannen; fällige Fahrzeuge (< 60 %) kommen automatisch in die eigene Werkstatt.' },
+};
+
+export const STAFF_HIRING_COST: Money = 600_00;
+
+export interface CompanyLevelDef {
+  level: number;
+  name: string;
+  /** Anforderungen für diese Stufe */
+  vehicles: number;
+  deliveries: number;
+  reputation: number;
+  locations: number;
+  countries: number;
+  /** maximal mögliche Standorte auf dieser Stufe */
+  maxLocations: number;
+}
+
+export const COMPANY_LEVELS: CompanyLevelDef[] = [
+  { level: 1, name: 'Einzelunternehmen', vehicles: 0, deliveries: 0, reputation: 0, locations: 1, countries: 1, maxLocations: 1 },
+  { level: 2, name: 'Kleinspedition', vehicles: 3, deliveries: 25, reputation: 35, locations: 1, countries: 1, maxLocations: 2 },
+  { level: 3, name: 'Regionale Spedition', vehicles: 6, deliveries: 120, reputation: 45, locations: 2, countries: 1, maxLocations: 3 },
+  { level: 4, name: 'Überregionale Spedition', vehicles: 12, deliveries: 400, reputation: 55, locations: 3, countries: 1, maxLocations: 5 },
+  { level: 5, name: 'Internationale Spedition', vehicles: 25, deliveries: 1200, reputation: 62, locations: 4, countries: 2, maxLocations: 8 },
+  { level: 6, name: 'Europäischer Logistikkonzern', vehicles: 50, deliveries: 3000, reputation: 70, locations: 6, countries: 3, maxLocations: 15 },
+];
+
+/** Großer Betriebshof ab dieser Unternehmensstufe */
+export const DEPOT_MIN_LEVEL = 3;
 
 export const PRIVATE_LIVING_COST: Money = 1_450_00; // Miete kleine Wohnung + Lebenshaltung / Monat

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Speditions-Simulator",
+  "productName": "Cargovia",
   "version": "0.6.0",
   "identifier": "de.spedsim.desktop",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Speditions-Simulator",
+        "title": "Cargovia – Logistik-Simulation Europa",
         "width": 1600,
         "height": 950,
         "minWidth": 1200,
@@ -30,7 +30,7 @@
       "nsis"
     ],
     "category": "SimulationGame",
-    "shortDescription": "Speditions- und Unternehmenssimulator",
+    "shortDescription": "Cargovia – Speditions- und Logistiksimulation",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -41,7 +41,12 @@
       "binaries/spedsim-server",
       "binaries/cloudflared"
     ],
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/hooks.nsh"
+      }
+    }
   },
   "plugins": {
     "updater": {

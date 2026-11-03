@@ -63,6 +63,7 @@ export type LedgerCategory =
   | 'repair'
   | 'vehicle_purchase'
   | 'vehicle_sale'
+  | 'storage'
   | 'penalty'
   | 'hiring'
   | 'salary'
@@ -85,9 +86,30 @@ export interface Location {
   cityId: string;
   kind: LocationKind;
   since: GameTime;
+  /** eigene Einrichtungen am Standort (Werkstatt, Tankstelle, Lager) */
+  facilities: FacilityKind[];
+  /** Auslastung der Lagerhalle 0–1 */
+  warehouseUtil?: number;
 }
 
 export type LocationKind = 'office_small' | 'office_yard' | 'depot';
+
+export type FacilityKind = 'workshop' | 'fuel' | 'warehouse';
+
+export type Department = 'dispatch' | 'sales' | 'accounting' | 'fleet';
+
+/** Büro- und Fachpersonal (Abteilungen) */
+export interface StaffMember {
+  id: Id;
+  name: string;
+  dept: Department;
+  salary: Money;
+  hired: GameTime;
+  /** Arbeitsplatz (Standort) */
+  locationId: Id;
+  /** aus dem Fahrerstamm befördert */
+  promoted?: boolean;
+}
 
 export interface Company {
   name: string;
@@ -101,6 +123,10 @@ export interface Company {
   totals: { deliveries: number; lateDeliveries: number; revenue: Money; kmLoaded: number; kmEmpty: number };
   /** laufende Bankkredite */
   loans: Loan[];
+  /** Abteilungen: Büro- und Fachpersonal */
+  staff: StaffMember[];
+  /** Unternehmensstufe 1–6 (steigt nur) */
+  level: number;
 }
 
 /** Ratenkredit (Annuität, monatliche Rate am Monatsersten). */

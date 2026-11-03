@@ -66,6 +66,14 @@ export const MIGRATIONS: Record<number, Migration> = {
     }
     return s;
   },
+  // 0.7.0: Unternehmensausbau (Einrichtungen, Abteilungen, Unternehmensstufen)
+  4: (s) => {
+    const company = s.company as Record<string, unknown>;
+    for (const l of company.locations as Record<string, unknown>[]) l.facilities ??= [];
+    company.staff ??= [];
+    company.level ??= 1;
+    return s;
+  },
 };
 
 export function deserializeSave(text: string): GameState {

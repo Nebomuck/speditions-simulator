@@ -12,6 +12,7 @@ import { pruneTrips, tickTrip } from './trips.ts';
 import { updateDisruptions } from './disruptions.ts';
 import { dailyContracts, hourlyContracts } from './contracts.ts';
 import { dailyPersonnel, hourlyPersonnel } from './personnel.ts';
+import { dailyCompany, hourlyCompany, monthlyCompany } from './company.ts';
 import type { GameState } from './types.ts';
 
 /** Simuliert genau eine Spielminute. */
@@ -44,6 +45,7 @@ function hourly(state: GameState, ctx: SimContext) {
   updateDisruptions(state, ctx);
   hourlyPersonnel(state);
   hourlyContracts(state);
+  hourlyCompany(state);
 }
 
 function daily(state: GameState, ctx: SimContext) {
@@ -78,13 +80,18 @@ function daily(state: GameState, ctx: SimContext) {
   // Personal (Zufriedenheit, Krankheit, Kündigungen) und Rahmenverträge
   dailyPersonnel(state);
   dailyContracts(state, ctx);
+  // Unternehmensstufe, Lagerauslastung
+  dailyCompany(state);
   // Kurzzeitmiete wird täglich abgerechnet
   for (const v of Object.values(state.vehicles)) if (v.ownership === 'rented' && v.rentPerDay) book(state, 'company', -v.rentPerDay, 'leasing', `Miete LKW ${v.plate}`);
 
   const holiday = holidayName(state.time);
   if (holiday) addLog(state, { level: 'info', category: 'market', text: `Feiertag: ${holiday} – deutlich weniger Transportaufträge.` });
 
-  if (dayOfMonth(state.time) === 1) processMonthEnd(state);
+  if (dayOfMonth(state.time) === 1) {
+    processMonthEnd(state);
+    monthlyCompany(state);
+  }
 
   if (state.company.account.balance < -25_000_00) {
     addLog(state, { level: 'danger', category: 'finance', text: `Liquidität kritisch: Kontostand ${formatMoney(state.company.account.balance)}. Ausgaben reduzieren oder Forderungen eintreiben!` });

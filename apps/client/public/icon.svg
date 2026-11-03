@@ -1,1 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f172a"/><path d="M10 38V22h26v16H10zm26-10h9l7 7v3H36V28z" fill="#38bdf8"/><circle cx="19" cy="42" r="5" fill="#f59e0b"/><circle cx="45" cy="42" r="5" fill="#f59e0b"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0c2a4a"/>
+      <stop offset="1" stop-color="#0a5a6e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.25" r="0.75">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fcd34d"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#glow)"/>
+  <!-- Route als „C“ mit Fahrbahnmarkierung -->
+  <path d="M384.7 148 A168 168 0 1 0 384.7 364" fill="none" stroke="url(#road)" stroke-width="46" stroke-linecap="round"/>
+  <path d="M384.7 148 A168 168 0 1 0 384.7 364" fill="none" stroke="#0c2a4a" stroke-width="6" stroke-linecap="round" stroke-dasharray="20 18" opacity="0.85"/>
+  <!-- Startpunkt und Zielpfeil -->
+  <circle cx="384.7" cy="148" r="25" fill="#ffffff"/>
+  <circle cx="384.7" cy="148" r="11" fill="#f59e0b"/>
+  <path d="M418 330 L352 340 L398 392 Z" fill="#f97316" stroke="#f97316" stroke-width="10" stroke-linejoin="round"/>
+  <!-- Sattelzug -->
+  <rect x="134" y="198" width="160" height="86" rx="12" fill="#ffffff"/>
+  <rect x="150" y="214" width="128" height="8" rx="4" fill="#0a5a6e" opacity="0.25"/>
+  <path d="M300 286 V226 Q300 214 312 214 H344 L376 250 V286 Z" fill="#ffffff"/>
+  <path d="M313 227 H339 L360 251 H313 Z" fill="#0a5a6e"/>
+  <rect x="134" y="282" width="242" height="12" rx="6" fill="#ffffff"/>
+  <circle cx="176" cy="302" r="19" fill="#0c2a4a" stroke="#ffffff" stroke-width="7"/>
+  <circle cx="220" cy="302" r="19" fill="#0c2a4a" stroke="#ffffff" stroke-width="7"/>
+  <circle cx="346" cy="302" r="19" fill="#0c2a4a" stroke="#ffffff" stroke-width="7"/>
+</svg>

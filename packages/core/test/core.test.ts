@@ -4,6 +4,8 @@ import {
   deserializeSave, haversineKm, serializeSave, tickMinutes, vehicleMarker, processMonthEnd, generateOrder, SaveError, createInvoice,
   TRUCK_BY_ID, estimateTrip, vehicleSchedule, STATE_VERSION, planCoLoad, ordersOnBoard, rerouteAffected, routeNow, tripEta, updateDisruptions,
   type Disruption, type Contract, generateContractOffer, marketSalary, COURSES, dailyPersonnel, tradeInValue, MIN_PER_DAY,
+  type GameState, LOCATION_DEFS, BRANCH_SETUP_COST, capacity, monthlyFixedCosts, dailyCompany, monthlyCompany, serviceCost, dispatchShortfall,
+  satisfactionFactors, accountingRiskFactor, salesVolumeFactor, warehouseIncome, companyValue,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -804,5 +806,158 @@ describe('Fahrzeugfinanzierung, Miete, Inzahlungnahme', () => {
     const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":3'));
     expect(loaded.contracts).toEqual({});
     expect(first(loaded.drivers).vacationLeft).toBe(30);
+  });
+});
+
+describe('Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilungen', () => {
+  /** Fügt Kopien des Start-LKW hinzu (für Stufenanforderungen und Disposition). */
+  const addTrucks = (s: GameState, n: number) => {
+    const v0 = first(s.vehicles);
+    for (let i = 0; i < n; i++) {
+      const id = `veh-x${i}`;
+      s.vehicles[id] = { ...JSON.parse(JSON.stringify(v0)), id, plate: `X-${i}` };
+    }
+  };
+  const reachLevel2 = (s: GameState) => {
+    addTrucks(s, 2);
+    s.company.totals.deliveries = 30;
+    s.company.reputation = 40;
+    dailyCompany(s);
+  };
+
+  it('Stufenaufstieg schaltet Niederlassungen frei; neue Fahrzeuge werden am gewählten Standort geliefert', () => {
+    const s = newGame();
+    s.company.account.balance = 500_000_00;
+    expect(s.company.level).toBe(1);
+    const denied = applyCommand(s, ctx, 'p1', { type: 'openBranch', cityId: 'hamburg', kind: 'office_yard' });
+    expect(denied.ok).toBe(false);
+    reachLevel2(s);
+    expect(s.company.level).toBe(2);
+    expect(s.log.some((l) => l.text.includes('Kleinspedition'))).toBe(true);
+
+    const bal = s.company.account.balance;
+    const r = applyCommand(s, ctx, 'p1', { type: 'openBranch', cityId: 'hamburg', kind: 'office_yard' });
+    expect(r.ok).toBe(true);
+    expect(s.company.account.balance).toBe(bal - LOCATION_DEFS.office_yard.deposit - BRANCH_SETUP_COST);
+    expect(capacity(s).parking).toBe(LOCATION_DEFS.office_small.parking + LOCATION_DEFS.office_yard.parking);
+    // Stufe 2 erlaubt nur zwei Standorte
+    expect(applyCommand(s, ctx, 'p1', { type: 'openBranch', cityId: 'prag', kind: 'office_small' }).ok).toBe(false);
+
+    const loc = s.company.locations.find((l) => l.cityId === 'hamburg')!;
+    const buy = applyCommand(s, ctx, 'p1', { type: 'buyNewVehicle', modelId: 'trasko-v35', financing: 'cash', locationId: loc.id });
+    expect(buy.ok).toBe(true);
+    expect(s.vehicles[(buy as { id: string }).id].cityId).toBe('hamburg');
+    // Monatliche Fixkosten enthalten die Miete der Niederlassung
+    expect(monthlyFixedCosts(s).some((i) => i.label.includes('Hamburg'))).toBe(true);
+
+    // Aufgeben kostet eine Monatsmiete; der Firmensitz bleibt
+    expect(applyCommand(s, ctx, 'p1', { type: 'closeBranch', locationId: s.company.locations[0].id }).ok).toBe(false);
+    for (const v of Object.values(s.vehicles)) if (v.cityId === 'hamburg') delete s.vehicles[v.id];
+    for (const id of ['veh-x0', 'veh-x1']) delete s.vehicles[id];
+    const b2 = s.company.account.balance;
+    expect(applyCommand(s, ctx, 'p1', { type: 'closeBranch', locationId: loc.id }).ok).toBe(true);
+    expect(s.company.locations.length).toBe(1);
+    expect(s.company.account.balance).toBe(b2 - LOCATION_DEFS.office_yard.rent);
+  });
+
+  it('eigene Werkstatt wartet günstiger; das Fuhrparkmanagement schickt fällige LKW automatisch hin', async () => {
+    const s = newGame();
+    s.company.account.balance = 500_000_00;
+    reachLevel2(s);
+    const hq = s.company.locations[0];
+    expect(applyCommand(s, ctx, 'p1', { type: 'buildFacility', locationId: hq.id, facility: 'workshop' }).ok).toBe(false); // kleines Büro reicht nicht
+    expect(applyCommand(s, ctx, 'p1', { type: 'upgradeLocation', locationId: hq.id, kind: 'depot' }).ok).toBe(false); // erst ab Stufe 3
+    expect(applyCommand(s, ctx, 'p1', { type: 'upgradeLocation', locationId: hq.id, kind: 'office_yard' }).ok).toBe(true);
+    const v = first(s.vehicles);
+    v.condition = 50;
+    const external = serviceCost(s, v).cost;
+    expect(applyCommand(s, ctx, 'p1', { type: 'buildFacility', locationId: hq.id, facility: 'workshop' }).ok).toBe(true);
+    const own = serviceCost(s, v);
+    expect(own.own).toBe(true);
+    expect(own.cost).toBe(Math.round(external * 0.65));
+
+    expect(applyCommand(s, ctx, 'p1', { type: 'hireStaff', dept: 'fleet', locationId: hq.id }).ok).toBe(true);
+    await runUntil(s, () => v.status === 'workshop', 120);
+    expect(v.status).toBe('workshop');
+    expect(v.condition).toBe(100);
+    expect(s.log.some((l) => l.text.startsWith('Fuhrparkmanagement'))).toBe(true);
+  });
+
+  it('Betriebstankstelle tankt bei Abfahrt günstiger voll', () => {
+    const s = newGame();
+    s.company.account.balance = 500_000_00;
+    reachLevel2(s);
+    const hq = s.company.locations[0];
+    applyCommand(s, ctx, 'p1', { type: 'upgradeLocation', locationId: hq.id, kind: 'office_yard' });
+    expect(applyCommand(s, ctx, 'p1', { type: 'buildFacility', locationId: hq.id, facility: 'fuel' }).ok).toBe(true);
+    const v = first(s.vehicles);
+    const tank = TRUCK_BY_ID[v.modelId].tankL;
+    v.fuelL = tank * 0.4;
+    const order = addOrder(s, 'leipzig', 'prag');
+    const r = applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: order.id, driverId: first(s.drivers).id, vehicleId: v.id, trailerId: first(s.trailers).id });
+    expect(r.ok).toBe(true);
+    expect(v.fuelL).toBe(tank);
+    const entry = s.ledger.find((l) => l.category === 'fuel' && l.text.startsWith('Betriebstankstelle'))!;
+    expect(entry.amount).toBe(-Math.round(tank * 0.6 * s.market.diesel * 0.91));
+  });
+
+  it('Abteilungen: Arbeitsplätze, Gehälter, Disposition und Beförderung', () => {
+    const s = newGame();
+    s.company.account.balance = 500_000_00;
+    addTrucks(s, 7); // 8 Fahrzeuge → 3 ohne Disposition
+    const d = first(s.drivers);
+    expect(dispatchShortfall(s)).toBe(3);
+    expect(satisfactionFactors(s, d).reasons.some((r) => r.text === 'überlastete Disposition')).toBe(true);
+    const hq = s.company.locations[0];
+    expect(applyCommand(s, ctx, 'p1', { type: 'hireStaff', dept: 'dispatch', locationId: hq.id }).ok).toBe(true);
+    expect(dispatchShortfall(s)).toBe(0);
+    expect(monthlyFixedCosts(s).some((i) => i.label.includes('(Disposition)'))).toBe(true);
+    // kleines Büro: nur ein Arbeitsplatz
+    expect(applyCommand(s, ctx, 'p1', { type: 'hireStaff', dept: 'accounting', locationId: hq.id }).ok).toBe(false);
+    applyCommand(s, ctx, 'p1', { type: 'upgradeLocation', locationId: hq.id, kind: 'office_yard' });
+    expect(applyCommand(s, ctx, 'p1', { type: 'hireStaff', dept: 'accounting', locationId: hq.id }).ok).toBe(true);
+    expect(accountingRiskFactor(s)).toBeCloseTo(0.55);
+
+    d.experience = 40;
+    expect(applyCommand(s, ctx, 'p1', { type: 'promoteDriver', driverId: d.id, dept: 'sales' }).ok).toBe(false);
+    d.experience = 70;
+    expect(applyCommand(s, ctx, 'p1', { type: 'promoteDriver', driverId: d.id, dept: 'sales' }).ok).toBe(true);
+    expect(s.drivers[d.id]).toBeUndefined();
+    const m = s.company.staff.find((x) => x.name === d.name)!;
+    expect(m.promoted).toBe(true);
+    expect(m.salary).toBeGreaterThanOrEqual(d.salary);
+    expect(salesVolumeFactor(s)).toBeCloseTo(1.12);
+  });
+
+  it('Lagerhalle ab Stufe 3: Auslastung steigt, Lagererlöse werden monatlich gebucht', () => {
+    const s = newGame();
+    s.company.account.balance = 500_000_00;
+    reachLevel2(s);
+    const hq = s.company.locations[0];
+    applyCommand(s, ctx, 'p1', { type: 'upgradeLocation', locationId: hq.id, kind: 'office_yard' });
+    expect(applyCommand(s, ctx, 'p1', { type: 'buildFacility', locationId: hq.id, facility: 'warehouse' }).ok).toBe(false);
+    s.company.level = 3;
+    expect(applyCommand(s, ctx, 'p1', { type: 'buildFacility', locationId: hq.id, facility: 'warehouse' }).ok).toBe(true);
+    s.company.reputation = 70;
+    const u0 = hq.warehouseUtil!;
+    for (let i = 0; i < 30; i++) dailyCompany(s);
+    expect(hq.warehouseUtil!).toBeGreaterThan(u0);
+    const bal = s.company.account.balance;
+    monthlyCompany(s);
+    expect(s.company.account.balance - bal).toBe(warehouseIncome(hq));
+    expect(s.ledger.at(-1)!.category).toBe('storage');
+    expect(companyValue(s, () => 0)).toBeGreaterThan(s.company.account.balance);
+  });
+
+  it('Spielstände der Version 4 erhalten Einrichtungen, Personal und Stufe', () => {
+    const s = newGame();
+    const old = JSON.parse(JSON.stringify(s));
+    delete old.company.staff;
+    delete old.company.level;
+    for (const l of old.company.locations) delete l.facilities;
+    const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":4'));
+    expect(loaded.company.staff).toEqual([]);
+    expect(loaded.company.level).toBe(1);
+    expect(loaded.company.locations[0].facilities).toEqual([]);
   });
 });

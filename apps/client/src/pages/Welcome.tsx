@@ -150,8 +150,9 @@ export function Welcome() {
     <div className="welcome">
       <div className="welcome-card">
         <div className="card hero" style={{ padding: 28 }}>
-          <div className="brand-logo" style={{ width: 52, height: 52, borderRadius: 14, marginBottom: 18 }}><Truck size={28} /></div>
-          <h1>Speditions-Simulator</h1>
+          <img src="/icon.svg" alt="" width={72} height={72} style={{ marginBottom: 14 }} />
+          <h1 className="wordmark">Cargo<span>via</span></h1>
+          <div className="dim" style={{ marginTop: -4, marginBottom: 12, letterSpacing: 0.4 }}>Logistik-Simulation Europa</div>
           <p>
             Gründe deine eigene Spedition mit einem gebrauchten LKW, einem Fahrer und wenig Kapital. Finde lohnende Aufträge,
             disponiere Fahrten über echte europäische Straßen, verfolge deine LKW live auf der Karte und baue Schritt für Schritt

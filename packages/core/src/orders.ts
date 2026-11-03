@@ -7,6 +7,7 @@ import { CITIES, CITY_BY_ID, type CityDef } from './data/cities.ts';
 import { CARGOS, CARGO_BY_ID, type CargoDef } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { customerFor } from './generate.ts';
+import { hasFacility, salesPriceBonus, salesVolumeFactor } from './company.ts';
 import { haversineKm } from './geo.ts';
 import { freshHos, simulateDriving } from './hos.ts';
 import { rand, newId } from './rng.ts';
@@ -76,7 +77,8 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
     const anchors = [...activeCities(state)].map((id) => CITY_BY_ID[id]);
     origins = origins.filter((o) => anchors.some((a) => haversineKm(ll(a), ll(o)) <= LOCAL_RADIUS_KM));
   }
-  const origin = rand.weighted(state, origins, (c) => Math.pow(c.pop, 0.55));
+  // eigene Lagerhallen ziehen Verteilerverkehr an
+  const origin = rand.weighted(state, origins, (c) => Math.pow(c.pop, 0.55) * (hasFacility(state, c.id, 'warehouse') ? 4 : 1));
   if (!origin) return null;
   const partial = PARTIAL_TRAILERS.includes(cargo.trailer) && rand.chance(state, PARTIAL_SHARE);
   const dest = pickDestination(state, ctx, origin, cargo, partial ? PARTIAL_MAX_KM : 2300);
@@ -102,7 +104,7 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
 
   // Vergütung; zufriedene Stammkunden zahlen etwas besser
   const loyalty = customer.deliveries > 0 ? ((customer.satisfaction - 50) / 50) * 0.05 : 0;
-  const priceFactor = 1 + (0.5 - customer.priceSensitivity) * 0.12 + loyalty;
+  const priceFactor = 1 + (0.5 - customer.priceSensitivity) * 0.12 + loyalty + salesPriceBonus(state);
   let payment = baseRate(state, cargo, route.km) * priceFactor * rand.float(state, 0.9, 1.12);
   if (express) payment *= 1.3;
   // Teilladung: weniger Gesamterlös, aber höherer Preis je Tonne
@@ -150,7 +152,7 @@ export function updateOrderMarket(state: GameState, ctx: SimContext, initial = f
     if (o.status === 'expired' && state.time - o.offerExpires > MIN_PER_DAY) delete state.orders[o.id];
     else if ((o.status === 'delivered' || o.status === 'cancelled') && state.time - (o.deliveredAt ?? o.created) > 45 * MIN_PER_DAY) delete state.orders[o.id];
   }
-  const target = MARKET_TARGET * (initial ? 1 : orderVolumeFactor(state));
+  const target = MARKET_TARGET * (initial ? 1 : orderVolumeFactor(state)) * salesVolumeFactor(state);
   const deficit = Math.max(0, target - offered);
   const n = initial ? deficit : Math.min(deficit, Math.round(deficit / 6 + rand.float(state, 0, 3)));
   for (let i = 0; i < n; i++) generateOrder(state, ctx, { local: rand.chance(state, LOCAL_SHARE) });

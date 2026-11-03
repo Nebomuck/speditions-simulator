@@ -9,7 +9,7 @@
 | 3 | Speditionsgrundsystem: Gründung, Kapital, Fahrzeugkauf, Fahrer, Aufträge, Disposition, Durchführung, Erlöse/Kosten | ✅ abgeschlossen |
 | 4 | Umfangreiche Disposition | ✅ abgeschlossen: Zeitstrahl, Fahreransicht, Konfliktprüfung, Ladungsarten, Rückladungssuche, Überführung, Kalender (Tag/Woche/Monat), Vorausplanung/Tourenketten, Solo-LKW/Transporter, Teilladungen, Beiladung (Multi-Stopp-Touren), Verkehrsstörungen mit automatischer Umleitung |
 | 5 | Wirtschaft & Management | ✅ abgeschlossen: Rechnungen, Mahnungen, Ausfälle, Leasing, Wartung, Reparaturen, Kredite, Factoring, Fahrzeugfinanzierung, Kurzzeitmiete, Inzahlungnahme, Rahmenverträge, Personal (Urlaub, Krankheit, Schulungen, Gehalt, Gespräche, Kündigungen) |
-| 6 | Unternehmensausbau | 🟡 Standortstufen mit Kapazität ✅ · Niederlassungen, Werkstatt, Lager, Abteilungen, Stufen ⏳ |
+| 6 | Unternehmensausbau | ✅ abgeschlossen: Unternehmensstufen 1–6, Niederlassungen in ganz Europa, Standortstufen, eigene Werkstatt, Betriebstankstelle, Lagerhalle, Abteilungen (Disposition, Vertrieb, Buchhaltung, Fuhrparkmanagement), Beförderung, Flottenübersicht mit Sammelwartung und Lieferort |
 | 7 | Automatisierung (KI-Disponenten) | ⏳ |
 | 8 | Lebenssimulation | 🟡 Charakter, Privatkonto, GF-Gehalt ✅ · Bedürfnisse, Wohnen, Freizeit, Beziehungen ⏳ |
 | 9 | Multiplayer | 🟡 Server, Einladung, Rechte, Synchronisation, Chat, Wiederverbindung, Backups ✅ · interne Nachrichten, Aufgaben, gemeinsame Aktivitäten, Delta-Sync ⏳ |
@@ -19,12 +19,11 @@
 
 ## Nächste Schritte (in dieser Reihenfolge)
 
-1. **Phase 6** – Niederlassungen in anderen Städten, eigene Werkstatt (günstigere Wartung), Tankanlage, Lager, Abteilungen, Unternehmensstufen
-2. **Phase 7** – KI-Disponent als Mitarbeiter: regelbasierte Auswahl (Mindestgewinn, max. Leer-km, Regionen, Stammkunden) über `estimateTrip` + `validateDispatch`; Qualität bestimmt Fehlerrate und Suchtiefe
-3. **Phase 8** – Bedürfnisse über die Zeit, Tagesplanung des Charakters, Wohnungen/Häuser, Freizeit, Beziehungen
-4. **Phase 9** – interne Nachrichten, Aufgabenverteilung, Delta-Synchronisation, Server-Konfiguration für das Internet (TLS-Proxy)
-5. **Phase 10** – KI-Konkurrenz mit eigener Flotte und Finanzen, Ereignisregelwerk (Grundlage: Verkehrsstörungen aus Phase 4), Wetter, Sonntagsfahrverbote, Grenzwartezeiten
-6. **Phase 11/12** – Tutorial, Hilfe, Musik, Balancing-Läufe (automatisierte Langzeitsimulation), Installer-Feinschliff (Signatur, Auto-Update)
+1. **Phase 7** – KI-Disponent als Mitarbeiter: regelbasierte Auswahl (Mindestgewinn, max. Leer-km, Regionen, Stammkunden) über `estimateTrip` + `validateDispatch`; Qualität bestimmt Fehlerrate und Suchtiefe
+2. **Phase 8** – Bedürfnisse über die Zeit, Tagesplanung des Charakters, Wohnungen/Häuser, Freizeit, Beziehungen
+3. **Phase 9** – interne Nachrichten, Aufgabenverteilung, Delta-Synchronisation, Server-Konfiguration für das Internet (TLS-Proxy)
+4. **Phase 10** – KI-Konkurrenz mit eigener Flotte und Finanzen, Ereignisregelwerk (Grundlage: Verkehrsstörungen aus Phase 4), Wetter, Sonntagsfahrverbote, Grenzwartezeiten
+5. **Phase 11/12** – Tutorial, Hilfe, Musik, Balancing-Läufe (automatisierte Langzeitsimulation), Installer-Feinschliff (Signatur, Auto-Update)
 
 ## Arbeitsweise
 
@@ -36,6 +35,6 @@
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 48/48 bestanden)
+1. `npm install`, dann `npm test` (erwartet: 54/54 bestanden)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
-3. Mit Punkt 1 (Phase 6: Niederlassungen, Werkstatt, Lager) fortfahren. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).
+3. Mit Punkt 1 (Phase 7: KI-Disponenten) fortfahren. Der Disponent ist eine neue Rolle der Abteilung Disposition (`company.ts`, `DEPARTMENTS`). Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

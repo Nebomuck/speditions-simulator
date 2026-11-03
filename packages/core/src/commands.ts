@@ -11,10 +11,11 @@ import { acceptContract, cancelContract } from './contracts.ts';
 import { VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, addLog, annuity, book, factorInvoices, formatMoney, repayLoan, takeLoan, vehicleLoanRate, vehicleRentPerDay } from './finance.ts';
 import { plate, tradeInValue, vehicleMarketValue } from './generate.ts';
 import { sendOnVacation, setDriverSalary, startTraining, talkToDriver } from './personnel.ts';
+import { buildFacility, closeBranch, fireStaff, hireStaff, openBranch, promoteDriver, serviceFleet, serviceVehicle, upgradeLocation } from './company.ts';
 import { freshHos } from './hos.ts';
 import { newId } from './rng.ts';
 import { SPEEDS, toDate } from './time.ts';
-import type { GameState, Id, LocationKind, Permission, TrailerType, TrainingCourse, Vehicle } from './types.ts';
+import type { Department, FacilityKind, GameState, Id, LocationKind, Permission, TrailerType, TrainingCourse, Vehicle } from './types.ts';
 
 export type Command =
   | { type: 'setSpeed'; speed: number }
@@ -28,15 +29,22 @@ export type Command =
   | { type: 'removeCoLoad'; orderId: Id }
   | { type: 'relocate'; driverId: Id; vehicleId: Id; trailerId?: Id; toCityId: string }
   | { type: 'buyUsedVehicle'; offerId: Id }
-  | { type: 'buyNewVehicle'; modelId: string; financing: 'cash' | 'lease' | 'loan' | 'rent'; loanMonths?: number; tradeInVehicleId?: Id }
-  | { type: 'buyTrailer'; trailerType: TrailerType; financing: 'cash' | 'lease' }
+  | { type: 'buyNewVehicle'; modelId: string; financing: 'cash' | 'lease' | 'loan' | 'rent'; loanMonths?: number; tradeInVehicleId?: Id; locationId?: Id }
+  | { type: 'buyTrailer'; trailerType: TrailerType; financing: 'cash' | 'lease'; locationId?: Id }
   | { type: 'sellVehicle'; vehicleId: Id }
   | { type: 'sellTrailer'; trailerId: Id }
   | { type: 'serviceVehicle'; vehicleId: Id }
+  | { type: 'serviceFleet'; below: number }
   | { type: 'hireDriver'; applicantId: Id }
   | { type: 'fireDriver'; driverId: Id }
   | { type: 'setCeoSalary'; playerId: Id; salary: number }
   | { type: 'upgradeLocation'; locationId: Id; kind: LocationKind }
+  | { type: 'openBranch'; cityId: string; kind: LocationKind }
+  | { type: 'closeBranch'; locationId: Id }
+  | { type: 'buildFacility'; locationId: Id; facility: FacilityKind }
+  | { type: 'hireStaff'; dept: Department; locationId: Id }
+  | { type: 'fireStaff'; staffId: Id }
+  | { type: 'promoteDriver'; driverId: Id; dept: Department }
   | { type: 'takeLoan'; amount: number; months: number }
   | { type: 'repayLoan'; loanId: Id }
   | { type: 'factorInvoices'; invoiceId?: Id }
@@ -74,10 +82,17 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   talkToDriver: 'personnel',
   sellTrailer: 'sellVehicles',
   serviceVehicle: 'fleet',
+  serviceFleet: 'fleet',
   hireDriver: 'personnel',
   fireDriver: 'fireStaff',
   setCeoSalary: 'finance',
   upgradeLocation: 'expansion',
+  openBranch: 'expansion',
+  closeBranch: 'expansion',
+  buildFacility: 'expansion',
+  hireStaff: 'personnel',
+  fireStaff: 'fireStaff',
+  promoteDriver: 'personnel',
   takeLoan: 'loans',
   repayLoan: 'loans',
   factorInvoices: 'finance',
@@ -236,6 +251,9 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
         if (trade.status !== 'idle') return fail('Das in Zahlung gegebene Fahrzeug ist im Einsatz.');
         if (trade.ownership !== 'owned') return fail('Nur eigene Fahrzeuge können in Zahlung gegeben werden.');
       }
+      const home = cmd.locationId ? state.company.locations.find((l) => l.id === cmd.locationId) : undefined;
+      if (cmd.locationId && !home) return fail('Standort nicht gefunden.');
+      const homeCity = home?.cityId ?? state.company.hqCityId;
       const cap = capacity(state);
       if (cap.vehicles - (trade ? 1 : 0) >= cap.parking) return fail(`Keine freien Stellplätze (${cap.parking}). Erweitere deinen Standort.`);
       const months = cmd.loanMonths ?? 48;
@@ -253,8 +271,8 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       }
       const id = newId(state, 'veh');
       const vehicle: Vehicle = {
-        id, modelId: m.id, plate: plate(state, state.company.hqCityId), year: toDate(state.time).getUTCFullYear(), odometerKm: 0,
-        condition: 100, fuelL: m.tankL, cityId: state.company.hqCityId, status: 'idle',
+        id, modelId: m.id, plate: plate(state, homeCity), year: toDate(state.time).getUTCFullYear(), odometerKm: 0,
+        condition: 100, fuelL: m.tankL, cityId: homeCity, status: 'idle',
         ownership: fin === 'lease' ? 'leased' : fin === 'rent' ? 'rented' : 'owned',
         ...(fin === 'lease' ? { leaseRate: m.leaseRate } : {}),
         ...(fin === 'rent' ? { rentPerDay } : {}),
@@ -285,13 +303,16 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
     case 'buyTrailer': {
       const def = TRAILER_BY_TYPE[cmd.trailerType];
       if (!def) return fail('Unbekannter Auflieger.');
+      const home = cmd.locationId ? state.company.locations.find((l) => l.id === cmd.locationId) : undefined;
+      if (cmd.locationId && !home) return fail('Standort nicht gefunden.');
+      const homeCity = home?.cityId ?? state.company.hqCityId;
       const cap = capacity(state);
       if (cap.trailers >= cap.trailerParking) return fail(`Keine freien Aufliegerstellplätze (${cap.trailerParking}).`);
       const upfront = cmd.financing === 'cash' ? def.price : def.leaseRate;
       if (!canAfford(state, upfront)) return fail('Nicht genügend Geld.');
       const id = newId(state, 'trl');
       state.trailers[id] = {
-        id, type: def.type, plate: plate(state, state.company.hqCityId), condition: 100, cityId: state.company.hqCityId, status: 'idle',
+        id, type: def.type, plate: plate(state, homeCity), condition: 100, cityId: homeCity, status: 'idle',
         ownership: cmd.financing === 'cash' ? 'owned' : 'leased', leaseRate: cmd.financing === 'lease' ? def.leaseRate : undefined,
         purchasePrice: def.price, bought: state.time,
       };
@@ -332,20 +353,12 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
     case 'serviceVehicle': {
       const v = state.vehicles[cmd.vehicleId];
       if (!v) return fail('Fahrzeug nicht gefunden.');
-      if (v.status !== 'idle') return fail('Fahrzeug ist im Einsatz.');
-      if (v.condition >= 98) return fail('Fahrzeug ist bereits in Topzustand.');
-      const missing = 100 - v.condition;
-      const cost = Math.round(180_00 + missing * 38_00);
-      const hours = Math.ceil(2 + missing / 8);
-      if (!canAfford(state, cost)) return fail('Nicht genügend Geld.');
-      v.condition = 100;
-      v.status = 'workshop';
-      v.busyUntil = state.time + hours * 60;
-      v.history.push({ t: state.time, text: `Wartung & Reparatur (${hours} h)`, cost });
-      book(state, 'company', -cost, 'maintenance', `Werkstatt ${v.plate}`);
-      for (const t of Object.values(state.trailers)) if (t.cityId === v.cityId && t.status === 'idle' && t.condition < 90) t.condition = 100;
-      addLog(state, { level: 'info', category: 'fleet', text: `LKW ${v.plate} in der Werkstatt (${hours} h, ${formatMoney(cost)}).`, ref: { kind: 'vehicle', id: v.id } });
-      return { ok: true };
+      const r = serviceVehicle(state, v);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'serviceFleet': {
+      const r = serviceFleet(state, Number(cmd.below));
+      return r.ok ? { ok: true } : fail(r.error);
     }
     case 'hireDriver': {
       const a = state.applicants[cmd.applicantId];
@@ -354,7 +367,7 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       if (!canAfford(state, fee)) return fail('Nicht genügend Geld.');
       const id = newId(state, 'drv');
       state.drivers[id] = {
-        id, name: a.name, age: a.age, homeCityId: a.homeCityId, cityId: state.company.hqCityId, experience: a.experience,
+        id, name: a.name, age: a.age, homeCityId: a.homeCityId, cityId: state.company.locations.some((l) => l.cityId === a.cityId) ? a.cityId : state.company.hqCityId, experience: a.experience,
         licenses: a.licenses, qualifications: a.qualifications, salary: a.salary, reliability: a.reliability,
         ecoDriving: a.ecoDriving, stressResistance: a.stressResistance, satisfaction: 65, hired: state.time,
         status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: state.time,
@@ -396,16 +409,32 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       return r.ok ? { ok: true } : fail(r.error);
     }
     case 'upgradeLocation': {
-      const loc = state.company.locations.find((l) => l.id === cmd.locationId);
-      const def = LOCATION_DEFS[cmd.kind];
-      if (!loc || !def) return fail('Standort nicht gefunden.');
-      const order: LocationKind[] = ['office_small', 'office_yard', 'depot'];
-      if (order.indexOf(cmd.kind) <= order.indexOf(loc.kind)) return fail('Nur Erweiterungen auf eine größere Stufe möglich.');
-      if (!canAfford(state, def.deposit)) return fail('Nicht genügend Geld für Kaution und Einrichtung.');
-      loc.kind = cmd.kind;
-      book(state, 'company', -def.deposit, 'rent', `Kaution & Einrichtung ${def.name}`);
-      addLog(state, { level: 'success', category: 'company', text: `Standort ${CITY_BY_ID[loc.cityId].name} erweitert: ${def.name} (${def.parking} Stellplätze).` });
-      return { ok: true };
+      const r = upgradeLocation(state, cmd.locationId, cmd.kind);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'openBranch': {
+      const r = openBranch(state, ctx, cmd.cityId, cmd.kind);
+      return r.ok ? { ok: true, id: r.id } : fail(r.error);
+    }
+    case 'closeBranch': {
+      const r = closeBranch(state, cmd.locationId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'buildFacility': {
+      const r = buildFacility(state, cmd.locationId, cmd.facility);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'hireStaff': {
+      const r = hireStaff(state, cmd.dept, cmd.locationId);
+      return r.ok ? { ok: true, id: r.id } : fail(r.error);
+    }
+    case 'fireStaff': {
+      const r = fireStaff(state, cmd.staffId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'promoteDriver': {
+      const r = promoteDriver(state, cmd.driverId, cmd.dept);
+      return r.ok ? { ok: true, id: r.id } : fail(r.error);
     }
     case 'acceptContract': {
       const r = acceptContract(state, ctx, cmd.contractId);

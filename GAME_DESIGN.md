@@ -1,4 +1,4 @@
-# Game Design Document – Speditions-Simulator
+# Game Design Document – Cargovia
 
 ## 1. Vision
 
@@ -127,7 +127,13 @@ Persistente Unternehmen mit Branche, Größe, Zahlungsmoral, Zahlungsziel, Zufri
 
 ## 12. Standorte
 
-Kleines Büro (2 Stellplätze) → Büro mit Betriebshof (8) → großer Betriebshof (25). Stellplätze begrenzen den Fuhrpark tatsächlich.
+Kleines Büro (2 Stellplätze, 1 Büroplatz) → Büro mit Betriebshof (8, 4) → großer Betriebshof (25, 12, ab Stufe 3). Stellplätze begrenzen den Fuhrpark tatsächlich, Büroplätze das Personal.
+
+- **Niederlassungen** in jeder Stadt des Netzes (Kaution + 6.000 € Einrichtung). Sie bringen Stellplätze, Büroplätze, Bewerber und Aufträge aus ihrer Region; neue Fahrzeuge und Auflieger werden an den gewählten Standort geliefert. Aufgeben kostet eine Monatsmiete.
+- **Eigene Werkstatt** (ab Stufe 2, Betriebshof, 85.000 €, 3.400 €/Monat): Wartung am Standort 35 % günstiger und 30 % schneller.
+- **Betriebstankstelle** (ab Stufe 2, 42.000 €, 520 €/Monat): Abfahrten am Standort tanken voll, 9 % unter Tankstellenpreis.
+- **Lagerhalle** (ab Stufe 3, 140.000 €, 3.900 €/Monat): 2.000 Palettenplätze zu 6,50 €/Monat; die Auslastung folgt Reputation und Vertrieb. Der Standort wird häufiger Ursprung von Aufträgen.
+- **Abteilungen:** Disposition (ein Disponent je 8 Fahrzeuge; bis 5 Fahrzeuge disponiert die Geschäftsführung selbst, darüber sinkt sonst die Fahrerzufriedenheit), Vertrieb (je Kopf +12 % Börsenangebote, +1,5 % Preis, +1 Vertragsangebot, max. 3), Buchhaltung (Ausfälle −45 % / −65 %, pünktlichere Zahlungen), Fuhrparkmanagement (−8 % Verschleiß, −30 % Pannen je Kopf, max. 2; schickt Fahrzeuge unter 60 % automatisch in die eigene Werkstatt). Fahrer ab Erfahrung 50 können ins Büro befördert werden (ohne Einstellungskosten, +8 % Gehalt).
 
 ## 13. Lebenssimulation (Grundlage)
 
@@ -154,6 +160,15 @@ Mehrere Spieler leiten **dieselbe** Firma. Der Server simuliert allein (serverau
 - **Kommunikation:** Firmenchat, Ereignisprotokoll und Benachrichtigungen.
 - **Eigene Charaktere:** Jeder Spieler hat ein eigenes Privatkonto, das Firmenkonto ist gemeinsam.
 
-## 16. Spielfortschritt (geplant, Phase 6/7)
+## 16. Spielfortschritt: Unternehmensstufen
 
-Die Stufen 1 bis 6 (Kleinstunternehmen bis Logistikkonzern) ergeben sich aus Kennzahlen wie Fuhrpark, Umsatz, Standorten und Reputation. Freischaltungen blockieren nicht künstlich: Wer genug Kapital und die Voraussetzungen hat, darf früher wachsen.
+| Stufe | Name | Fahrzeuge | Lieferungen | Reputation | Standorte | Länder | max. Standorte |
+|---|---|---|---|---|---|---|---|
+| 1 | Einzelunternehmen | – | – | – | 1 | 1 | 1 |
+| 2 | Kleinspedition | 3 | 25 | 35 | 1 | 1 | 2 |
+| 3 | Regionale Spedition | 6 | 120 | 45 | 2 | 1 | 3 |
+| 4 | Überregionale Spedition | 12 | 400 | 55 | 3 | 1 | 5 |
+| 5 | Internationale Spedition | 25 | 1.200 | 62 | 4 | 2 | 8 |
+| 6 | Europäischer Logistikkonzern | 50 | 3.000 | 70 | 6 | 3 | 15 |
+
+Der Aufstieg wird täglich geprüft, bringt +2 Reputation und geht nicht wieder verloren. Stufe 2 schaltet Werkstatt und Tankstelle frei, Stufe 3 den Großen Betriebshof und die Lagerhalle.

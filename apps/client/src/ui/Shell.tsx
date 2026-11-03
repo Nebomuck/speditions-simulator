@@ -53,10 +53,10 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <div className="brand-logo"><Truck size={17} /></div>
+        <img className="brand-logo" src="/icon.svg" alt="Cargovia" />
         <div>
           {s.company.name}
-          <small>Speditions-Simulator</small>
+          <small>Cargovia</small>
         </div>
       </div>
       <div className="clock">

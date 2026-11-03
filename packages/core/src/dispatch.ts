@@ -7,6 +7,7 @@ import { EMPLOYER_COST_FACTOR, addLog, formatMoney } from './finance.ts';
 import { REST_KIND_LABEL, hosRest, hosWork, simulateDriving } from './hos.ts';
 import { newId } from './rng.ts';
 import { routeNow } from './disruptions.ts';
+import { depotRefuel } from './company.ts';
 import { tripStopEtas } from './selectors.ts';
 import { MIN_PER_DAY, formatDateTime, formatDuration } from './time.ts';
 import type { GameState, HoursOfService, Id, Money, Order, Trip, TripLeg, TripStop, Vehicle } from './types.ts';
@@ -278,6 +279,7 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
     log: [{ t: state.time, text: 'Fahrt disponiert' }],
   };
   state.trips[id] = trip;
+  depotRefuel(state, vehicle, trip);
   order.status = 'planned';
   order.tripId = id;
   driver.status = 'on_trip';
@@ -323,6 +325,7 @@ export function createRelocation(state: GameState, ctx: SimContext, driverId: Id
     log: [{ t: state.time, text: `Überführung nach ${CITY_BY_ID[toCityId].name}` }],
   };
   state.trips[id] = trip;
+  depotRefuel(state, vehicle, trip);
   driver.status = 'on_trip';
   driver.tripId = id;
   vehicle.status = 'on_trip';

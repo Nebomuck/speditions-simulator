@@ -36,6 +36,7 @@ packages/core/src
 ├── disruptions.ts  Verkehrsstörungen (Sperrung/Stau), Routing nach Verkehrslage, Umleitung
 ├── contracts.ts    Rahmenverträge: Angebote, Touren je Wochentag, Strafen, Verlängerung
 ├── personnel.ts    Personal: Urlaub, Krankheit, Schulungen, Gehalt, Gespräche, Kündigungen
+├── company.ts      Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilungen, Flottenwartung
 ├── trips.ts        VehicleSystem: minutengenaue Fahrtsimulation
 ├── sim.ts          SimulationEngine: Minuten-Tick, stündliche/tägliche/monatliche Prozesse
 ├── commands.ts     CommandSystem: alle Spieleraktionen + Berechtigungen
@@ -69,8 +70,8 @@ Die Abhängigkeiten zeigen nur in eine Richtung: `types/data/geo/time/rng` → `
 Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed ─► tickMinute() × n
                                                        │
      tickMinute: Fahrten (Fahren/Pausen/Tanken/Laden/Pannen) → Fahrer-Ruhe → Werkstatt
-                 + stündlich: Auftragsbörse, Rechnungen, Verkehrsstörungen, Rückkehr/Austritt Personal, verpasste Vertragstouren
-                 + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Zufriedenheit/Krankheit, Vertragstouren für morgen, Miete, Statistik, Monatsabrechnung
+                 + stündlich: Auftragsbörse, Rechnungen, Verkehrsstörungen, Rückkehr/Austritt Personal, verpasste Vertragstouren, automatische Wartung
+                 + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Zufriedenheit/Krankheit, Vertragstouren für morgen, Miete, Unternehmensstufe, Lagerauslastung, Statistik, Monatsabrechnung (inkl. Lagererlöse)
 ```
 
 - Die Simulation läuft unabhängig von der Darstellung: im Worker (Einzelspieler) bzw. auf dem Server (Multiplayer).

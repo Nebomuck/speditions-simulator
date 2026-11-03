@@ -2,6 +2,7 @@
 // Angenommene Verträge erzeugen ihre Touren selbst als angenommene Aufträge; nicht gefahrene Touren
 // kosten eine Vertragsstrafe und Kundenzufriedenheit. Gute Erfüllung führt zu Verlängerungsangeboten.
 
+import { deptCount } from './company.ts';
 import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { CARGOS, CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
@@ -256,5 +257,5 @@ export function dailyContracts(state: GameState, ctx: SimContext): void {
   for (const c of Object.values(state.contracts))
     if ((c.status === 'expired' && state.time - c.offerExpires > 7 * MIN_PER_DAY) || ((c.status === 'completed' || c.status === 'cancelled') && state.time - (c.end ?? 0) > 60 * MIN_PER_DAY)) delete state.contracts[c.id];
   const offers = Object.values(state.contracts).filter((c) => c.status === 'offered').length;
-  if (offers < CONTRACT_OFFER_TARGET && rand.chance(state, 0.5)) generateContractOffer(state, ctx);
+  if (offers < CONTRACT_OFFER_TARGET + deptCount(state, 'sales') && rand.chance(state, 0.5)) generateContractOffer(state, ctx);
 }

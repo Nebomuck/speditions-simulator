@@ -26,7 +26,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Firmenstandorte | Implementiert | orange markiert |
 | Werkstätten, Tankstellen, Rastplätze | Geplant | Phase 10 (POI-Layer) |
 | Liefer-/Abholorte | Implementiert | Routenvorschau in der Börse |
-| Lagerhäuser/Logistikzentren | Geplant | Phase 6 |
+| Lagerhäuser/Logistikzentren | Getestet | Lagerhalle je Standort (ab Stufe 3): Lagererlöse nach Auslastung, zieht Aufträge an |
 | Verkehrsmeldungen & Ereignisse auf der Karte | Teilweise | Sperrungen und Staus auf der Karte und in der Liste „Verkehrslage“; weitere Ereignisse Phase 10 |
 | Fahrerpositionen in Echtzeit | Implementiert | Interpolation pro Frame |
 | Aktuelle Fahrzeugrouten | Implementiert | beladen/leer/verspätet farbig |
@@ -39,7 +39,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Fahrzeug-Infofenster (alle geforderten Felder) | Implementiert | |
 | Fahrerstatus (Unterwegs, Beladung, Entladung, Pause, Ruhezeit, Tanken, Werkstatt, Wartet, Verspätet, Defekt) | Implementiert | |
 | Filter: alle/aktiv/verfügbar/verspätet/Fahrer | Implementiert | |
-| Filter: Niederlassung, Vertragsaufträge | Geplant | sobald Niederlassungen und Verträge existieren |
+| Filter: Niederlassung, Vertragsaufträge | Teilweise | Fuhrpark nach Standort filterbar; Vertragstouren gekennzeichnet |
 | Fahrzeug verfolgen (Auto-Zentrierung) | Implementiert | |
 | Heatmaps Nachfrage/Verkehr, Korridore, Flottenverteilung | Geplant | Phase 10 |
 | Clustering bei sehr vielen Fahrzeugen | Geplant | Phase 11 |
@@ -83,7 +83,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Entwicklung durch Erfahrung | Implementiert | |
 | Erfahrung/Fahrweise wirkt auf Verbrauch, Verschleiß, Tempo | Implementiert | |
 | Bewerbungen, Einstellen, Entlassen | Implementiert | |
-| Gespräche, Gehaltsverhandlung, Schulungen, Beförderung, Urlaub, Verträge, Kündigung bei Unzufriedenheit | Getestet | Personalakte: Gespräch (Gründe der Zufriedenheit), Gehalt (70–160 % vom Markt), Urlaub (30 Tage/Jahr), Schulungen ADR/Kühl/Schwer/Spritsparen, Krankheit, Kündigung nach 7 Tagen Unzufriedenheit mit 14 Tagen Frist (abwendbar); Beförderung: Phase 6 (Abteilungen) |
+| Gespräche, Gehaltsverhandlung, Schulungen, Beförderung, Urlaub, Verträge, Kündigung bei Unzufriedenheit | Getestet | Personalakte: Gespräch (Gründe der Zufriedenheit), Gehalt (70–160 % vom Markt), Urlaub (30 Tage/Jahr), Schulungen ADR/Kühl/Schwer/Spritsparen, Krankheit, Kündigung nach 7 Tagen Unzufriedenheit mit 14 Tagen Frist (abwendbar); Beförderung erfahrener Fahrer ins Büro (Abteilungen) |
 | Lenk-/Arbeits-/Ruhezeiten (vereinfachte EU-Regeln) | Getestet | Vereinfachungen siehe GAME_DESIGN.md §7 |
 | Fahrerwechsel unterwegs | Geplant | |
 
@@ -123,7 +123,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Anforderung | Status |
 |---|---|
 | Standortstufen mit echten Stellplatz-Kapazitäten | Implementiert |
-| Werkstatt, Tankanlage, Lager, Logistikzentrum, Niederlassungen, Abteilungen | Geplant (Phase 6) |
+| Werkstatt, Tankanlage, Lager, Logistikzentrum, Niederlassungen, Abteilungen | Getestet (eigene Werkstatt −35 % Kosten, Betriebstankstelle −9 % Diesel, Lagerhalle, Niederlassungen nach Stufe, Abteilungen Disposition/Vertrieb/Buchhaltung/Fuhrpark) |
 
 ## 13–14 · Lebenssimulation & Geldkreislauf
 | Anforderung | Status |
@@ -187,7 +187,7 @@ Stand: 02.11.2026 · Version 0.1.0
 ## 21–22 · Fortschritt & Schwierigkeit
 | Anforderung | Status |
 |---|---|
-| Unternehmensstufen 1–6 | Geplant (Phase 6) |
+| Unternehmensstufen 1–6 | Getestet (Einzelunternehmen bis Europäischer Logistikkonzern; Fahrzeuge, Lieferungen, Reputation, Standorte, Länder) |
 | Schwierigkeitsgrade Einfach/Normal/Realistisch | Implementiert |
 | Benutzerdefiniert | In Entwicklung (Datenmodell vorhanden, Oberfläche fehlt) |
 

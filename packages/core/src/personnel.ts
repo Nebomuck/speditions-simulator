@@ -3,6 +3,7 @@
 import { CITY_BY_ID } from './data/cities.ts';
 import { addLog, book, formatMoney } from './finance.ts';
 import { wageLevel } from './generate.ts';
+import { dispatchShortfall } from './company.ts';
 import { rand } from './rng.ts';
 import { MIN_PER_DAY, formatDate, toDate } from './time.ts';
 import type { Driver, GameState, Id, Money, Qualification, TrainingCourse } from './types.ts';
@@ -48,6 +49,8 @@ export function satisfactionFactors(state: GameState, d: Driver): { target: numb
   if (sinceVacation > 100) reasons.push({ text: `seit ${Math.round(sinceVacation)} Tagen kein Urlaub`, delta: -Math.min(20, Math.round((sinceVacation - 100) / 6)) });
   if (d.hos.drivenWeek > 45 * 60) reasons.push({ text: 'hohe Wochenlenkzeit', delta: -6 });
   if (state.company.reputation > 70) reasons.push({ text: 'Firma mit gutem Ruf', delta: 4 });
+  const short = dispatchShortfall(state);
+  if (short > 0) reasons.push({ text: 'überlastete Disposition', delta: -Math.min(12, 2 + short) });
   if (d.hired <= state.company.founded) reasons.push({ text: 'Fahrer der ersten Stunde', delta: 8 });
   else {
     const months = (state.time - d.hired) / (30 * MIN_PER_DAY);

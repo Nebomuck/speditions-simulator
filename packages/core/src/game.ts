@@ -12,7 +12,7 @@ import { newId } from './rng.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player } from './types.ts';
 
-export const STATE_VERSION = 4;
+export const STATE_VERSION = 5;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.15, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -69,6 +69,8 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
       loans: [],
       founded: startTime,
       locations: [],
+      staff: [],
+      level: 1,
       reputation: 30,
       totals: { deliveries: 0, lateDeliveries: 0, revenue: 0, kmLoaded: 0, kmEmpty: 0 },
     },
@@ -95,7 +97,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
   const founderId = opts.founder.id ?? newId(state, 'pl');
   addPlayer(state, { id: founderId, name: opts.founder.name, isFounder: true, permissions: ALL_PERMISSIONS, character: opts.founder.character });
 
-  state.company.locations.push({ id: newId(state, 'loc'), cityId: hq.id, kind: 'office_small', since: startTime });
+  state.company.locations.push({ id: newId(state, 'loc'), cityId: hq.id, kind: 'office_small', since: startTime, facilities: [] });
 
   // Startfahrzeug: gebrauchte Zugmaschine (geleast oder gekauft je nach Schwierigkeit)
   const model = TRUCK_BY_ID['nordwal-tx420'];

@@ -1,9 +1,10 @@
 // Personal: Fahrerliste mit Personalakte (Urlaub, Schulungen, Gehalt, Gespräche) und Bewerbungen.
 
 import { useState } from 'react';
-import { UserPlus, UserMinus, FolderOpen, Palmtree, GraduationCap, MessageCircle, Euro } from 'lucide-react';
+import { UserPlus, UserMinus, FolderOpen, Palmtree, GraduationCap, MessageCircle, Euro, Briefcase } from 'lucide-react';
 import {
-  COURSES, MIN_PER_DAY, TALK_COOLDOWN_DAYS, formatDate, formatDateTime, formatDuration, drivableNow, marketSalary, satisfactionFactors, type Driver, type TrainingCourse,
+  COURSES, DEPARTMENTS, MIN_PER_DAY, PROMOTION_MIN_EXPERIENCE, TALK_COOLDOWN_DAYS, formatDate, formatDateTime, formatDuration, drivableNow, marketSalary, satisfactionFactors, staffSeats,
+  type Department, type Driver, type TrainingCourse,
 } from '@spedsim/core';
 import { sendCommand, useGame } from '../game/store.ts';
 import { Avatar, Badge, Bar, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
@@ -102,6 +103,8 @@ const ABSENCE = { vacation: 'Urlaub', sick: 'Krank', training: 'Schulung' } as c
 function DriverFile({ driver: d, onClose }: { driver: Driver; onClose: () => void }) {
   const s = useGame();
   const [days, setDays] = useState(5);
+  const [dept, setDept] = useState<Department>('dispatch');
+  const seats = staffSeats(s);
   const market = marketSalary(d);
   const [salary, setSalary] = useState(Math.round(d.salary / 100));
   const { target, reasons } = satisfactionFactors(s, d);
@@ -170,6 +173,23 @@ function DriverFile({ driver: d, onClose }: { driver: Driver; onClose: () => voi
             })}
           </div>
           {!available && <div className="dim mt" style={{ fontSize: 12 }}>Urlaub und Schulungen nur, wenn der Fahrer frei ist (nicht unterwegs, krank oder abwesend).</div>}
+
+          <div className="card-title mt"><Briefcase size={15} /> Beförderung ins Büro</div>
+          <div className="row">
+            <select className="input" style={{ width: 'auto' }} value={dept} onChange={(e) => setDept(e.target.value as Department)}>
+              {(Object.keys(DEPARTMENTS) as Department[]).map((k) => <option key={k} value={k}>{DEPARTMENTS[k].name}</option>)}
+            </select>
+            <button
+              className="btn"
+              disabled={!available || d.experience < PROMOTION_MIN_EXPERIENCE || seats.used >= seats.total}
+              onClick={() => confirm(`${d.name} in die ${DEPARTMENTS[dept].name} befördern? ${d.name} fährt danach nicht mehr.`) && sendCommand({ type: 'promoteDriver', driverId: d.id, dept }).then((r) => r.ok && onClose())}
+            >
+              Befördern
+            </button>
+          </div>
+          <small className="dim">
+            Ab Erfahrung {PROMOTION_MIN_EXPERIENCE} ({d.experience} vorhanden), braucht einen freien Büroarbeitsplatz ({seats.total - seats.used} frei). Keine Einstellungskosten, +8 % Gehalt.
+          </small>
         </div>
       </div>
       <div className="card-title mt">Personalereignisse</div>

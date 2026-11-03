@@ -6,7 +6,7 @@ import { Badge, Card, Empty, LineChart, Money, PageHeader, Stat } from '../ui/co
 
 const CAT_LABEL: Record<LedgerCategory, string> = {
   revenue: 'Erlöse', fuel: 'Diesel', toll: 'Maut', wages: 'Löhne', rent: 'Miete', insurance: 'Versicherung', leasing: 'Leasing',
-  maintenance: 'Wartung', repair: 'Reparatur', vehicle_purchase: 'Fahrzeugkauf', vehicle_sale: 'Fahrzeugverkauf', penalty: 'Strafen',
+  maintenance: 'Wartung', repair: 'Reparatur', vehicle_purchase: 'Fahrzeugkauf', vehicle_sale: 'Fahrzeugverkauf', storage: 'Lagerlogistik', penalty: 'Strafen',
   hiring: 'Personalgewinnung', salary: 'GF-Gehalt', living: 'Lebenshaltung', loan: 'Kredit', interest: 'Zinsen', tax: 'Steuern', other: 'Sonstiges',
 };
 

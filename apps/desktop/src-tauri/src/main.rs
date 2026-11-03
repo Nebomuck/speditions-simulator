@@ -1,4 +1,4 @@
-// Native Windows-Hülle des Speditions-Simulators. Die gesamte Spiellogik läuft im eingebetteten
+// Native Windows-Hülle von Cargovia (früher „Speditions-Simulator“). Die gesamte Spiellogik läuft im eingebetteten
 // Web-Frontend (Simulation im Web Worker). Zusätzlich verwaltet die App den mitgelieferten
 // Multiplayer-Server (Sidecar): Er wird beim Hosten einer Multiplayer-Firma automatisch gestartet
 // und beim Beenden der App sauber gespeichert und gestoppt.
@@ -240,7 +240,7 @@ fn main() {
             tunnel_url
         ])
         .build(tauri::generate_context!())
-        .expect("Speditions-Simulator konnte nicht gestartet werden");
+        .expect("Cargovia konnte nicht gestartet werden");
 
     app.run(|handle, event| {
         if let RunEvent::Exit = event {

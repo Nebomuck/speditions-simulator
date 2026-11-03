@@ -1,19 +1,28 @@
 import { useState } from 'react';
-import { Wrench, ShoppingCart, Tag, Truck, Container } from 'lucide-react';
+import { Wrench, ShoppingCart, Tag, Truck, Container, Gauge } from 'lucide-react';
 import {
-  TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, annuity, capacity, formatDateTime, openVehicleLoan, tradeInValue,
+  TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, annuity, capacity, deptCount, formatDateTime, hasFacility, openVehicleLoan, serviceCost, toDate, tradeInValue,
   vehicleLoanRate, vehicleMarketValue, vehicleRentPerDay, type TrailerType, type TruckModel, type Vehicle,
 } from '@spedsim/core';
 import { sendCommand, setUi, useGame } from '../game/store.ts';
-import { Badge, Bar, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
+import { Badge, Bar, Card, Empty, Modal, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { activityLabel, bodyName, cityName, dec, km, modelName, trailerName } from '../ui/format.ts';
 
 export function FleetPage() {
   const s = useGame();
   const [shop, setShop] = useState<'none' | 'used' | 'new' | 'trailer'>('none');
+  const [where, setWhere] = useState('');
+  const [below, setBelow] = useState(70);
   const cap = capacity(s);
-  const vehicles = Object.values(s.vehicles);
-  const trailers = Object.values(s.trailers);
+  const all = Object.values(s.vehicles);
+  const match = (cityId: string, moving: boolean) => !where || (where === 'moving' ? moving : !moving && cityId === where);
+  const vehicles = all.filter((v) => match(v.cityId, !!v.tripId));
+  const trailers = Object.values(s.trailers).filter((t) => match(t.cityId, t.status !== 'idle'));
+  const year = toDate(s.time).getUTCFullYear();
+  const avg = (f: (v: Vehicle) => number) => (all.length ? all.reduce((a, v) => a + f(v), 0) / all.length : 0);
+  const due = all.filter((v) => v.status === 'idle' && v.condition < below && !v.queue?.length);
+  const dueCost = due.reduce((a, v) => a + serviceCost(s, v).cost, 0);
+  const cities = [...new Set([...s.company.locations.map((l) => l.cityId), ...all.filter((v) => !v.tripId).map((v) => v.cityId)])];
   return (
     <div className="page">
       <PageHeader
@@ -27,6 +36,28 @@ export function FleetPage() {
           </>
         }
       />
+      <div className="grid grid-4 mb">
+        <Stat icon={<Truck size={15} />} label="Fahrzeuge" value={all.length} hint={`${all.filter((v) => v.tripId).length} unterwegs · ${all.filter((v) => v.status === 'workshop').length} in der Werkstatt`} />
+        <Stat icon={<Gauge size={15} />} label="Ø Zustand" value={`${Math.round(avg((v) => v.condition))} %`} hint={`${all.filter((v) => v.condition < 45).length} mit Pannenrisiko (< 45 %)`} />
+        <Stat label="Ø Alter / Laufleistung" value={`${dec(avg((v) => year - v.year))} Jahre`} hint={`Ø ${km(avg((v) => v.odometerKm))}`} />
+        <div className="card stat">
+          <div className="label"><Wrench size={15} />Sammelwartung</div>
+          <div className="row">
+            <span>unter</span>
+            <select className="input" style={{ width: 'auto' }} value={below} onChange={(e) => setBelow(Number(e.target.value))}>
+              {[50, 60, 70, 80, 90].map((n) => <option key={n} value={n}>{n} %</option>)}
+            </select>
+            <button className="btn small primary" disabled={due.length === 0} onClick={() => sendCommand({ type: 'serviceFleet', below })}>{due.length} warten</button>
+          </div>
+          <div className="dim" style={{ fontSize: 12 }}>{due.length ? <>ca. <Money value={dueCost} /></> : 'keine freien fälligen Fahrzeuge'}{deptCount(s, 'fleet') > 0 ? ' · Fuhrparkmanagement aktiv' : ''}</div>
+        </div>
+      </div>
+      <div className="row mb">
+        <span className="dim">Standort:</span>
+        <button className={`chip ${where === '' ? 'active' : ''}`} onClick={() => setWhere('')}>Alle</button>
+        {cities.map((c) => <button key={c} className={`chip ${where === c ? 'active' : ''}`} onClick={() => setWhere(c)}>{cityName(c)}</button>)}
+        <button className={`chip ${where === 'moving' ? 'active' : ''}`} onClick={() => setWhere('moving')}>Unterwegs</button>
+      </div>
       <Card title={<><Truck size={16} />Zugmaschinen</>}>
         <div className="table-wrap" style={{ border: 'none' }}>
           <table className="table">
@@ -49,7 +80,12 @@ export function FleetPage() {
                     <td className="num">{v.ownership === 'owned' ? <Money value={vehicleMarketValue(s, v.id)} /> : '–'}</td>
                     <td className="num">
                       <div className="row" style={{ justifyContent: 'flex-end' }}>
-                        <button className="btn small" disabled={v.status !== 'idle' || v.condition >= 98} onClick={() => sendCommand({ type: 'serviceVehicle', vehicleId: v.id })} title="Wartung & Reparatur">
+                        <button
+                          className="btn small"
+                          disabled={v.status !== 'idle' || v.condition >= 98}
+                          onClick={() => sendCommand({ type: 'serviceVehicle', vehicleId: v.id })}
+                          title={`Wartung & Reparatur${v.condition < 98 ? ` ca. ${Math.round(serviceCost(s, v).cost / 100).toLocaleString('de-DE')} €` : ''}${hasFacility(s, v.cityId, 'workshop') ? ' (eigene Werkstatt)' : ''}`}
+                        >
                           <Wrench size={13} />Werkstatt
                         </button>
                         <button className="btn small" disabled={v.status !== 'idle'} onClick={() => setUi({ selectedVehicleId: v.id, page: 'map' })}>Karte</button>
@@ -153,6 +189,7 @@ function Purchase({ model: m, onBack, onDone }: { model: TruckModel; onBack: () 
   const [fin, setFin] = useState<Financing>('cash');
   const [months, setMonths] = useState<number>(48);
   const [tradeId, setTradeId] = useState('');
+  const [locationId, setLocationId] = useState(s.company.locations[0]?.id ?? '');
   const [busy, setBusy] = useState(false);
   const tradeable = Object.values(s.vehicles).filter((v) => v.ownership === 'owned' && v.status === 'idle');
   const trade = tradeId ? s.vehicles[tradeId] : undefined;
@@ -163,7 +200,7 @@ function Purchase({ model: m, onBack, onDone }: { model: TruckModel; onBack: () 
   const upfront = fin === 'cash' ? m.price : fin === 'loan' ? down : fin === 'lease' ? m.leaseRate : perDay;
   async function buy() {
     setBusy(true);
-    const r = await sendCommand({ type: 'buyNewVehicle', modelId: m.id, financing: fin, ...(fin === 'loan' ? { loanMonths: months } : {}), ...(tradeId ? { tradeInVehicleId: tradeId } : {}) });
+    const r = await sendCommand({ type: 'buyNewVehicle', modelId: m.id, financing: fin, ...(fin === 'loan' ? { loanMonths: months } : {}), ...(tradeId ? { tradeInVehicleId: tradeId } : {}), locationId });
     setBusy(false);
     if (r.ok) onDone();
   }
@@ -213,6 +250,7 @@ function Purchase({ model: m, onBack, onDone }: { model: TruckModel; onBack: () 
             </select>
             <small className="dim">Der Händler zahlt 95 % des Marktwerts (Verkauf: 90 %); offene Finanzierungen werden verrechnet.</small>
           </div>
+          {s.company.locations.length > 1 && <LocationSelect value={locationId} onChange={setLocationId} />}
           <dl className="kv">
             <dt>Sofort fällig</dt><dd><Money value={upfront} /></dd>
             {trade && <><dt>Inzahlungnahme</dt><dd className="pos">+<Money value={credit} /></dd></>}
@@ -267,9 +305,24 @@ function NewMarket({ onClose }: { onClose: () => void }) {
   );
 }
 
+function LocationSelect({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const s = useGame();
+  return (
+    <div className="field">
+      <label>Lieferung an</label>
+      <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
+        {s.company.locations.map((l) => <option key={l.id} value={l.id}>{cityName(l.cityId)}{l.cityId === s.company.hqCityId ? ' (Firmensitz)' : ''}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function TrailerMarket({ onClose }: { onClose: () => void }) {
+  const s = useGame();
+  const [locationId, setLocationId] = useState(s.company.locations[0]?.id ?? '');
   return (
     <Modal title="Auflieger beschaffen" onClose={onClose}>
+      {s.company.locations.length > 1 && <LocationSelect value={locationId} onChange={setLocationId} />}
       <div className="table-wrap">
         <table className="table">
           <thead><tr><th>Typ</th><th>Nutzlast</th><th className="num">Kaufpreis</th><th className="num">Leasing/Monat</th><th /></tr></thead>
@@ -282,8 +335,8 @@ function TrailerMarket({ onClose }: { onClose: () => void }) {
                 <td className="num"><Money value={t.leaseRate} /></td>
                 <td>
                   <div className="row">
-                    <button className="btn small" onClick={() => sendCommand({ type: 'buyTrailer', trailerType: t.type as TrailerType, financing: 'lease' })}>Leasen</button>
-                    <button className="btn small primary" onClick={() => sendCommand({ type: 'buyTrailer', trailerType: t.type as TrailerType, financing: 'cash' })}>Kaufen</button>
+                    <button className="btn small" onClick={() => sendCommand({ type: 'buyTrailer', trailerType: t.type as TrailerType, financing: 'lease', locationId })}>Leasen</button>
+                    <button className="btn small primary" onClick={() => sendCommand({ type: 'buyTrailer', trailerType: t.type as TrailerType, financing: 'cash', locationId })}>Kaufen</button>
                   </div>
                 </td>
               </tr>
@@ -291,7 +344,7 @@ function TrailerMarket({ onClose }: { onClose: () => void }) {
           </tbody>
         </table>
       </div>
-      <p className="dim">Neue Auflieger werden am Firmensitz bereitgestellt.</p>
+      <p className="dim">Neue Auflieger werden am gewählten Standort bereitgestellt.</p>
     </Modal>
   );
 }

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.0 – unveröffentlicht
+
+- **Neuer Name und neues Logo: Cargovia** – Logistik-Simulation Europa. Das Logo zeigt einen LKW auf einer Route, die ein „C“ bildet. Beim Update wird die alte Installation „Speditions-Simulator“ automatisch entfernt; Spielstände und Einstellungen bleiben erhalten.
+- **Unternehmensstufen 1–6** – vom Einzelunternehmen zum Europäischen Logistikkonzern. Der Fortschritt richtet sich nach Fahrzeugen, Lieferungen, Reputation, Standorten und Ländern. Jede Stufe erlaubt mehr Standorte und schaltet Einrichtungen frei.
+- **Niederlassungen** in ganz Europa (Standorte & Ausbau). Jede bringt Stellplätze, Büroplätze, Bewerber und Aufträge aus ihrer Region. Neue Fahrzeuge und Auflieger werden an den gewählten Standort geliefert.
+- **Eigene Einrichtungen:**
+  - Werkstatt: Wartung 35 % günstiger und schneller.
+  - Betriebstankstelle: volltanken bei Abfahrt, Diesel 9 % günstiger.
+  - Lagerhalle: monatliche Lagererlöse, mehr Aufträge ab dem Standort.
+- **Abteilungen:**
+  - Disposition: nötig ab 6 Fahrzeugen, sonst leidet die Fahrerzufriedenheit.
+  - Vertrieb: mehr und besser bezahlte Angebote.
+  - Buchhaltung: weniger Zahlungsausfälle.
+  - Fuhrparkmanagement: weniger Verschleiß und Pannen, automatische Wartung.
+
+  Erfahrene Fahrer lassen sich in der Personalakte ins Büro befördern.
+- **Fuhrpark:**
+  - Übersicht mit Durchschnittszustand, Alter und Laufleistung.
+  - Sammelwartung aller fälligen Fahrzeuge.
+  - Filter nach Standort.
+
 ## 0.6.0 – 03.11.2026
 
 - **Beiladung:** Weitere Aufträge können in eine laufende Fahrt aufgenommen werden (Auftrag auf den fahrenden LKW ziehen → „Zuladen“). Das Spiel fügt Laden und Entladen an der günstigsten Stelle ein, prüft die Nutzlast über die ganze Tour und warnt, wenn bereits geladene Aufträge dadurch zu spät kämen. Das Fahrzeugfenster auf der Karte zeigt alle Halte mit voraussichtlichen Zeiten; noch nicht abgeholte Beiladungen lassen sich wieder herausnehmen.

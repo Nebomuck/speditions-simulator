@@ -1,6 +1,9 @@
 // FinanceSystem: Buchungen, Rechnungen, Zahlungseingänge, Monatsabrechnung.
 // Firmenkonto und Privatkonten der Spieler sind strikt getrennt (LedgerAccount).
 
+import { CITY_BY_ID } from './data/cities.ts';
+import { DEPARTMENTS } from './data/catalog.ts';
+import { accountingRiskFactor, deptCount, facilityItems, facilityValue } from './company.ts';
 import { TRAILER_BY_TYPE, TRUCK_BY_ID, LOCATION_DEFS, PRIVATE_LIVING_COST } from './data/catalog.ts';
 import { rand, newId } from './rng.ts';
 import { MIN_PER_DAY, formatDate } from './time.ts';
@@ -57,8 +60,9 @@ export function createInvoice(state: GameState, order: Order, amount: Money): vo
   let willPayAt: number | null;
   // Balancing 0.4.0: Die meisten Kunden zahlen fristgerecht (Normal ≈ 90–96 %), Verzug meist nur einige Tage,
   // echte Ausfälle sind selten (≈ 0,3–0,8 % der Rechnungen). Schlechte Zahler erkennt man an der Zahlungsmoral.
-  const defaultRisk = (1 - reliability) * 0.025 * risk;
-  const onTime = Math.min(0.99, 0.6 + 0.4 * reliability - 0.05 * (risk - 1));
+  // Buchhaltung (Forderungsmanagement) senkt Ausfälle und Verzug
+  const defaultRisk = (1 - reliability) * 0.025 * risk * accountingRiskFactor(state);
+  const onTime = Math.min(0.99, 0.6 + 0.4 * reliability - 0.05 * (risk - 1) + 0.08 * deptCount(state, 'accounting'));
   if (rand.chance(state, defaultRisk)) willPayAt = null;
   else if (rand.chance(state, onTime)) willPayAt = state.time + Math.round(term * rand.float(state, 0.55, 1.0) * MIN_PER_DAY);
   else willPayAt = due + Math.round(rand.float(state, 1, reliability > 0.8 ? 10 : 21) * MIN_PER_DAY);
@@ -110,7 +114,9 @@ export function receivables(state: GameState): Money {
 export function monthlyFixedCosts(state: GameState): { label: string; amount: Money; category: LedgerCategory }[] {
   const items: { label: string; amount: Money; category: LedgerCategory }[] = [];
   for (const d of Object.values(state.drivers)) items.push({ label: `Lohn ${d.name}`, amount: Math.round(d.salary * EMPLOYER_COST_FACTOR), category: 'wages' });
-  for (const loc of state.company.locations) items.push({ label: `Miete ${LOCATION_DEFS[loc.kind].name}`, amount: LOCATION_DEFS[loc.kind].rent, category: 'rent' });
+  for (const m of state.company.staff ?? []) items.push({ label: `Gehalt ${m.name} (${DEPARTMENTS[m.dept].name})`, amount: Math.round(m.salary * EMPLOYER_COST_FACTOR), category: 'wages' });
+  for (const loc of state.company.locations) items.push({ label: `Miete ${LOCATION_DEFS[loc.kind].name} ${CITY_BY_ID[loc.cityId]?.name ?? ''}`.trim(), amount: LOCATION_DEFS[loc.kind].rent, category: 'rent' });
+  for (const f of facilityItems(state)) items.push({ ...f, category: 'rent' });
   for (const v of Object.values(state.vehicles)) {
     const m = TRUCK_BY_ID[v.modelId];
     items.push({ label: `Versicherung ${v.plate}`, amount: m.insurance, category: 'insurance' });
@@ -255,5 +261,6 @@ export function companyValue(state: GameState, vehicleValue: (id: Id) => Money):
   let v = state.company.account.balance + receivables(state);
   for (const id of Object.keys(state.vehicles)) if (state.vehicles[id].ownership === 'owned') v += vehicleValue(id);
   for (const t of Object.values(state.trailers)) if (t.ownership === 'owned') v += Math.round(t.purchasePrice * 0.6 * (t.condition / 100));
+  v += facilityValue(state);
   return v;
 }
