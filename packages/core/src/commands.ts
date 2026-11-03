@@ -6,13 +6,15 @@
 import { CITY_BY_ID } from './data/cities.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
-import { createRelocation, createTrip, queueJob, unqueueJob, validateDispatch, type Issue } from './dispatch.ts';
-import { addLog, book, factorInvoices, formatMoney, repayLoan, takeLoan } from './finance.ts';
-import { plate, vehicleMarketValue } from './generate.ts';
+import { addCoLoad, createRelocation, createTrip, queueJob, removeCoLoad, unqueueJob, validateDispatch, type Issue } from './dispatch.ts';
+import { acceptContract, cancelContract } from './contracts.ts';
+import { VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, addLog, annuity, book, factorInvoices, formatMoney, repayLoan, takeLoan, vehicleLoanRate, vehicleRentPerDay } from './finance.ts';
+import { plate, tradeInValue, vehicleMarketValue } from './generate.ts';
+import { sendOnVacation, setDriverSalary, startTraining, talkToDriver } from './personnel.ts';
 import { freshHos } from './hos.ts';
 import { newId } from './rng.ts';
 import { SPEEDS, toDate } from './time.ts';
-import type { GameState, Id, LocationKind, Permission, TrailerType } from './types.ts';
+import type { GameState, Id, LocationKind, Permission, TrailerType, TrainingCourse, Vehicle } from './types.ts';
 
 export type Command =
   | { type: 'setSpeed'; speed: number }
@@ -22,9 +24,11 @@ export type Command =
   | { type: 'dispatch'; orderId: Id; driverId: Id; vehicleId: Id; trailerId: Id }
   | { type: 'queueDispatch'; orderId: Id; vehicleId: Id }
   | { type: 'unqueue'; orderId: Id; vehicleId: Id }
+  | { type: 'coLoad'; orderId: Id; vehicleId: Id }
+  | { type: 'removeCoLoad'; orderId: Id }
   | { type: 'relocate'; driverId: Id; vehicleId: Id; trailerId?: Id; toCityId: string }
   | { type: 'buyUsedVehicle'; offerId: Id }
-  | { type: 'buyNewVehicle'; modelId: string; financing: 'cash' | 'lease' }
+  | { type: 'buyNewVehicle'; modelId: string; financing: 'cash' | 'lease' | 'loan' | 'rent'; loanMonths?: number; tradeInVehicleId?: Id }
   | { type: 'buyTrailer'; trailerType: TrailerType; financing: 'cash' | 'lease' }
   | { type: 'sellVehicle'; vehicleId: Id }
   | { type: 'sellTrailer'; trailerId: Id }
@@ -36,6 +40,12 @@ export type Command =
   | { type: 'takeLoan'; amount: number; months: number }
   | { type: 'repayLoan'; loanId: Id }
   | { type: 'factorInvoices'; invoiceId?: Id }
+  | { type: 'acceptContract'; contractId: Id }
+  | { type: 'cancelContract'; contractId: Id }
+  | { type: 'sendVacation'; driverId: Id; days: number }
+  | { type: 'trainDriver'; driverId: Id; course: TrainingCourse }
+  | { type: 'setDriverSalary'; driverId: Id; salary: number }
+  | { type: 'talkToDriver'; driverId: Id }
   | { type: 'chat'; text: string }
   | { type: 'setPermissions'; playerId: Id; permissions: Permission[] };
 
@@ -49,11 +59,19 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   dispatch: 'dispatch',
   queueDispatch: 'dispatch',
   unqueue: 'dispatch',
+  coLoad: 'dispatch',
+  removeCoLoad: 'dispatch',
   relocate: 'dispatch',
   buyUsedVehicle: 'purchase',
   buyNewVehicle: 'purchase',
   buyTrailer: 'purchase',
   sellVehicle: 'sellVehicles',
+  acceptContract: 'dispatch',
+  cancelContract: 'dispatch',
+  sendVacation: 'personnel',
+  trainDriver: 'personnel',
+  setDriverSalary: 'personnel',
+  talkToDriver: 'personnel',
   sellTrailer: 'sellVehicles',
   serviceVehicle: 'fleet',
   hireDriver: 'personnel',
@@ -128,6 +146,8 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       const o = state.orders[cmd.orderId];
       // eingeplante Folgeaufträge vorher aus der Planung nehmen
       if (o?.status === 'planned' && !o.tripId) for (const v of Object.values(state.vehicles)) unqueueJob(state, v.id, o.id);
+      // noch nicht abgeholte Beiladung vorher aus der Fahrt nehmen
+      if (o?.status === 'planned' && o.tripId && state.trips[o.tripId]?.orderId !== o.id) removeCoLoad(state, ctx, o.id);
       if (!o || o.status !== 'accepted') return fail('Nur angenommene, noch nicht disponierte Aufträge können storniert werden.');
       const fee = Math.round(o.payment * 0.15);
       o.status = 'cancelled';
@@ -154,6 +174,20 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       if (!r.ok) return fail(r.error, r.issues);
       if (wasOffered) addLog(state, { level: 'info', category: 'order', text: 'Angebot angenommen und direkt eingeplant.', ref: { kind: 'order', id: cmd.orderId } });
       return { ok: true, warnings: r.issues };
+    }
+    case 'coLoad': {
+      const order = state.orders[cmd.orderId];
+      const wasOffered = order?.status === 'offered';
+      const r = addCoLoad(state, ctx, cmd.vehicleId, cmd.orderId);
+      if (!r.ok) return fail(r.error);
+      if (wasOffered) addLog(state, { level: 'info', category: 'order', text: 'Angebot angenommen und als Beiladung eingeplant.', ref: { kind: 'order', id: cmd.orderId } });
+      return { ok: true };
+    }
+    case 'removeCoLoad': {
+      const r = removeCoLoad(state, ctx, cmd.orderId);
+      if (!r.ok) return fail(r.error);
+      addLog(state, { level: 'info', category: 'trip', text: 'Beiladung aus der Fahrt genommen – der Auftrag liegt wieder bei den angenommenen Aufträgen.', ref: { kind: 'order', id: cmd.orderId } });
+      return { ok: true };
     }
     case 'unqueue': {
       if (!unqueueJob(state, cmd.vehicleId, cmd.orderId)) return fail('Folgeauftrag nicht gefunden.');
@@ -194,19 +228,58 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
     case 'buyNewVehicle': {
       const m = TRUCK_BY_ID[cmd.modelId];
       if (!m) return fail('Unbekanntes Modell.');
+      const fin = cmd.financing;
+      if (!['cash', 'lease', 'loan', 'rent'].includes(fin)) return fail('Unbekannte Finanzierungsart.');
+      const trade = cmd.tradeInVehicleId ? state.vehicles[cmd.tradeInVehicleId] : undefined;
+      if (cmd.tradeInVehicleId) {
+        if (!trade) return fail('Fahrzeug für die Inzahlungnahme nicht gefunden.');
+        if (trade.status !== 'idle') return fail('Das in Zahlung gegebene Fahrzeug ist im Einsatz.');
+        if (trade.ownership !== 'owned') return fail('Nur eigene Fahrzeuge können in Zahlung gegeben werden.');
+      }
       const cap = capacity(state);
-      if (cap.vehicles >= cap.parking) return fail(`Keine freien Stellplätze (${cap.parking}). Erweitere deinen Standort.`);
-      const upfront = cmd.financing === 'cash' ? m.price : m.leaseRate; // Leasing: erste Rate als Sonderzahlung
-      if (!canAfford(state, upfront)) return fail('Nicht genügend Geld.');
+      if (cap.vehicles - (trade ? 1 : 0) >= cap.parking) return fail(`Keine freien Stellplätze (${cap.parking}). Erweitere deinen Standort.`);
+      const months = cmd.loanMonths ?? 48;
+      if (fin === 'loan' && !VEHICLE_LOAN_TERMS.includes(months as (typeof VEHICLE_LOAN_TERMS)[number])) return fail('Ungültige Laufzeit der Finanzierung.');
+      const rentPerDay = vehicleRentPerDay(m.leaseRate);
+      // Sofort fällig: Kaufpreis, erste Leasingrate, Anzahlung oder erster Miettag
+      const upfront = fin === 'cash' ? m.price : fin === 'lease' ? m.leaseRate : fin === 'loan' ? Math.round(m.price * VEHICLE_DOWN_PAYMENT) : rentPerDay;
+      const credit = trade ? tradeInValue(state, trade.id) - openVehicleLoan(state, trade) : 0;
+      if (!canAfford(state, upfront - credit)) return fail('Nicht genügend Geld.');
+      const tradeValue = trade ? tradeInValue(state, trade.id) : 0;
+      if (trade) {
+        settleVehicleLoan(state, trade);
+        book(state, 'company', tradeValue, 'vehicle_sale', `Inzahlungnahme ${TRUCK_BY_ID[trade.modelId].name} ${trade.plate}`);
+        delete state.vehicles[trade.id];
+      }
       const id = newId(state, 'veh');
-      state.vehicles[id] = {
+      const vehicle: Vehicle = {
         id, modelId: m.id, plate: plate(state, state.company.hqCityId), year: toDate(state.time).getUTCFullYear(), odometerKm: 0,
         condition: 100, fuelL: m.tankL, cityId: state.company.hqCityId, status: 'idle',
-        ownership: cmd.financing === 'cash' ? 'owned' : 'leased', leaseRate: cmd.financing === 'lease' ? m.leaseRate : undefined,
-        purchasePrice: m.price, bought: state.time, history: [{ t: state.time, text: cmd.financing === 'cash' ? 'Neu gekauft' : 'Neu geleast', cost: upfront }],
+        ownership: fin === 'lease' ? 'leased' : fin === 'rent' ? 'rented' : 'owned',
+        ...(fin === 'lease' ? { leaseRate: m.leaseRate } : {}),
+        ...(fin === 'rent' ? { rentPerDay } : {}),
+        purchasePrice: m.price, bought: state.time,
+        history: [{ t: state.time, text: { cash: 'Neu gekauft', lease: 'Neu geleast', loan: 'Neu gekauft (finanziert)', rent: 'Gemietet' }[fin], cost: upfront }],
       };
-      book(state, 'company', -upfront, cmd.financing === 'cash' ? 'vehicle_purchase' : 'leasing', `${cmd.financing === 'cash' ? 'Kauf' : 'Leasing-Sonderzahlung'} ${m.maker} ${m.name}`);
-      addLog(state, { level: 'success', category: 'fleet', text: `Neuer ${m.maker} ${m.name} ${cmd.financing === 'cash' ? 'gekauft' : 'geleast'}.`, ref: { kind: 'vehicle', id } });
+      state.vehicles[id] = vehicle;
+      const name = `${m.maker} ${m.name}`;
+      let how = fin === 'cash' ? 'gekauft' : fin === 'lease' ? 'geleast' : `gemietet (${formatMoney(rentPerDay)}/Tag)`;
+      if (fin === 'loan') {
+        const principal = m.price - upfront;
+        const ratePa = vehicleLoanRate(months);
+        const loan = { id: newId(state, 'loan'), principal, remaining: principal, ratePa, monthly: annuity(principal, ratePa, months), months, taken: state.time, vehicleId: id, label: `Fahrzeugfinanzierung ${vehicle.plate}` };
+        state.company.loans.push(loan);
+        vehicle.loanId = loan.id;
+        book(state, 'company', -m.price, 'vehicle_purchase', `Kauf ${name} (finanziert)`);
+        book(state, 'company', principal, 'loan', `Fahrzeugfinanzierung ${months} Monate, ${(ratePa * 100).toFixed(1).replace('.', ',')} %`);
+        how = `finanziert gekauft (Rate ${formatMoney(loan.monthly)}/Monat)`;
+      } else book(state, 'company', -upfront, fin === 'cash' ? 'vehicle_purchase' : 'leasing', `${{ cash: 'Kauf', lease: 'Leasing-Sonderzahlung', rent: 'Miete (1. Tag)' }[fin]} ${name}`);
+      addLog(state, {
+        level: 'success',
+        category: 'fleet',
+        text: `Neuer ${name} ${how}${trade ? ` – ${trade.plate} für ${formatMoney(tradeValue)} in Zahlung gegeben` : ''}.`,
+        ref: { kind: 'vehicle', id },
+      });
       return { ok: true, id };
     }
     case 'buyTrailer': {
@@ -232,13 +305,16 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       if (v.status !== 'idle') return fail('Fahrzeug ist im Einsatz.');
       if (Object.keys(state.vehicles).length <= 1 && Object.values(state.trips).some((t) => t.phase !== 'done')) return fail('Letztes Fahrzeug ist noch verplant.');
       const m = TRUCK_BY_ID[v.modelId];
-      if (v.ownership === 'leased') {
+      if (v.ownership === 'rented') {
+        addLog(state, { level: 'info', category: 'fleet', text: `Mietfahrzeug ${v.plate} zurückgegeben.` });
+      } else if (v.ownership === 'leased') {
         const fee = (v.leaseRate ?? 0) * 3;
         book(state, 'company', -fee, 'leasing', `Vorzeitige Leasingrückgabe ${v.plate}`);
         addLog(state, { level: 'info', category: 'fleet', text: `Leasingfahrzeug ${v.plate} vorzeitig zurückgegeben (Ablöse ${formatMoney(fee)}).` });
       } else {
         const value = Math.round(vehicleMarketValue(state, v.id) * 0.9);
         book(state, 'company', value, 'vehicle_sale', `Verkauf ${m.maker} ${m.name} ${v.plate}`);
+        settleVehicleLoan(state, v);
         addLog(state, { level: 'success', category: 'fleet', text: `${m.maker} ${m.name} (${v.plate}) für ${formatMoney(value)} verkauft.` });
       }
       delete state.vehicles[v.id];
@@ -281,7 +357,7 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
         id, name: a.name, age: a.age, homeCityId: a.homeCityId, cityId: state.company.hqCityId, experience: a.experience,
         licenses: a.licenses, qualifications: a.qualifications, salary: a.salary, reliability: a.reliability,
         ecoDriving: a.ecoDriving, stressResistance: a.stressResistance, satisfaction: 65, hired: state.time,
-        status: 'idle', hos: freshHos(), kmDriven: 0,
+        status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: state.time,
       };
       delete state.applicants[a.id];
       book(state, 'company', -fee, 'hiring', `Einstellung ${a.name}`);
@@ -331,6 +407,30 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       addLog(state, { level: 'success', category: 'company', text: `Standort ${CITY_BY_ID[loc.cityId].name} erweitert: ${def.name} (${def.parking} Stellplätze).` });
       return { ok: true };
     }
+    case 'acceptContract': {
+      const r = acceptContract(state, ctx, cmd.contractId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'cancelContract': {
+      const r = cancelContract(state, cmd.contractId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'sendVacation': {
+      const r = sendOnVacation(state, cmd.driverId, Number(cmd.days));
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'trainDriver': {
+      const r = startTraining(state, cmd.driverId, cmd.course);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'setDriverSalary': {
+      const r = setDriverSalary(state, cmd.driverId, Number(cmd.salary));
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'talkToDriver': {
+      const r = talkToDriver(state, cmd.driverId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
     case 'chat': {
       const text = String(cmd.text ?? '').trim().slice(0, 500);
       if (!text) return fail('Leere Nachricht.');
@@ -347,4 +447,18 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       return { ok: true };
     }
   }
+}
+
+/** Restschuld einer Fahrzeugfinanzierung. */
+export function openVehicleLoan(state: GameState, v: Vehicle): number {
+  return v.loanId ? (state.company.loans.find((l) => l.id === v.loanId)?.remaining ?? 0) : 0;
+}
+
+/** Beim Verkauf oder bei Inzahlungnahme: Restschuld der Finanzierung aus dem Erlös ablösen. */
+function settleVehicleLoan(state: GameState, v: Vehicle) {
+  const loan = v.loanId ? state.company.loans.find((l) => l.id === v.loanId) : undefined;
+  if (!loan) return;
+  book(state, 'company', -loan.remaining, 'loan', `Ablöse ${loan.label ?? 'Fahrzeugfinanzierung'}`);
+  state.company.loans = state.company.loans.filter((l) => l !== loan);
+  v.loanId = undefined;
 }

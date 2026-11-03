@@ -1,4 +1,4 @@
-import { CARGO_BY_ID, CITY_BY_ID, COUNTRY_NAMES, TRAILER_BY_TYPE, TRUCK_BY_ID, ACTIVITY_LABEL, type GameState, type Order, type Trip, type TrailerType } from '@spedsim/core';
+import { CARGO_BY_ID, CITY_BY_ID, COUNTRY_NAMES, TRAILER_BY_TYPE, TRUCK_BY_ID, ACTIVITY_LABEL, type GameState, type Order, type Trip, type TrailerType, tripOrderIds } from '@spedsim/core';
 
 export const cityName = (id: string) => CITY_BY_ID[id]?.name ?? id;
 export const cityLabel = (id: string) => {
@@ -26,7 +26,8 @@ export function tripLabel(state: GameState, trip: Trip): string {
     return `Überführung → ${cityName(leg.nodes[leg.nodes.length - 1])}`;
   }
   const o = state.orders[trip.orderId];
-  return `${cityName(o.fromCityId)} → ${cityName(o.toCityId)}`;
+  const extra = tripOrderIds(trip).length - 1;
+  return `${cityName(o.fromCityId)} → ${cityName(o.toCityId)}${extra > 0 ? ` + ${extra} Beiladung${extra > 1 ? 'en' : ''}` : ''}`;
 }
 
 export function activityLabel(trip: Trip | undefined, status: string): string {

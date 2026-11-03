@@ -27,7 +27,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Werkstätten, Tankstellen, Rastplätze | Geplant | Phase 10 (POI-Layer) |
 | Liefer-/Abholorte | Implementiert | Routenvorschau in der Börse |
 | Lagerhäuser/Logistikzentren | Geplant | Phase 6 |
-| Verkehrsmeldungen & Ereignisse auf der Karte | Geplant | Phase 10 |
+| Verkehrsmeldungen & Ereignisse auf der Karte | Teilweise | Sperrungen und Staus auf der Karte und in der Liste „Verkehrslage“; weitere Ereignisse Phase 10 |
 | Fahrerpositionen in Echtzeit | Implementiert | Interpolation pro Frame |
 | Aktuelle Fahrzeugrouten | Implementiert | beladen/leer/verspätet farbig |
 | Bewegung entlang echter Straßengeometrie (nicht linear) | Getestet | Route-Test + Transporttest |
@@ -55,7 +55,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Generierung nach Bevölkerung, Industrie, Region, Saison, Wochentag, Feiertag, Nachfrage | Getestet | |
 | Kundenbeziehungen beeinflussen Angebote | In Entwicklung | Kunden persistent; Einfluss auf Angebotsmenge folgt in Phase 5 |
 | Rückladungen / Leerfahrtvermeidung | Implementiert | Börse filtert nach Fahrzeugstandort, Überführungsfahrten |
-| Mehrere Aufträge kombinieren (Teilladungen) | Teilweise | Teilladungen (0,5–7,5 t) in der Börse, Filter „Ladungsgröße“; nacheinander per Tourenkette, gleichzeitige Mehrfachbeladung offen |
+| Mehrere Aufträge kombinieren (Teilladungen) | Getestet | Beiladung in laufende Fahrten: beste Einfügestelle für Laden/Entladen, Nutzlastprüfung über die ganze Tour, Verspätungswarnung für geladene Aufträge, wieder herausnehmbar |
 
 ## 6 · Manuelle Disposition
 | Anforderung | Status | Anmerkung |
@@ -69,7 +69,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Fahreransicht | Implementiert | |
 | Konfliktprüfung (Ruhezeit, belegt, Auflieger, Kapazität, Lieferzeit, Qualifikation, Tank, Wartung) | Getestet | |
 | Vorausplanung (Fahrt in der Zukunft starten, Ketten) | Getestet | bis zu 5 Folgeaufträge je Fahrzeug, Start automatisch nach der laufenden Fahrt, Verspätungsprognose |
-| Umleitung bei Verkehrsbehinderung | Geplant | Phase 10 |
+| Umleitung bei Verkehrsbehinderung | Getestet | Sperrungen werden automatisch umfahren (ab dem nächsten Knoten), nach Aufhebung zurück auf die kürzere Route; ohne Ausweichroute wartet der LKW |
 
 ## 7 · KI-Disponenten
 | Anforderung | Status |
@@ -83,7 +83,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Entwicklung durch Erfahrung | Implementiert | |
 | Erfahrung/Fahrweise wirkt auf Verbrauch, Verschleiß, Tempo | Implementiert | |
 | Bewerbungen, Einstellen, Entlassen | Implementiert | |
-| Gespräche, Gehaltsverhandlung, Schulungen, Beförderung, Urlaub, Verträge, Kündigung bei Unzufriedenheit | Geplant | Phase 5 |
+| Gespräche, Gehaltsverhandlung, Schulungen, Beförderung, Urlaub, Verträge, Kündigung bei Unzufriedenheit | Getestet | Personalakte: Gespräch (Gründe der Zufriedenheit), Gehalt (70–160 % vom Markt), Urlaub (30 Tage/Jahr), Schulungen ADR/Kühl/Schwer/Spritsparen, Krankheit, Kündigung nach 7 Tagen Unzufriedenheit mit 14 Tagen Frist (abwendbar); Beförderung: Phase 6 (Abteilungen) |
 | Lenk-/Arbeits-/Ruhezeiten (vereinfachte EU-Regeln) | Getestet | Vereinfachungen siehe GAME_DESIGN.md §7 |
 | Fahrerwechsel unterwegs | Geplant | |
 
@@ -95,7 +95,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | 9 Aufliegertypen | Implementiert | |
 | Fahrzeugdaten (alle geforderten) | Implementiert | |
 | Gebraucht/Neu/Leasing/Verkauf | Implementiert | |
-| Finanzierung, Miete, Inzahlungnahme | Geplant | Phase 5 |
+| Finanzierung, Miete, Inzahlungnahme | Getestet | Finanzierung 10 % Anzahlung, 24–60 Monate; Kurzzeitmiete tageweise; Inzahlungnahme 95 % des Marktwerts mit Ablöse offener Finanzierung |
 | Verschleiß, Pannen unterwegs | Implementiert | Abschleppen vs. Vor-Ort-Reparatur als Entscheidung: geplant |
 | Werkstatt/Wartung | Implementiert | |
 
@@ -106,7 +106,7 @@ Stand: 02.11.2026 · Version 0.1.0
 | Kredite & Zinsen | Getestet | Ratenkredite (Annuität, Kreditrahmen, Ablöse), Überziehungszins; Factoring offener Rechnungen |
 | In-App-Update (signiert, über GitHub-Releases) | Implementiert | Prüfung im Startbildschirm getestet; Download/Installation erst nach dem ersten Release mit latest.json prüfbar |
 | Steuern, Werbung, Fortbildung, Lager | Geplant | |
-| Einnahmen aus Einzelaufträgen, Expresszuschläge, Spezialtransporte | Implementiert | Festverträge: geplant |
+| Einnahmen aus Einzelaufträgen, Expresszuschläge, Spezialtransporte | Implementiert | Festverträge: Rahmenverträge (Phase 5) |
 | Finanzdashboard | Implementiert | Kontostand, Forderungen, Fixkosten, Unternehmenswert, Kategorien, Hauptbuch |
 | Rechnungen, Zahlungsziele, Verzug, Mahnungen, Bonität, Ausfälle | Getestet | |
 | Dynamischer Dieselpreis und Nachfrage | Implementiert | Krisen/Konkurrenzdruck: Phase 10 |
@@ -116,7 +116,7 @@ Stand: 02.11.2026 · Version 0.1.0
 |---|---|
 | Kunden mit Branche, Größe, Zahlungsmoral, Zufriedenheit, Preissensibilität | Implementiert |
 | Zufriedenheit durch Pünktlichkeit/Verspätung | Getestet |
-| Stammkunden, Langzeitverträge mit Mindestkapazität | Geplant (Phase 5) |
+| Stammkunden, Langzeitverträge mit Mindestkapazität | Getestet (Rahmenverträge: feste Touren je Woche, Strafe bei Ausfall, Verlängerung bei guter Erfüllung; zufriedene Stammkunden zahlen in der Börse besser) |
 | KI-Konkurrenz (wirtschaftlich simuliert) | Geplant (Phase 10) |
 
 ## 12 · Unternehmensausbau

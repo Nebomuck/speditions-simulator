@@ -4,11 +4,12 @@ import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, loadSpace } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { EMPLOYER_COST_FACTOR, addLog, formatMoney } from './finance.ts';
-import { REST_KIND_LABEL, simulateDriving } from './hos.ts';
+import { REST_KIND_LABEL, hosRest, hosWork, simulateDriving } from './hos.ts';
 import { newId } from './rng.ts';
-import { tripEta } from './selectors.ts';
+import { routeNow } from './disruptions.ts';
+import { tripStopEtas } from './selectors.ts';
 import { MIN_PER_DAY, formatDateTime, formatDuration } from './time.ts';
-import type { GameState, HoursOfService, Id, Money, Order, Trip, TripLeg, Vehicle } from './types.ts';
+import type { GameState, HoursOfService, Id, Money, Order, Trip, TripLeg, TripStop, Vehicle } from './types.ts';
 
 export interface DispatchInput {
   orderId: Id;
@@ -81,6 +82,31 @@ export function loadFraction(state: GameState, vehicle: Vehicle, trailerId: Id |
   return space && space.payloadT > 0 ? Math.min(1, order.weightT / space.payloadT) : 0;
 }
 
+/** Aufträge, die beim Befahren von legs[legIndex] geladen sind (abgeholt, noch nicht zugestellt). */
+export function ordersOnBoard(trip: Trip, legIndex: number): Id[] {
+  const stops = trip.stops ?? [];
+  const ids: Id[] = [];
+  stops.forEach((st, i) => {
+    if (st.kind !== 'pickup' || i >= legIndex) return;
+    const del = stops.findIndex((d) => d.kind === 'delivery' && d.orderId === st.orderId);
+    if (del >= legIndex) ids.push(st.orderId);
+  });
+  return ids;
+}
+
+/** Beladungsgrad einer laufenden Fahrt auf dem aktuellen Abschnitt (Summe aller geladenen Aufträge). */
+export function tripLoadFraction(state: GameState, trip: Trip): number {
+  const vehicle = state.vehicles[trip.vehicleId];
+  const weight = ordersOnBoard(trip, trip.legIndex).reduce((w, id) => w + (state.orders[id]?.weightT ?? 0), 0);
+  const space = loadSpace(vehicle.modelId, trip.trailerId ? state.trailers[trip.trailerId]?.type : undefined);
+  return space && space.payloadT > 0 ? Math.min(1, weight / space.payloadT) : 0;
+}
+
+/** Alle Aufträge einer Fahrt (Hauptauftrag und Beiladungen). */
+export function tripOrderIds(trip: Trip): Id[] {
+  return trip.stops ? [...new Set(trip.stops.map((st) => st.orderId))] : trip.orderId ? [trip.orderId] : [];
+}
+
 /** Vollständige Vorkalkulation einer Fahrt inkl. Lenk-/Ruhezeiten, Wartezeit und Kosten. */
 export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchInput, from?: PlanStart): TripEstimate | null {
   const order = state.orders[input.orderId];
@@ -89,8 +115,8 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   if (!order || !driver || !vehicle) return null;
   const startCity = from?.cityId ?? vehicle.cityId;
   const startTime = from?.time ?? state.time;
-  const toPickupRaw = ctx.net.route(startCity, order.fromCityId);
-  const loadedRaw = ctx.net.route(order.fromCityId, order.toCityId);
+  const toPickupRaw = routeNow(state, ctx, startCity, order.fromCityId);
+  const loadedRaw = routeNow(state, ctx, order.fromCityId, order.toCityId);
   if (!toPickupRaw || !loadedRaw) return null;
   const sf = speedFactor(vehicle.modelId);
   const toPickup = { ...toPickupRaw, driveMin: toPickupRaw.driveMin / sf };
@@ -215,8 +241,8 @@ export function validateDispatch(state: GameState, ctx: SimContext, input: Dispa
   return { issues, estimate };
 }
 
-function leg(ctx: SimContext, from: string, to: string, loaded: boolean): TripLeg {
-  const r = ctx.net.route(from, to)!;
+function leg(state: GameState, ctx: SimContext, from: string, to: string, loaded: boolean): TripLeg {
+  const r = routeNow(state, ctx, from, to)!;
   return { nodes: r.nodes, km: r.km, loaded };
 }
 
@@ -233,7 +259,11 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
     driverId: driver.id,
     vehicleId: vehicle.id,
     ...(trailer ? { trailerId: trailer.id } : {}),
-    legs: [leg(ctx, vehicle.cityId, order.fromCityId, false), leg(ctx, order.fromCityId, order.toCityId, true)],
+    stops: [
+      { kind: 'pickup', orderId: order.id, cityId: order.fromCityId },
+      { kind: 'delivery', orderId: order.id, cityId: order.toCityId },
+    ],
+    legs: [leg(state, ctx, vehicle.cityId, order.fromCityId, false), leg(state, ctx, order.fromCityId, order.toCityId, true)],
     legIndex: 0,
     progressKm: 0,
     phase: 'to_pickup',
@@ -272,7 +302,7 @@ export function createRelocation(state: GameState, ctx: SimContext, driverId: Id
   const driver = state.drivers[driverId];
   const vehicle = state.vehicles[vehicleId];
   const id = newId(state, 'trp');
-  const l = leg(ctx, vehicle.cityId, toCityId, false);
+  const l = leg(state, ctx, vehicle.cityId, toCityId, false);
   const trip: Trip = {
     id,
     driverId,
@@ -312,8 +342,19 @@ export function planEnd(state: GameState, ctx: SimContext, vehicleId: Id): PlanS
   return vehicleSchedule(state, ctx, vehicleId).at(-1)?.end ?? null;
 }
 
+export interface ScheduleStop {
+  kind: 'pickup' | 'delivery';
+  orderId: Id;
+  cityId: string;
+  /** Ende von Beladung bzw. Entladung (geschätzt) */
+  eta: number;
+  done: boolean;
+}
+
 export interface ScheduleItem {
   kind: 'trip' | 'queued';
+  /** Halte der laufenden Fahrt inkl. Beiladungen */
+  stops?: ScheduleStop[];
   orderId?: Id;
   tripId?: Id;
   queueId?: Id;
@@ -333,18 +374,21 @@ export function vehicleSchedule(state: GameState, ctx: SimContext, vehicleId: Id
   if (!trip || trip.phase === 'done') return [];
   const lastLeg = trip.legs[trip.legs.length - 1];
   const dest = lastLeg.nodes[lastLeg.nodes.length - 1];
-  const order = trip.orderId ? state.orders[trip.orderId] : undefined;
-  const eta = tripEta(state, ctx, trip);
+  const { etas, end: eta } = tripStopEtas(state, ctx, trip);
+  const stops: ScheduleStop[] = (trip.stops ?? []).map((st, i) => ({ ...st, eta: etas[i] ?? trip.startedAt, done: i < trip.legIndex || (i === trip.legIndex && etas[i] === undefined) }));
+  let lateMin = 0;
+  for (const st of stops) if (st.kind === 'delivery' && !st.done) lateMin = Math.max(lateMin, st.eta - state.orders[st.orderId].deliveryEnd);
   const items: ScheduleItem[] = [
     {
       kind: 'trip',
       tripId: trip.id,
       orderId: trip.orderId,
+      stops,
       start: trip.startedAt,
       fromCityId: trip.legs[0].nodes[0],
       toCityId: dest,
       end: { cityId: dest, time: eta },
-      lateMin: order ? Math.max(0, eta - order.deliveryEnd) : 0,
+      lateMin,
     },
   ];
   let cursor: PlanStart = { cityId: dest, time: eta };
@@ -415,4 +459,270 @@ export function startNextQueued(state: GameState, ctx: SimContext, vehicleId: Id
       ref: { kind: 'order', id: order.id },
     });
   }
+}
+
+// ---------- Beiladung (mehrere Aufträge gleichzeitig auf einem Fahrzeug) ----------
+
+export const MAX_TRIP_STOPS = 12;
+
+interface Anchor {
+  /** erster Halt-Index, der noch geändert werden darf */
+  minIndex: number;
+  cityId: string;
+  time: number;
+  hos: HoursOfService;
+  /** bei Fahrt mitten im Abschnitt: bereits festgelegte Knoten bis zum nächsten Knoten */
+  prefix?: string[];
+}
+
+/** Ab wo und wann lässt sich der Rest einer laufenden Fahrt neu planen? */
+function anchorOf(state: GameState, ctx: SimContext, trip: Trip): Anchor {
+  const driver = state.drivers[trip.driverId];
+  const hos = { ...driver.hos };
+  const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry';
+  let time = state.time + (stationary ? trip.activityLeft : 0);
+  if (stationary && ['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked'].includes(trip.activity)) hosRest(hos, trip.activityLeft);
+  if (trip.phase === 'loading' || trip.phase === 'unloading') {
+    const stop = trip.stops![trip.legIndex];
+    if (trip.activity === 'waiting') time += CARGO_BY_ID[state.orders[stop.orderId].cargoId].loadMin;
+    hosWork(hos, 0);
+    return { minIndex: trip.legIndex + 1, cityId: stop.cityId, time, hos };
+  }
+  const leg = trip.legs[trip.legIndex];
+  const loc = leg.nodes.length > 1 ? ctx.net.locate(leg.nodes, trip.progressKm) : null;
+  if (!loc) return { minIndex: trip.legIndex, cityId: leg.nodes[0], time, hos, prefix: [leg.nodes[0]] };
+  const prefix = leg.nodes.slice(0, loc.segIndex + 2);
+  const restKm = loc.edge.km - loc.kmIntoEdge;
+  time += simulateDriving(hos, (loc.edge.truckMin * (restKm / Math.max(loc.edge.km, 0.1))) / speedFactor(state.vehicles[trip.vehicleId].modelId)).elapsed;
+  return { minIndex: trip.legIndex, cityId: prefix[prefix.length - 1], time, hos, prefix };
+}
+
+interface RemainderSim {
+  km: number;
+  toll: number;
+  end: number;
+  /** Ende von Beladung/Entladung je Halt der Restfolge */
+  etas: number[];
+  /** Summe der Verspätungen aller Zustellungen in Minuten */
+  lateSum: number;
+  late: Record<Id, number>;
+}
+
+function simulateRemainder(state: GameState, ctx: SimContext, trip: Trip, a: Anchor, rest: TripStop[]): RemainderSim | null {
+  const sf = speedFactor(state.vehicles[trip.vehicleId].modelId);
+  const hos = { ...a.hos };
+  let t = a.time;
+  let city = a.cityId;
+  let km = 0;
+  let toll = 0;
+  let lateSum = 0;
+  const etas: number[] = [];
+  const late: Record<Id, number> = {};
+  for (const st of rest) {
+    const r = routeNow(state, ctx, city, st.cityId);
+    if (!r) return null;
+    km += r.km;
+    toll += r.toll;
+    t += simulateDriving(hos, r.driveMin / sf).elapsed;
+    const o = state.orders[st.orderId];
+    const cargo = CARGO_BY_ID[o.cargoId];
+    if (st.kind === 'pickup') {
+      if (t < o.pickupStart) {
+        hosRest(hos, o.pickupStart - t);
+        t = o.pickupStart;
+      }
+      t += cargo.loadMin;
+    } else {
+      t += Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);
+      late[o.id] = Math.max(0, t - o.deliveryEnd);
+      lateSum += late[o.id];
+    }
+    hosWork(hos, 0);
+    etas.push(t);
+    city = st.cityId;
+  }
+  return { km, toll, end: t, etas, lateSum, late };
+}
+
+export interface CoLoadPlan {
+  tripId: Id;
+  /** neue vollständige Haltefolge */
+  stops: TripStop[];
+  extraKm: number;
+  extraMin: number;
+  pickupEta: number;
+  deliveryEta: number;
+  lateMin: number;
+  /** Aufträge, die durch die Beiladung neu zu spät kommen */
+  delayed: { orderId: Id; lateMin: number }[];
+  extraCost: Money;
+  revenue: Money;
+  profit: Money;
+}
+
+/** Beste Einfügestelle für einen zusätzlichen Auftrag in eine laufende Fahrt suchen und prüfen. */
+export function planCoLoad(state: GameState, ctx: SimContext, vehicleId: Id, orderId: Id): { issues: Issue[]; plan: CoLoadPlan | null } {
+  const issues: Issue[] = [];
+  const err = (code: string, text: string) => issues.push({ level: 'error', code, text });
+  const warn = (code: string, text: string) => issues.push({ level: 'warning', code, text });
+  const vehicle = state.vehicles[vehicleId];
+  const trip = vehicle?.tripId ? state.trips[vehicle.tripId] : undefined;
+  const order = state.orders[orderId];
+  if (!vehicle || !order) {
+    err('missing', 'Fahrzeug oder Auftrag existiert nicht.');
+    return { issues, plan: null };
+  }
+  if (!trip || trip.phase === 'done' || !trip.stops) {
+    err('no_trip', `LKW ${vehicle.plate} hat keine laufende Auftragsfahrt für eine Beiladung.`);
+    return { issues, plan: null };
+  }
+  const driver = state.drivers[trip.driverId];
+  if (order.status !== 'offered' && order.status !== 'accepted') err('order_status', 'Auftrag ist nicht mehr disponierbar.');
+  if (order.status === 'offered' && state.time >= order.offerExpires) err('order_expired', 'Angebot ist abgelaufen.');
+  const space = loadSpace(vehicle.modelId, trip.trailerId ? state.trailers[trip.trailerId]?.type : undefined);
+  if (!space || space.type !== order.trailerType) err('trailer_type', `Ungeeigneter Laderaum: benötigt ${TRAILER_BY_TYPE[order.trailerType].name}.`);
+  else if (order.weightT > space.payloadT) err('overweight', `Ladung (${order.weightT} t) übersteigt die Nutzlast (${space.payloadT} t).`);
+  for (const q of order.qualifications) if (!driver.qualifications.includes(q)) err('qualification', `${driver.name} fehlt die Qualifikation ${q === 'ADR' ? 'ADR-Schein (Gefahrgut)' : q === 'heavy' ? 'Schwertransport' : q}.`);
+  if (trip.stops.length + 2 > MAX_TRIP_STOPS) err('stops', `Höchstens ${MAX_TRIP_STOPS} Halte je Fahrt.`);
+  if (issues.length) return { issues, plan: null };
+
+  const a = anchorOf(state, ctx, trip);
+  const rest = trip.stops.slice(a.minIndex);
+  const base = simulateRemainder(state, ctx, trip, a, rest);
+  if (!base) {
+    err('no_route', 'Keine Straßenroute gefunden.');
+    return { issues, plan: null };
+  }
+  // geladen am Planungsanker
+  let weight0 = 0;
+  for (const id of ordersOnBoard(trip, a.minIndex)) weight0 += state.orders[id].weightT;
+  const pickup: TripStop = { kind: 'pickup', orderId, cityId: order.fromCityId };
+  const delivery: TripStop = { kind: 'delivery', orderId, cityId: order.toCityId };
+
+  let best: { seq: TripStop[]; sim: RemainderSim; score: number } | null = null;
+  let capacityFail = false;
+  for (let i = 0; i <= rest.length; i++) {
+    for (let j = i; j <= rest.length; j++) {
+      const seq = [...rest.slice(0, i), pickup, ...rest.slice(i, j), delivery, ...rest.slice(j)];
+      let w = weight0;
+      let fits = true;
+      for (const st of seq) {
+        w += (st.kind === 'pickup' ? 1 : -1) * state.orders[st.orderId].weightT;
+        if (w > space!.payloadT + 1e-9) fits = false;
+      }
+      if (!fits) {
+        capacityFail = true;
+        continue;
+      }
+      const sim = simulateRemainder(state, ctx, trip, a, seq);
+      if (!sim) continue;
+      // Umweg-km plus Verspätungsminuten (stark gewichtet)
+      const score = sim.km + (sim.lateSum - base.lateSum) * 2;
+      if (!best || score < best.score) best = { seq, sim, score };
+    }
+  }
+  if (!best) {
+    err(capacityFail ? 'capacity' : 'no_route', capacityFail ? `Nicht genug Laderaum frei (Nutzlast ${space!.payloadT} t, bereits geladen bzw. eingeplant ${weight0.toLocaleString('de-DE')} t).` : 'Keine Straßenroute gefunden.');
+    return { issues, plan: null };
+  }
+  const { seq, sim } = best;
+  const pi = seq.indexOf(pickup);
+  const di = seq.indexOf(delivery);
+  const extraKm = sim.km - base.km;
+  const extraMin = sim.end - base.end;
+  const lateMin = sim.late[orderId] ?? 0;
+  const delayed: CoLoadPlan['delayed'] = [];
+  let extraPenalty = 0;
+  for (const [id, m] of Object.entries(sim.late)) {
+    if (id === orderId) continue;
+    const before = base.late[id] ?? 0;
+    if (m > before) {
+      const o = state.orders[id];
+      extraPenalty += penaltyFor(o, m) - penaltyFor(o, before);
+      if (before === 0) delayed.push({ orderId: id, lateMin: m });
+    }
+  }
+  const fuelCost = Math.round(Math.max(0, extraKm) * consumptionPerKm(vehicle.modelId, 0.5, driver.ecoDriving) * state.market.diesel);
+  const toll = Math.round(Math.max(0, sim.toll - base.toll) * tollFactor(vehicle.modelId));
+  const driverCost = Math.round(((driver.salary * EMPLOYER_COST_FACTOR) / (30 * MIN_PER_DAY)) * Math.max(0, extraMin));
+  const extraCost = fuelCost + toll + driverCost + Math.round(Math.max(0, extraKm) * 6) + extraPenalty;
+  const revenue = order.payment - penaltyFor(order, lateMin);
+  const plan: CoLoadPlan = {
+    tripId: trip.id,
+    stops: [...trip.stops.slice(0, a.minIndex), ...seq],
+    extraKm,
+    extraMin,
+    pickupEta: sim.etas[pi],
+    deliveryEta: sim.etas[di],
+    lateMin,
+    delayed,
+    extraCost,
+    revenue,
+    profit: revenue - extraCost,
+  };
+  warn('coload', `Beiladung: ${extraKm >= 0.5 ? `${Math.round(extraKm)} km Umweg` : 'kein Umweg'}, Fahrt endet ${extraMin > 0 ? `ca. ${formatDuration(extraMin)} später` : 'nicht später'}.`);
+  if (sim.etas[pi] - CARGO_BY_ID[order.cargoId].loadMin > order.pickupEnd) warn('pickup_late', `Abholfenster wird voraussichtlich verpasst (Ankunft ${formatDateTime(sim.etas[pi] - CARGO_BY_ID[order.cargoId].loadMin)}).`);
+  if (lateMin > 0) warn('delivery_late', `Lieferung voraussichtlich ${formatDuration(lateMin)} zu spät – Vertragsstrafe ca. ${formatMoney(penaltyFor(order, lateMin))}.`);
+  for (const d of delayed) {
+    const o = state.orders[d.orderId];
+    warn('delays_other', `Bereits geladener Auftrag ${CITY_BY_ID[o.fromCityId].name} → ${CITY_BY_ID[o.toCityId].name} käme dadurch ${formatDuration(d.lateMin)} zu spät.`);
+  }
+  if (plan.profit < 0) warn('unprofitable', `Beiladung ist voraussichtlich unwirtschaftlich (${formatMoney(plan.profit)}).`);
+  return { issues, plan };
+}
+
+/** Abschnitte ab dem Planungsanker zu einer neuen Haltefolge neu aufbauen. */
+function rebuildLegs(state: GameState, ctx: SimContext, trip: Trip, a: Anchor, stops: TripStop[]) {
+  const legs = trip.legs.slice(0, a.minIndex);
+  let from = a.cityId;
+  for (let i = a.minIndex; i < stops.length; i++) {
+    const r = routeNow(state, ctx, from, stops[i].cityId)!;
+    let nodes = r.nodes;
+    // aktueller Abschnitt: bereits befahrene Knoten behalten, damit die Position gültig bleibt
+    if (i === a.minIndex && a.prefix) nodes = [...a.prefix, ...r.nodes.slice(1)];
+    legs.push({ nodes, km: ctx.net.describe(nodes).km, loaded: false });
+    from = stops[i].cityId;
+  }
+  trip.stops = stops;
+  trip.legs = legs;
+  for (let i = a.minIndex; i < legs.length; i++) legs[i].loaded = ordersOnBoard(trip, i).length > 0;
+  if (trip.phase === 'to_pickup' || trip.phase === 'to_delivery') trip.phase = stops[trip.legIndex].kind === 'pickup' ? 'to_pickup' : 'to_delivery';
+}
+
+/** Auftrag als Beiladung in die laufende Fahrt eines Fahrzeugs aufnehmen. */
+export function addCoLoad(state: GameState, ctx: SimContext, vehicleId: Id, orderId: Id): { ok: true; plan: CoLoadPlan } | { ok: false; error: string } {
+  const { issues, plan } = planCoLoad(state, ctx, vehicleId, orderId);
+  const error = issues.find((i) => i.level === 'error');
+  if (error || !plan) return { ok: false, error: error?.text ?? 'Beiladung nicht möglich.' };
+  const trip = state.trips[plan.tripId];
+  rebuildLegs(state, ctx, trip, anchorOf(state, ctx, trip), plan.stops);
+  const order = state.orders[orderId];
+  order.status = 'planned';
+  order.tripId = trip.id;
+  const vehicle = state.vehicles[vehicleId];
+  trip.log.push({ t: state.time, text: `Beiladung ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name} aufgenommen` });
+  addLog(state, {
+    level: 'info',
+    category: 'trip',
+    text: `Beiladung: ${CARGO_BY_ID[order.cargoId].name} ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name} (${order.weightT.toLocaleString('de-DE')} t) fährt mit LKW ${vehicle.plate} mit (Abholung ca. ${formatDateTime(plan.pickupEta)}).`,
+    ref: { kind: 'trip', id: trip.id },
+  });
+  return { ok: true, plan };
+}
+
+/** Noch nicht abgeholte Beiladung wieder aus der Fahrt nehmen – der Auftrag bleibt angenommen. */
+export function removeCoLoad(state: GameState, ctx: SimContext, orderId: Id): { ok: true } | { ok: false; error: string } {
+  const order = state.orders[orderId];
+  const trip = order?.tripId ? state.trips[order.tripId] : undefined;
+  if (!order || !trip?.stops || trip.phase === 'done') return { ok: false, error: 'Auftrag fährt in keiner laufenden Fahrt mit.' };
+  if (trip.orderId === orderId) return { ok: false, error: 'Der Hauptauftrag einer Fahrt kann nicht herausgenommen werden.' };
+  if (order.status !== 'planned') return { ok: false, error: 'Die Ware ist bereits geladen.' };
+  const a = anchorOf(state, ctx, trip);
+  const pi = trip.stops.findIndex((st) => st.kind === 'pickup' && st.orderId === orderId);
+  if (pi < a.minIndex) return { ok: false, error: 'Die Beladung läuft bereits.' };
+  rebuildLegs(state, ctx, trip, a, trip.stops.filter((st) => st.orderId !== orderId));
+  order.status = 'accepted';
+  order.tripId = undefined;
+  trip.log.push({ t: state.time, text: `Beiladung ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name} entfernt` });
+  return { ok: true };
 }

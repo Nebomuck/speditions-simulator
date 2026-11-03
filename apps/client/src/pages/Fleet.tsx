@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Wrench, ShoppingCart, Tag, Truck, Container } from 'lucide-react';
-import { TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, capacity, formatDateTime, vehicleMarketValue, type TrailerType } from '@spedsim/core';
+import {
+  TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, annuity, capacity, formatDateTime, openVehicleLoan, tradeInValue,
+  vehicleLoanRate, vehicleMarketValue, vehicleRentPerDay, type TrailerType, type TruckModel, type Vehicle,
+} from '@spedsim/core';
 import { sendCommand, setUi, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
 import { activityLabel, bodyName, cityName, dec, km, modelName, trailerName } from '../ui/format.ts';
@@ -42,7 +45,7 @@ export function FleetPage() {
                     <td>{trip ? 'unterwegs' : cityName(v.cityId)}</td>
                     <td><div className="row"><Bar value={v.condition} />{Math.round(v.condition)} %</div></td>
                     <td className="num">{km(v.odometerKm)}</td>
-                    <td>{v.ownership === 'leased' ? <>Leasing <Money value={v.leaseRate ?? 0} />/Monat</> : 'Eigentum'}</td>
+                    <td>{ownershipText(s, v)}</td>
                     <td className="num">{v.ownership === 'owned' ? <Money value={vehicleMarketValue(s, v.id)} /> : '–'}</td>
                     <td className="num">
                       <div className="row" style={{ justifyContent: 'flex-end' }}>
@@ -50,8 +53,20 @@ export function FleetPage() {
                           <Wrench size={13} />Werkstatt
                         </button>
                         <button className="btn small" disabled={v.status !== 'idle'} onClick={() => setUi({ selectedVehicleId: v.id, page: 'map' })}>Karte</button>
-                        <button className="btn small danger" disabled={v.status !== 'idle'} onClick={() => confirm(v.ownership === 'leased' ? 'Leasingvertrag vorzeitig beenden? Ablöse: 3 Monatsraten.' : `Fahrzeug für ca. 90 % des Marktwerts verkaufen?`) && sendCommand({ type: 'sellVehicle', vehicleId: v.id })}>
-                          {v.ownership === 'leased' ? 'Rückgabe' : 'Verkaufen'}
+                        <button
+                          className="btn small danger"
+                          disabled={v.status !== 'idle'}
+                          onClick={() =>
+                            confirm(
+                              v.ownership === 'leased'
+                                ? 'Leasingvertrag vorzeitig beenden? Ablöse: 3 Monatsraten.'
+                                : v.ownership === 'rented'
+                                  ? 'Mietfahrzeug zurückgeben? Die Miete endet sofort.'
+                                  : `Fahrzeug für ca. 90 % des Marktwerts verkaufen?${v.loanId ? ' Die Restschuld der Finanzierung wird aus dem Erlös abgelöst.' : ''}`,
+                            ) && sendCommand({ type: 'sellVehicle', vehicleId: v.id })
+                          }
+                        >
+                          {v.ownership === 'owned' ? 'Verkaufen' : 'Rückgabe'}
                         </button>
                       </div>
                     </td>
@@ -122,7 +137,108 @@ function UsedMarket({ onClose }: { onClose: () => void }) {
   );
 }
 
+function ownershipText(s: ReturnType<typeof useGame>, v: Vehicle) {
+  if (v.ownership === 'leased') return <>Leasing <Money value={v.leaseRate ?? 0} />/Monat</>;
+  if (v.ownership === 'rented') return <>Miete <Money value={v.rentPerDay ?? 0} />/Tag</>;
+  const rest = openVehicleLoan(s, v);
+  return rest > 0 ? <>Eigentum · finanziert<div className="dim" style={{ fontSize: 12 }}>Restschuld <Money value={rest} /></div></> : 'Eigentum';
+}
+
+type Financing = 'cash' | 'loan' | 'lease' | 'rent';
+const FIN_LABEL: Record<Financing, string> = { cash: 'Kauf', loan: 'Finanzierung', lease: 'Leasing', rent: 'Miete' };
+
+/** Anschaffung eines Neufahrzeugs: Kauf, Finanzierung, Leasing oder Kurzzeitmiete, optional mit Inzahlungnahme. */
+function Purchase({ model: m, onBack, onDone }: { model: TruckModel; onBack: () => void; onDone: () => void }) {
+  const s = useGame();
+  const [fin, setFin] = useState<Financing>('cash');
+  const [months, setMonths] = useState<number>(48);
+  const [tradeId, setTradeId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const tradeable = Object.values(s.vehicles).filter((v) => v.ownership === 'owned' && v.status === 'idle');
+  const trade = tradeId ? s.vehicles[tradeId] : undefined;
+  const credit = trade ? tradeInValue(s, trade.id) - openVehicleLoan(s, trade) : 0;
+  const down = Math.round(m.price * VEHICLE_DOWN_PAYMENT);
+  const rate = vehicleLoanRate(months);
+  const perDay = vehicleRentPerDay(m.leaseRate);
+  const upfront = fin === 'cash' ? m.price : fin === 'loan' ? down : fin === 'lease' ? m.leaseRate : perDay;
+  async function buy() {
+    setBusy(true);
+    const r = await sendCommand({ type: 'buyNewVehicle', modelId: m.id, financing: fin, ...(fin === 'loan' ? { loanMonths: months } : {}), ...(tradeId ? { tradeInVehicleId: tradeId } : {}) });
+    setBusy(false);
+    if (r.ok) onDone();
+  }
+  return (
+    <div>
+      <div className="row mb">
+        <button className="btn small" onClick={onBack}>← Zurück</button>
+        <b style={{ fontSize: 16 }}>{m.maker} {m.name}</b>
+        <span className="dim">{kindText(m.id)} · Listenpreis <Money value={m.price} /></span>
+      </div>
+      <div className="grid grid-2">
+        <div>
+          <div className="field">
+            <label>Finanzierungsart</label>
+            <div className="seg" style={{ display: 'inline-flex' }}>
+              {(Object.keys(FIN_LABEL) as Financing[]).map((f) => (
+                <button key={f} className={fin === f ? 'active' : ''} onClick={() => setFin(f)}>{FIN_LABEL[f]}</button>
+              ))}
+            </div>
+          </div>
+          <div className="card" style={{ background: 'var(--panel-2)', fontSize: 13 }}>
+            {fin === 'cash' && <>Sofortzahlung des vollen Kaufpreises. Das Fahrzeug gehört der Firma und kann jederzeit verkauft werden.</>}
+            {fin === 'loan' && (
+              <>
+                <div className="row wrap mb">
+                  {VEHICLE_LOAN_TERMS.map((n) => <button key={n} className={`chip ${months === n ? 'active' : ''}`} onClick={() => setMonths(n)}>{n} Monate</button>)}
+                </div>
+                Anzahlung {Math.round(VEHICLE_DOWN_PAYMENT * 100)} % (<Money value={down} />), Rest über die Bank mit dem Fahrzeug als Sicherheit.
+                <div className="mt">Zins {(rate * 100).toFixed(1).replace('.', ',')} % p. a. · Rate <b><Money value={annuity(m.price - down, rate, months)} /></b> pro Monat</div>
+                <div className="dim mt">Beim Verkauf wird die Restschuld aus dem Erlös abgelöst.</div>
+              </>
+            )}
+            {fin === 'lease' && <>Leasingrate <b><Money value={m.leaseRate} /></b> pro Monat, die erste Rate sofort. Vorzeitige Rückgabe kostet 3 Monatsraten.</>}
+            {fin === 'rent' && <>Kurzzeitmiete <b><Money value={perDay} /></b> pro Tag (täglich abgebucht). Jederzeit ohne Gebühr rückgabefähig – teurer als Leasing, ideal für Auftragsspitzen.</>}
+          </div>
+        </div>
+        <div>
+          <div className="field">
+            <label>Inzahlungnahme (optional)</label>
+            <select className="input" value={tradeId} onChange={(e) => setTradeId(e.target.value)}>
+              <option value="">– kein Fahrzeug in Zahlung geben –</option>
+              {tradeable.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.plate} · {TRUCK_BY_ID[v.modelId].name} · {Math.round((tradeInValue(s, v.id) - openVehicleLoan(s, v)) / 100).toLocaleString('de-DE')} €
+                </option>
+              ))}
+            </select>
+            <small className="dim">Der Händler zahlt 95 % des Marktwerts (Verkauf: 90 %); offene Finanzierungen werden verrechnet.</small>
+          </div>
+          <dl className="kv">
+            <dt>Sofort fällig</dt><dd><Money value={upfront} /></dd>
+            {trade && <><dt>Inzahlungnahme</dt><dd className="pos">+<Money value={credit} /></dd></>}
+            <dt><b>Saldo heute</b></dt><dd><b><Money value={credit - upfront} colored /></b></dd>
+            <dt>Laufend</dt>
+            <dd>
+              {fin === 'loan' ? <><Money value={annuity(m.price - down, rate, months)} />/Monat</> : fin === 'lease' ? <><Money value={m.leaseRate} />/Monat</> : fin === 'rent' ? <><Money value={perDay} />/Tag</> : '–'} + Versicherung <Money value={m.insurance} />/Monat
+            </dd>
+          </dl>
+          <button className="btn primary mt" style={{ width: '100%', justifyContent: 'center' }} disabled={busy} onClick={buy}>
+            <ShoppingCart size={15} /> Verbindlich anschaffen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NewMarket({ onClose }: { onClose: () => void }) {
+  const [pick, setPick] = useState<TruckModel | null>(null);
+  if (pick)
+    return (
+      <Modal title="Neufahrzeug anschaffen" onClose={onClose} width={900}>
+        <Purchase model={pick} onBack={() => setPick(null)} onDone={onClose} />
+      </Modal>
+    );
   return (
     <Modal title="Neufahrzeuge (Hersteller fiktiv)" onClose={onClose}>
       <div className="table-wrap">
@@ -139,17 +255,14 @@ function NewMarket({ onClose }: { onClose: () => void }) {
                 <td className="num"><Money value={m.price} /></td>
                 <td className="num"><Money value={m.leaseRate} /></td>
                 <td>
-                  <div className="row">
-                    <button className="btn small" onClick={() => sendCommand({ type: 'buyNewVehicle', modelId: m.id, financing: 'lease' })}>Leasen</button>
-                    <button className="btn small primary" onClick={() => sendCommand({ type: 'buyNewVehicle', modelId: m.id, financing: 'cash' })}>Kaufen</button>
-                  </div>
+                  <button className="btn small primary" onClick={() => setPick(m)}><ShoppingCart size={13} /> Anschaffen</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="dim">Leasing: erste Rate wird sofort fällig, danach monatlich. Versicherung kommt jeweils hinzu.</p>
+      <p className="dim">Kauf, Finanzierung (10 % Anzahlung), Leasing oder tageweise Miete – auf Wunsch mit Inzahlungnahme eines eigenen Fahrzeugs.</p>
     </Modal>
   );
 }

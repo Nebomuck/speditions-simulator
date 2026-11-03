@@ -114,6 +114,9 @@ export interface Loan {
   monthly: Money;
   months: number;
   taken: GameTime;
+  /** Fahrzeugfinanzierung: das finanzierte Fahrzeug (Sicherheit der Bank) */
+  vehicleId?: Id;
+  label?: string;
 }
 
 export interface Character {
@@ -151,7 +154,9 @@ export interface HoursOfService {
   requiredRestKind: 'none' | 'break' | 'daily' | 'weekly';
 }
 
-export type DriverStatus = 'idle' | 'on_trip' | 'resting' | 'sick' | 'vacation';
+export type DriverStatus = 'idle' | 'on_trip' | 'resting' | 'sick' | 'vacation' | 'training';
+
+export type TrainingCourse = 'adr' | 'eco' | 'reefer' | 'heavy';
 
 export interface Driver {
   id: Id;
@@ -173,9 +178,25 @@ export interface Driver {
   tripId?: Id;
   hos: HoursOfService;
   kmDriven: number;
+  /** Ende von Urlaub, Krankheit oder Schulung */
+  absentUntil?: GameTime;
+  trainingCourse?: TrainingCourse;
+  /** verbleibende Urlaubstage im Kalenderjahr */
+  vacationLeft?: number;
+  /** Ende des letzten Urlaubs (bzw. Einstellung) */
+  lastVacation?: GameTime;
+  /** letztes Personalgespräch */
+  lastTalk?: GameTime;
+  /** Tage in Folge mit sehr niedriger Zufriedenheit */
+  unhappyDays?: number;
+  /** Kündigung eingereicht: verlässt die Firma zu diesem Zeitpunkt */
+  leavesAt?: GameTime;
 }
 
-export interface Applicant extends Omit<Driver, 'status' | 'hired' | 'tripId' | 'hos' | 'kmDriven' | 'satisfaction'> {
+export interface Applicant extends Omit<
+  Driver,
+  'status' | 'hired' | 'tripId' | 'hos' | 'kmDriven' | 'satisfaction' | 'absentUntil' | 'trainingCourse' | 'vacationLeft' | 'lastVacation' | 'lastTalk' | 'unhappyDays' | 'leavesAt'
+> {
   expires: GameTime;
 }
 
@@ -192,8 +213,13 @@ export interface Vehicle {
   cityId: string;
   status: VehicleStatus;
   tripId?: Id;
-  ownership: 'owned' | 'leased';
+  /** rented = Kurzzeitmiete (tageweise, jederzeit rückgabefähig) */
+  ownership: 'owned' | 'leased' | 'rented';
   leaseRate?: Money; // pro Monat
+  /** Mietpreis pro Tag (Kurzzeitmiete) */
+  rentPerDay?: Money;
+  /** laufende Fahrzeugfinanzierung */
+  loanId?: Id;
   purchasePrice: Money;
   bought: GameTime;
   /** Werkstattaufenthalt bis */
@@ -273,6 +299,8 @@ export interface Order {
   international: boolean;
   /** Teilladung (kleine Sendung, passend für Solo-LKW/Transporter) */
   partial?: boolean;
+  /** Tour aus einem Rahmenvertrag */
+  contractId?: Id;
   status: OrderStatus;
   offerExpires: GameTime;
   created: GameTime;
@@ -291,6 +319,7 @@ export type TripActivity =
   | 'loading'
   | 'unloading'
   | 'waiting'
+  | 'blocked'
   | 'ferry'
   | 'breakdown'
   | 'done';
@@ -302,9 +331,65 @@ export interface TripLeg {
   loaded: boolean;
 }
 
+export type ContractStatus = 'offered' | 'active' | 'completed' | 'cancelled' | 'expired';
+
+/** Rahmenvertrag: regelmäßige Touren zu festem Preis über mehrere Wochen. */
+export interface Contract {
+  id: Id;
+  customerId: Id;
+  cargoId: string;
+  fromCityId: string;
+  toCityId: string;
+  trailerType: TrailerType;
+  qualifications: Qualification[];
+  weightT: number;
+  distanceKm: number;
+  /** Abholtage (0 = Montag … 4 = Freitag) */
+  weekdays: number[];
+  /** Beginn des Ladefensters (Stunde) */
+  pickupHour: number;
+  paymentPerTour: Money;
+  /** Strafe je nicht gefahrener Tour */
+  penaltyMissed: Money;
+  weeks: number;
+  /** Stammkunde (bessere Konditionen) oder Ausschreibung */
+  regular: boolean;
+  status: ContractStatus;
+  offerExpires: GameTime;
+  start?: GameTime;
+  end?: GameTime;
+  /** Touren sind bis einschließlich dieses Tages angelegt */
+  scheduledThrough?: number;
+  stats: { tours: number; delivered: number; late: number; missed: number };
+}
+
+/** Halt einer Auftragsfahrt. legs[i] führt zu stops[i]. */
+export interface TripStop {
+  kind: 'pickup' | 'delivery';
+  orderId: Id;
+  cityId: string;
+}
+
+/** Verkehrsstörung auf einer Straßenkante: Sperrung (nicht befahrbar) oder Stau (langsamer). */
+export interface Disruption {
+  id: Id;
+  kind: 'closure' | 'jam';
+  /** Kante a–b im Straßennetz */
+  a: string;
+  b: string;
+  cause: string;
+  from: GameTime;
+  until: GameTime;
+  /** Tempofaktor im Stau (0–1) */
+  speedFactor: number;
+}
+
 export interface Trip {
   id: Id;
-  orderId?: Id; // fehlt bei Überführungsfahrten
+  /** Hauptauftrag (erster Auftrag der Fahrt); fehlt bei Überführungsfahrten */
+  orderId?: Id;
+  /** Lade- und Entladestellen; bei Beiladungen mehrere Aufträge. Fehlt bei Überführungen. */
+  stops?: TripStop[];
   driverId: Id;
   vehicleId: Id;
   trailerId?: Id;
@@ -406,4 +491,8 @@ export interface GameState {
   stats: DailyStat[];
   /** Tagesumsatz/-kosten laufend (für stats) */
   today: { revenue: Money; costs: Money };
+  /** aktive Verkehrsstörungen (Sperrungen, Staus) */
+  disruptions: Disruption[];
+  /** Rahmenverträge (Angebote, laufende und beendete) */
+  contracts: Record<Id, Contract>;
 }

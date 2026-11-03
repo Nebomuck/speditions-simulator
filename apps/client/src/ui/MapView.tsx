@@ -3,11 +3,12 @@
 // (z. B. selbst gehostete PMTiles). Fällt die Grundkarte aus (offline), bleibt das spieleigene
 // Straßennetz aus echten OSM-Routen sichtbar.
 // Fahrzeuge: GeoJSON-Quelle, pro Animationsframe zwischen Simulationsschnappschüssen interpoliert.
+// Verkehrsstörungen (Sperrungen, Staus) als eigene Ebene mit Infofenster.
 
 import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CITIES, CITY_BY_ID, vehicleMarker, isTripLate, type GameState } from '@spedsim/core';
+import { CITIES, CITY_BY_ID, disruptionLabel, formatDateTime, vehicleMarker, isTripLate, type GameState } from '@spedsim/core';
 import { getUi, setUi, useUi, world } from '../game/store.ts';
 
 export type MapFilter = 'all' | 'active' | 'idle' | 'late' | 'loaded' | 'empty';
@@ -34,6 +35,7 @@ const ACTIVITY_COLOR: [string, string][] = [
   ['loading', '#34d399'],
   ['unloading', '#34d399'],
   ['waiting', '#94a3b8'],
+  ['blocked', '#f87171'],
   ['breakdown', '#f87171'],
   ['workshop', '#f87171'],
   ['idle', '#64748b'],
@@ -96,6 +98,18 @@ function routesGeoJSON(state: GameState, filter: MapFilter, driverId: string): G
         geometry: { type: 'LineString', coordinates: world.net.geometry(leg.nodes) },
       });
     }
+  }
+  return { type: 'FeatureCollection', features };
+}
+
+function disruptionsGeoJSON(state: GameState): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = [];
+  for (const d of state.disruptions ?? []) {
+    const e = world.net.edgeBetween(d.a, d.b);
+    if (!e) continue;
+    const props = { kind: d.kind, text: `${disruptionLabel(d)} · bis ca. ${formatDateTime(d.until)}` };
+    features.push({ type: 'Feature', properties: props, geometry: { type: 'LineString', coordinates: e.coords } });
+    features.push({ type: 'Feature', properties: props, geometry: { type: 'Point', coordinates: e.coords[Math.floor(e.coords.length / 2)] } });
   }
   return { type: 'FeatureCollection', features };
 }
@@ -229,14 +243,28 @@ export function MapView({ mini = false, filter = 'all', driverId = '' }: { mini?
     (map.getSource('cities') as GeoJSONSource | undefined)?.setData(citiesGeoJSON(st));
     (map.getSource('routes') as GeoJSONSource | undefined)?.setData(routesGeoJSON(st, filterRef.current.filter, filterRef.current.driverId));
     (map.getSource('preview') as GeoJSONSource | undefined)?.setData(previewGeoJSON(st, getUi().focusOrderId));
+    (map.getSource('disruptions') as GeoJSONSource | undefined)?.setData(disruptionsGeoJSON(st));
   }
 
   // Routen/Städte bei neuen Schnappschüssen aktualisieren (nicht pro Frame)
-  const tripsKey = state ? Object.values(state.trips).map((t) => `${t.id}:${t.legIndex}:${t.phase}`).join('|') + state.company.locations.length : '';
+  const tripsKey = state
+    ? Object.values(state.trips).map((t) => `${t.id}:${t.legIndex}:${t.phase}:${t.legs.length}:${t.legs[t.legIndex]?.km}`).join('|') +
+      state.company.locations.length +
+      (state.disruptions ?? []).map((d) => d.id).join(',')
+    : '';
   useEffect(() => {
     const map = mapRef.current;
     if (map && loadedRef.current) refreshStatic(map);
   }, [tripsKey, filter, driverId, focusOrderId]);
+
+  // Punkt fokussieren (z. B. Verkehrsstörung aus der Liste)
+  const mapFocus = useUi((u) => u.mapFocus);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapFocus || mini) return;
+    map.flyTo({ center: mapFocus, zoom: 8, duration: 700 });
+    setUi({ mapFocus: null });
+  }, [mapFocus, mini]);
 
   // Vorschau eines Auftrags: Karte auf Route zoomen
   useEffect(() => {
@@ -261,6 +289,7 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
   map.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addSource('preview', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addSource('vehicles', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addSource('disruptions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
   map.addLayer({
     id: 'roads',
@@ -292,6 +321,38 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
       'line-dasharray': ['match', ['get', 'kind'], 'empty', ['literal', [2, 1.5]], ['literal', [1, 0]]],
     },
   });
+  map.addLayer({
+    id: 'disruption-lines',
+    type: 'line',
+    source: 'disruptions',
+    filter: ['==', ['geometry-type'], 'LineString'],
+    layout: { 'line-cap': 'round' },
+    paint: {
+      'line-color': ['match', ['get', 'kind'], 'closure', '#ef4444', '#f97316'],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 4, 3, 9, 6],
+      'line-opacity': 0.8,
+      'line-dasharray': ['match', ['get', 'kind'], 'closure', ['literal', [1, 1]], ['literal', [1, 0]]],
+    },
+  });
+  map.addLayer({
+    id: 'disruption-points',
+    type: 'circle',
+    source: 'disruptions',
+    filter: ['==', ['geometry-type'], 'Point'],
+    paint: {
+      'circle-radius': 7,
+      'circle-color': ['match', ['get', 'kind'], 'closure', '#ef4444', '#f97316'],
+      'circle-stroke-width': 2,
+      'circle-stroke-color': '#ffffff',
+    },
+  });
+  map.on('click', 'disruption-points', (e) => {
+    const f = e.features?.[0];
+    if (!f) return;
+    new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setText(String(f.properties?.text ?? '')).addTo(map);
+  });
+  map.on('mouseenter', 'disruption-points', () => (map.getCanvas().style.cursor = 'pointer'));
+  map.on('mouseleave', 'disruption-points', () => (map.getCanvas().style.cursor = ''));
   map.addLayer({
     id: 'cities',
     type: 'circle',

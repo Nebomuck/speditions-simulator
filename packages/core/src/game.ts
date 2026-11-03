@@ -12,7 +12,7 @@ import { newId } from './rng.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player } from './types.ts';
 
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 4;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.15, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -88,6 +88,8 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     market: { diesel: 155, demand: 1, dieselHistory: [{ t: startTime, v: 155 }] },
     stats: [],
     today: { revenue: 0, costs: 0 },
+    disruptions: [],
+    contracts: {},
   };
 
   const founderId = opts.founder.id ?? newId(state, 'pl');
@@ -120,7 +122,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
   state.drivers[drvId] = {
     id: drvId, name: app.name, age: app.age, homeCityId: app.homeCityId, cityId: hq.id, experience: Math.max(35, app.experience),
     licenses: ['C', 'CE'], qualifications: app.qualifications, salary: Math.min(app.salary, 3_300_00), reliability: Math.max(55, app.reliability),
-    ecoDriving: app.ecoDriving, stressResistance: app.stressResistance, satisfaction: 70, hired: startTime, status: 'idle', hos: freshHos(), kmDriven: 0,
+    ecoDriving: app.ecoDriving, stressResistance: app.stressResistance, satisfaction: 70, hired: startTime, status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: startTime,
   };
 
   for (let i = 0; i < 6; i++) {

@@ -4,8 +4,9 @@ import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { UNLOAD_MIN_FACTOR, speedFactor } from './dispatch.ts';
+import { disruptionOnEdge } from './disruptions.ts';
 import { haversineKm, type LonLat } from './geo.ts';
-import { hosRest, simulateDriving } from './hos.ts';
+import { hosRest, hosWork, simulateDriving } from './hos.ts';
 import type { GameState, Id, Trip } from './types.ts';
 
 export interface VehicleMarker {
@@ -35,8 +36,13 @@ export function vehicleMarker(state: GameState, ctx: SimContext, vehicleId: Id, 
 
 export function isTripLate(state: GameState, trip: Trip): boolean {
   if (!trip.orderId) return false;
-  const o = state.orders[trip.orderId];
-  return state.time > o.deliveryEnd || trip.plannedArrival > o.deliveryEnd;
+  const main = state.orders[trip.orderId];
+  if (main.status !== 'delivered' && trip.plannedArrival > main.deliveryEnd) return true;
+  for (const st of trip.stops ?? []) {
+    const o = state.orders[st.orderId];
+    if (st.kind === 'delivery' && o.status !== 'delivered' && state.time > o.deliveryEnd) return true;
+  }
+  return false;
 }
 
 /** Verbleibende Strecke einer Fahrt in km (alle Legs). */
@@ -47,7 +53,7 @@ export function remainingKm(trip: Trip): number {
 }
 
 /** Restliche reine Fahrzeit (min) ab aktueller Position bis zum Ende einer Knotenfolge. */
-function remainingDriveMin(ctx: SimContext, nodes: string[], fromKm: number): number {
+function remainingDriveMin(state: GameState, ctx: SimContext, nodes: string[], fromKm: number): number {
   let acc = 0;
   let min = 0;
   for (let i = 1; i < nodes.length; i++) {
@@ -57,36 +63,61 @@ function remainingDriveMin(ctx: SimContext, nodes: string[], fromKm: number): nu
     acc += e.km;
     if (acc <= fromKm) continue;
     const part = (acc - Math.max(start, fromKm)) / e.km;
-    min += e.truckMin * part;
+    // Stau verlangsamt, Sperrung kostet die Wartezeit bis zur Freigabe
+    const d = disruptionOnEdge(state, e);
+    min += (e.truckMin * part) / (d?.kind === 'jam' ? d.speedFactor : 1) + (d?.kind === 'closure' ? Math.max(0, d.until - state.time) : 0);
   }
   return min;
 }
 
-/** Voraussichtliche Ankunft am Ziel einer laufenden Fahrt unter Berücksichtigung der Lenk-/Ruhezeiten. */
-export function tripEta(state: GameState, ctx: SimContext, trip: Trip): number {
-  if (trip.phase === 'done') return trip.finishedAt ?? state.time;
+/** Geschätztes Ende von Beladung bzw. Entladung je noch offenem Halt (Index wie trip.stops) und Fahrtende.
+ *  Berücksichtigt Lenk-/Ruhezeiten, Ladefenster und Verkehrsstörungen auf der Route. */
+export function tripStopEtas(state: GameState, ctx: SimContext, trip: Trip): { etas: number[]; end: number } {
+  if (trip.phase === 'done') return { etas: [], end: trip.finishedAt ?? state.time };
   const driver = state.drivers[trip.driverId];
   const hos = { ...driver.hos };
+  const sf = speedFactor(state.vehicles[trip.vehicleId]?.modelId ?? '');
   let t = state.time;
   const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry';
   if (stationary) {
     t += trip.activityLeft;
-    if (['break', 'rest_daily', 'rest_weekly', 'waiting'].includes(trip.activity)) hosRest(hos, trip.activityLeft);
+    if (['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked'].includes(trip.activity)) hosRest(hos, trip.activityLeft);
   }
-  const order = trip.orderId ? state.orders[trip.orderId] : undefined;
-  const cargo = order ? CARGO_BY_ID[order.cargoId] : undefined;
-  if (cargo && trip.activity === 'waiting') t += cargo.loadMin;
+  const atStop = trip.phase === 'loading' || trip.phase === 'unloading';
+  const etas: number[] = [];
   for (let li = trip.legIndex; li < trip.legs.length; li++) {
+    const stop = trip.stops?.[li];
+    const cargo = stop ? CARGO_BY_ID[state.orders[stop.orderId].cargoId] : undefined;
+    if (li === trip.legIndex && atStop) {
+      // Tätigkeit am Halt läuft bereits (Restdauer oben gezählt)
+      if (cargo && trip.activity === 'waiting') t += cargo.loadMin;
+      hosWork(hos, 0);
+      etas[li] = Math.round(t);
+      continue;
+    }
     const leg = trip.legs[li];
     const from = li === trip.legIndex ? trip.progressKm : 0;
-    t += simulateDriving(hos, remainingDriveMin(ctx, leg.nodes, from) / speedFactor(state.vehicles[trip.vehicleId]?.modelId ?? '')).elapsed;
-    if (order && cargo && li === 0 && trip.phase === 'to_pickup') {
-      if (t < order.pickupStart) t = order.pickupStart;
-      t += cargo.loadMin;
+    t += simulateDriving(hos, remainingDriveMin(state, ctx, leg.nodes, from) / sf).elapsed;
+    if (stop && cargo) {
+      const o = state.orders[stop.orderId];
+      // wie in der Simulation: Warten aufs Ladefenster zählt als Ruhe, Be-/Entladen als Arbeit
+      if (stop.kind === 'pickup') {
+        if (t < o.pickupStart) {
+          hosRest(hos, o.pickupStart - t);
+          t = o.pickupStart;
+        }
+        t += cargo.loadMin;
+      } else t += Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);
+      hosWork(hos, 0);
+      etas[li] = Math.round(t);
     }
   }
-  if (cargo && trip.phase !== 'unloading') t += Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);
-  return Math.round(t);
+  return { etas, end: Math.round(t) };
+}
+
+/** Voraussichtliches Ende einer laufenden Fahrt unter Berücksichtigung der Lenk-/Ruhezeiten. */
+export function tripEta(state: GameState, ctx: SimContext, trip: Trip): number {
+  return tripStopEtas(state, ctx, trip).end;
 }
 
 /** Nächstgelegene Stadt zu einer Position (für "Aktuelle Position"). */

@@ -43,6 +43,29 @@ export const MIGRATIONS: Record<number, Migration> = {
     company.loans ??= [];
     return s;
   },
+  // 0.6.0: Mehrfachbeladung (Halte je Fahrt) und Verkehrsstörungen
+  2: (s) => {
+    const orders = s.orders as Record<string, { fromCityId: string; toCityId: string }>;
+    for (const t of Object.values(s.trips as Record<string, Record<string, unknown>>)) {
+      const o = typeof t.orderId === 'string' ? orders[t.orderId] : undefined;
+      if (o && !t.stops)
+        t.stops = [
+          { kind: 'pickup', orderId: t.orderId, cityId: o.fromCityId },
+          { kind: 'delivery', orderId: t.orderId, cityId: o.toCityId },
+        ];
+    }
+    s.disruptions ??= [];
+    return s;
+  },
+  // 0.6.0: Rahmenverträge und Personalverwaltung
+  3: (s) => {
+    s.contracts ??= {};
+    for (const d of Object.values(s.drivers as Record<string, Record<string, unknown>>)) {
+      d.vacationLeft ??= 30;
+      d.lastVacation ??= d.hired;
+    }
+    return s;
+  },
 };
 
 export function deserializeSave(text: string): GameState {

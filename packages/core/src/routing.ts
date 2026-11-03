@@ -35,6 +35,13 @@ export interface Route {
   toll: number;
 }
 
+/** Aktuelle Verkehrslage für die Routensuche: Faktor auf die Fahrzeit je Kante (Infinity = gesperrt). */
+export interface Traffic {
+  /** eindeutiger Schlüssel des Verkehrszustands (für den Routen-Cache) */
+  key: string;
+  factor: Map<number, number>;
+}
+
 export const TRUCK_MAX_KMH = 80;
 /** LKW fahren im Mittel langsamer als der Pkw-Durchschnitt aus OSRM */
 const TRUCK_SPEED_FACTOR = 0.9;
@@ -46,6 +53,8 @@ export class RoadNetwork {
   private adj = new Map<string, { to: string; edge: RoadEdge }[]>();
   private edgeByPair = new Map<string, RoadEdge>();
   private routeCache = new Map<string, Route | null>();
+  private trafficCache = new Map<string, Route | null>();
+  private trafficKey = '';
 
   constructor(data: RoadNetData) {
     this.attribution = data.attribution;
@@ -86,10 +95,16 @@ export class RoadNetwork {
     return this.edgeByPair.get(pairKey(a, b));
   }
 
-  /** Schnellste LKW-Route zwischen zwei Städten (Dijkstra nach Fahrzeit). */
-  route(from: string, to: string): Route | null {
+  /** Schnellste LKW-Route zwischen zwei Städten (Dijkstra nach Fahrzeit), optional unter Umfahrung von Störungen. */
+  route(from: string, to: string, traffic?: Traffic): Route | null {
+    if (traffic && traffic.factor.size === 0) traffic = undefined;
     const key = `${from}>${to}`;
-    if (this.routeCache.has(key)) return this.routeCache.get(key)!;
+    const cache = traffic ? this.trafficCache : this.routeCache;
+    if (traffic && traffic.key !== this.trafficKey) {
+      this.trafficCache.clear();
+      this.trafficKey = traffic.key;
+    }
+    if (cache.has(key)) return cache.get(key)!;
     let result: Route | null = null;
     if (from === to) result = { nodes: [from], km: 0, driveMin: 0, toll: 0 };
     else if (this.adj.has(from) && this.adj.has(to)) {
@@ -106,7 +121,9 @@ export class RoadNetwork {
         if (done.has(u)) continue;
         done.add(u);
         for (const { to: v, edge } of this.adj.get(u)!) {
-          const nd = dist.get(u)! + edge.truckMin;
+          const f = traffic?.factor.get(edge.index) ?? 1;
+          if (f === Infinity) continue;
+          const nd = dist.get(u)! + edge.truckMin * f;
           if (nd < (dist.get(v) ?? Infinity)) {
             dist.set(v, nd);
             prev.set(v, u);
@@ -120,7 +137,7 @@ export class RoadNetwork {
         result = this.describe(nodes);
       }
     }
-    this.routeCache.set(key, result);
+    cache.set(key, result);
     return result;
   }
 

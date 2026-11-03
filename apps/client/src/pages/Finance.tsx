@@ -125,7 +125,7 @@ export function FinancePage() {
               {s.company.loans.map((l) => (
                 <div key={l.id} className="list-item" style={{ alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
-                    <b><Money value={l.principal} /></b> über {l.months} Monate · {(l.ratePa * 100).toFixed(1).replace('.', ',')} %
+                    {l.label && <b>{l.label}: </b>}<b><Money value={l.principal} /></b> über {l.months} Monate · {(l.ratePa * 100).toFixed(1).replace('.', ',')} %
                     <div className="dim" style={{ fontSize: 12 }}>Restschuld <Money value={l.remaining} /> · Rate <Money value={l.monthly} /> · seit {formatDate(l.taken)}</div>
                   </div>
                   <button className="btn small" onClick={() => sendCommand({ type: 'repayLoan', loanId: l.id })}>Ablösen (+1 %)</button>

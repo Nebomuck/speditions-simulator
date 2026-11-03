@@ -49,6 +49,25 @@ function activeCities(state: GameState): Set<string> {
   return s;
 }
 
+/** Zielort nach Gravitationsmodell: Städte mit passender Branche, gewichtet nach Größe und Entfernung. */
+export function pickDestination(state: GameState, ctx: SimContext, origin: CityDef, cargo: CargoDef, maxKm: number, minKm = 60): CityDef | undefined {
+  const dests = CITIES.filter((c) => c.id !== origin.id && ctx.net.hasCity(c.id));
+  return rand.weighted(state, dests, (c) => {
+    const match = c.industries.filter((i) => cargo.consumers.includes(i)).length;
+    if (match === 0 && !(cargo.consumers.includes('retail') && c.pop > 800)) return 0;
+    const d = haversineKm(ll(origin), ll(c));
+    if (d < minKm || d > maxKm) return 0;
+    return ((Math.pow(c.pop, 0.5) * (1 + match)) / Math.pow(d, 1.05)) * 100;
+  });
+}
+
+/** Grundvergütung einer Tour (ohne Zufall/Express), Grundlage für Börse und Rahmenverträge. */
+export function baseRate(state: GameState, cargo: CargoDef, km: number): number {
+  const distanceFactor = km < 250 ? 1.25 : km < 500 ? 1.08 : 1;
+  const fuelSurcharge = state.market.diesel / 155;
+  return (cargo.ratePerKm * km * distanceFactor * (0.75 + 0.25 * fuelSurcharge) + cargo.baseFee) * state.difficulty.rateFactor * state.market.demand ** 0.5;
+}
+
 /** Erzeugt einen wirtschaftlich plausiblen Auftrag. Liefert null, wenn kein sinnvoller Auftrag entsteht. */
 export function generateOrder(state: GameState, ctx: SimContext, opts: { local?: boolean } = {}): Order | null {
   const cargo = rand.weighted(state, CARGOS, (c) => cargoWeight(state, c))!;
@@ -60,14 +79,7 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   const origin = rand.weighted(state, origins, (c) => Math.pow(c.pop, 0.55));
   if (!origin) return null;
   const partial = PARTIAL_TRAILERS.includes(cargo.trailer) && rand.chance(state, PARTIAL_SHARE);
-  const dests = CITIES.filter((c) => c.id !== origin.id && ctx.net.hasCity(c.id));
-  const dest = rand.weighted(state, dests, (c) => {
-    const match = c.industries.filter((i) => cargo.consumers.includes(i)).length;
-    if (match === 0 && !(cargo.consumers.includes('retail') && c.pop > 800)) return 0;
-    const d = haversineKm(ll(origin), ll(c));
-    if (d < 60 || d > (partial ? PARTIAL_MAX_KM : 2300)) return 0;
-    return ((Math.pow(c.pop, 0.5) * (1 + match)) / Math.pow(d, 1.05)) * 100;
-  });
+  const dest = pickDestination(state, ctx, origin, cargo, partial ? PARTIAL_MAX_KM : 2300);
   if (!dest) return null;
   const route = ctx.net.route(origin.id, dest.id);
   if (!route) return null;
@@ -88,17 +100,10 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   const slack = express ? rand.float(state, 1.08, 1.2) : rand.float(state, 1.2, 1.7);
   const deliveryEnd = Math.ceil((pickupEnd + transit * slack + 60) / half) * half;
 
-  // Vergütung
-  const diff = state.difficulty;
-  const priceFactor = 1 + (0.5 - customer.priceSensitivity) * 0.12;
-  const distanceFactor = route.km < 250 ? 1.25 : route.km < 500 ? 1.08 : 1;
-  const fuelSurcharge = state.market.diesel / 155;
-  let payment =
-    (cargo.ratePerKm * route.km * distanceFactor * (0.75 + 0.25 * fuelSurcharge) + cargo.baseFee) *
-    diff.rateFactor *
-    state.market.demand ** 0.5 *
-    priceFactor *
-    rand.float(state, 0.9, 1.12);
+  // Vergütung; zufriedene Stammkunden zahlen etwas besser
+  const loyalty = customer.deliveries > 0 ? ((customer.satisfaction - 50) / 50) * 0.05 : 0;
+  const priceFactor = 1 + (0.5 - customer.priceSensitivity) * 0.12 + loyalty;
+  let payment = baseRate(state, cargo, route.km) * priceFactor * rand.float(state, 0.9, 1.12);
   if (express) payment *= 1.3;
   // Teilladung: weniger Gesamterlös, aber höherer Preis je Tonne
   if (partial) payment *= 0.5 + 0.5 * Math.min(1, weightT / 24);

@@ -2,13 +2,16 @@
 // werden an Zeitgrenzen ausgelöst. Wird identisch im Einzelspieler-Worker und auf dem Server ausgeführt.
 
 import type { SimContext } from './context.ts';
-import { addLog, formatMoney, processInvoices, processMonthEnd } from './finance.ts';
+import { addLog, book, formatMoney, processInvoices, processMonthEnd } from './finance.ts';
 import { makeApplicant, makeVehicleOffer } from './generate.ts';
 import { hosRest } from './hos.ts';
 import { updateOrderMarket } from './orders.ts';
 import { rand } from './rng.ts';
 import { dayIndex, dayOfMonth, holidayName, minuteOfDay, month } from './time.ts';
 import { pruneTrips, tickTrip } from './trips.ts';
+import { updateDisruptions } from './disruptions.ts';
+import { dailyContracts, hourlyContracts } from './contracts.ts';
+import { dailyPersonnel, hourlyPersonnel } from './personnel.ts';
 import type { GameState } from './types.ts';
 
 /** Simuliert genau eine Spielminute. */
@@ -17,7 +20,7 @@ export function tickMinute(state: GameState, ctx: SimContext): void {
 
   for (const trip of Object.values(state.trips)) if (trip.phase !== 'done') tickTrip(state, ctx, trip);
 
-  for (const d of Object.values(state.drivers)) if (d.status === 'idle' || d.status === 'resting' || d.status === 'vacation' || d.status === 'sick') hosRest(d.hos, 1);
+  for (const d of Object.values(state.drivers)) if (d.status !== 'on_trip') hosRest(d.hos, 1);
 
   for (const v of Object.values(state.vehicles)) {
     if (v.status === 'workshop' && v.busyUntil !== undefined && state.time >= v.busyUntil) {
@@ -38,6 +41,9 @@ export function tickMinutes(state: GameState, ctx: SimContext, minutes: number):
 function hourly(state: GameState, ctx: SimContext) {
   updateOrderMarket(state, ctx);
   processInvoices(state);
+  updateDisruptions(state, ctx);
+  hourlyPersonnel(state);
+  hourlyContracts(state);
 }
 
 function daily(state: GameState, ctx: SimContext) {
@@ -69,11 +75,11 @@ function daily(state: GameState, ctx: SimContext) {
     state.vehicleOffers[o.id] = o;
   }
 
-  // Abschreibung des Marktwerts erfolgt implizit über Alter/km; Fahrerzufriedenheit leicht zur Mitte
-  for (const d of Object.values(state.drivers)) {
-    const target = 55 + (d.salary > 3_400_00 ? 10 : 0);
-    d.satisfaction += (target - d.satisfaction) * 0.02;
-  }
+  // Personal (Zufriedenheit, Krankheit, Kündigungen) und Rahmenverträge
+  dailyPersonnel(state);
+  dailyContracts(state, ctx);
+  // Kurzzeitmiete wird täglich abgerechnet
+  for (const v of Object.values(state.vehicles)) if (v.ownership === 'rented' && v.rentPerDay) book(state, 'company', -v.rentPerDay, 'leasing', `Miete LKW ${v.plate}`);
 
   const holiday = holidayName(state.time);
   if (holiday) addLog(state, { level: 'info', category: 'market', text: `Feiertag: ${holiday} – deutlich weniger Transportaufträge.` });

@@ -29,6 +29,8 @@ interface UiState {
   selectedVehicleId: string | null;
   followVehicle: boolean;
   focusOrderId: string | null;
+  /** Karte auf diesen Punkt zentrieren (z. B. Verkehrsstörung) */
+  mapFocus: [number, number] | null;
   toasts: Toast[];
   connection: string;
   /** Multiplayer-Firma wird auf diesem PC gehostet */
@@ -49,6 +51,7 @@ let ui: UiState = {
   selectedVehicleId: null,
   followVehicle: false,
   focusOrderId: null,
+  mapFocus: null,
   toasts: [],
   connection: '',
   hosting: false,

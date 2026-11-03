@@ -98,12 +98,18 @@ Sechs fiktive Zugmaschinen von vier Herstellern (Nordwal, Velkor, Brennkraft, Tr
 - **Verschleiß** je km, abhängig von Haltbarkeit, Beladung und Fahrweise. Unter 45 % Zustand steigt die Pannenwahrscheinlichkeit pro km. Eine Panne dauert 3–8 h und kostet 450–2.400 € Pannenhilfe.
 - **Werkstatt:** Wartung auf 100 %; Dauer und Kosten hängen vom Zustand ab.
 - **Tanken** automatisch unter 15 % Tankinhalt, 25 min, Länderpreisfaktor (LU/PL/CZ/SK/HU günstiger, CH/NO teurer).
-- **Beschaffung:** Gebrauchtmarkt mit wechselnden Angeboten, Neukauf, Leasing (erste Rate sofort), Verkauf zu 90 % des Marktwerts, vorzeitige Leasingrückgabe mit 3 Raten Ablöse.
+- **Beschaffung:** Gebrauchtmarkt mit wechselnden Angeboten, Neukauf, Finanzierung (10 % Anzahlung, 24–60 Monate, 4,9–5,7 % p. a., Fahrzeug als Sicherheit), Leasing (erste Rate sofort), Kurzzeitmiete (1,6-fache Leasingrate tageweise, jederzeit rückgabefähig). Verkauf zu 90 % des Marktwerts, Inzahlungnahme beim Neukauf zu 95 %; offene Finanzierungen werden aus dem Erlös abgelöst. Vorzeitige Leasingrückgabe kostet 3 Raten Ablöse.
 - **Marktwert** = Neupreis × 0,86^Alter × Laufleistungs- und Zustandsfaktor.
 
 ## 9. Personal
 
 Fahrer haben Name, Alter, Heimatort, Erfahrung, Führerscheinklassen, Qualifikationen (ADR, Schwertransport, Kühltransport), Gehaltsvorstellung, Zuverlässigkeit, Sparsamkeit, Belastbarkeit und Zufriedenheit. Erfahrung wächst mit gefahrenen Last-km und erhöht das Tempo leicht. Täglich gehen neue Bewerbungen ein. Eine Einstellung kostet 350 €, eine Entlassung ein Monatsgehalt Abfindung und senkt die Zufriedenheit der Kollegen.
+
+- **Zufriedenheit** strebt täglich einem Zielwert zu: Basis 60, Gehalt gegenüber dem Marktgehalt (±6 % neutral, darüber/darunter bis +20/−30), lange ohne Urlaub (ab 100 Tagen), hohe Wochenlenkzeit, guter Firmenruf, Betriebszugehörigkeit („Fahrer der ersten Stunde“ +8).
+- **Kündigung:** Liegt die Zufriedenheit 7 Tage unter 25, kündigt der Fahrer mit 14 Tagen Frist. Steigt sie wieder auf 45 (Gespräch, Gehaltserhöhung, Urlaub), zieht er zurück.
+- **Personalgespräch** (alle 14 Tage): +5 bzw. +10 Zufriedenheit und nennt die Gründe.
+- **Urlaub:** 30 Tage pro Jahr, erhöht die Zufriedenheit; **Krankheit** tritt zufällig zwischen Fahrten auf (1–6 Tage, Lohn läuft weiter).
+- **Schulungen:** ADR (4 Tage, 890 €), Kühltransport (2 Tage, 420 €), Schwertransport (5 Tage, 1.350 €, ab Erfahrung 35), Spritsparen (1 Tag, 380 €, +15 Sparsamkeit).
 
 ## 10. Wirtschaft & Finanzen
 
@@ -115,7 +121,9 @@ Fahrer haben Name, Alter, Heimatort, Erfahrung, Führerscheinklassen, Qualifikat
 
 ## 11. Kunden
 
-Persistente Unternehmen mit Branche, Größe, Zahlungsmoral, Zahlungsziel, Zufriedenheit und Preissensibilität. Pünktliche Lieferungen bringen +3 Zufriedenheit (Express +4), Verspätungen −5 bis −25. Die Firmen-Reputation (0–100) bewegt sich mit. Rahmenverträge folgen in Phase 5.
+Persistente Unternehmen mit Branche, Größe, Zahlungsmoral, Zahlungsziel, Zufriedenheit und Preissensibilität. Pünktliche Lieferungen bringen +3 Zufriedenheit (Express +4), Verspätungen −5 bis −25. Die Firmen-Reputation (0–100) bewegt sich mit. Zufriedene Stammkunden zahlen in der Börse bis zu 5 % mehr.
+
+**Rahmenverträge:** Stammkunden (ab 2 Lieferungen und Zufriedenheit 55) und Ausschreibungen aus der Region bieten Verträge an: feste Strecke, 1–3 Touren pro Woche an festen Wochentagen, 4–12 Wochen, fester Preis je Tour, 30 % Strafe bei Ausfall. Die Touren erscheinen am Vortag als angenommene Aufträge. Nicht disponierte Touren gelten 6 h nach Ende des Ladefensters als verpasst (Strafe, −8 Zufriedenheit). Wer mindestens 85 % pünktlich erfüllt, bekommt eine Verlängerung zu +4 % angeboten. Vorzeitige Kündigung kostet 3 Ausfallstrafen.
 
 ## 12. Standorte
 

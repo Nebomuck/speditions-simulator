@@ -41,6 +41,16 @@ function collect(s: GameState) {
       const label = `${cityName(item.fromCityId)} → ${cityName(item.toCityId)}`;
       bars.push({ vehicleId: v.id, start: item.start, end: item.end.time, queued: item.kind === 'queued', late: item.lateMin > 0, label: o ? label : `Überführung ${cityName(item.toCityId)}` });
       if (!o) continue;
+      if (item.stops) {
+        // laufende Fahrt: jeder Halt einzeln (inkl. Beiladungen)
+        for (const st of item.stops) {
+          if (st.done) continue;
+          const so = s.orders[st.orderId];
+          const pickup = st.kind === 'pickup';
+          events.push({ t: st.eta, kind: pickup ? 'pickup' : 'delivery', queued: false, late: !pickup && st.eta > so.deliveryEnd, vehicleId: v.id, orderId: so.id, label: `${v.plate}: ${pickup ? 'Laden' : 'Lieferung'} ${cityName(st.cityId)}` });
+        }
+        continue;
+      }
       const trip = item.tripId ? s.trips[item.tripId] : undefined;
       const pickupAt = item.pickup ?? (trip?.phase === 'to_pickup' ? o.pickupStart : undefined);
       if (pickupAt !== undefined)

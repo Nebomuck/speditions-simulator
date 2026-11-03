@@ -20,7 +20,7 @@ export function DispatchPage() {
     <div className="page">
       <PageHeader
         title="Disposition"
-        subtitle="Aufträge per Drag-and-Drop auf ein Fahrzeug ziehen – auf freie LKW für den sofortigen Start, auf fahrende LKW als Folgeauftrag (Vorausplanung)."
+        subtitle="Aufträge per Drag-and-Drop auf ein Fahrzeug ziehen – auf freie LKW für den sofortigen Start, auf fahrende LKW als Beiladung oder Folgeauftrag."
         actions={<button className="btn primary" onClick={() => setUi({ dispatchDraft: {} })}><Send size={15} />Neue Fahrt planen</button>}
       />
       <div className="tabs">
@@ -80,7 +80,7 @@ function Board() {
             <div className="route"><GripVertical size={14} className="dim" />{cityName(o.fromCityId)} <ArrowRight size={13} /> {cityName(o.toCityId)}</div>
             <div className="meta">
               <span>{cargoName(o.cargoId)}</span>
-              <span>{trailerName(o.trailerType)}{o.partial ? ` · Teilladung ${o.weightT.toLocaleString('de-DE')} t` : ''}</span>
+              <span>{trailerName(o.trailerType)}{o.partial ? ` · Teilladung ${o.weightT.toLocaleString('de-DE')} t` : ''}{o.contractId ? ' · Vertragstour' : ''}</span>
               <span>{km(o.distanceKm)}</span>
               <span><Money value={o.payment} /></span>
             </div>
@@ -102,7 +102,7 @@ function Board() {
         {vehicles.map((v) => {
           const trip = v.tripId ? s.trips[v.tripId] : undefined;
           const driver = trip ? s.drivers[trip.driverId] : Object.values(s.drivers).find((d) => d.status === 'idle' && d.cityId === v.cityId);
-          const canDrop = (!trip && v.status === 'idle') || (!!trip && v.status === 'on_trip' && (v.queue?.length ?? 0) < 5);
+          const canDrop = (!trip && v.status === 'idle') || (!!trip && v.status === 'on_trip');
           const schedule = vehicleSchedule(s, world, v.id).filter((i) => i.kind === 'queued');
           const recent = Object.values(s.trips).filter((t) => t.vehicleId === v.id && t.phase === 'done' && (t.finishedAt ?? 0) > start);
           return (
@@ -124,7 +124,7 @@ function Board() {
               <div className="gantt-label">
                 <b>{v.plate}</b> <span className="dim">· {cityName(trip ? trip.legs[trip.legIndex].nodes[0] : v.cityId)}</span>
                 <small>{driver ? driver.name : 'kein Fahrer vor Ort'} · {activityLabel(trip, v.status)}</small>
-                {canDrop && (
+                {!trip && canDrop && (
                   <button className="btn small ghost" style={{ padding: '2px 4px', marginTop: 2 }} onClick={() => setRelocate(v.id)} title="Leer überführen">
                     <RotateCcw size={12} /> Überführen
                   </button>
@@ -178,7 +178,7 @@ function Board() {
                 })}
                 {canDrop && dragOrder && (
                   <div className="dim" style={{ position: 'absolute', left: trip ? 'auto' : 12, right: trip ? 12 : 'auto', top: 14, fontSize: 12 }}>
-                    {trip ? 'als Folgeauftrag einplanen' : 'Auftrag hier ablegen'}
+                    {trip ? 'zuladen oder als Folgeauftrag einplanen' : 'Auftrag hier ablegen'}
                   </div>
                 )}
               </div>

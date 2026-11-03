@@ -121,7 +121,7 @@ export function monthlyFixedCosts(state: GameState): { label: string; amount: Mo
     if (t.ownership === 'leased' && t.leaseRate) items.push({ label: `Leasing ${t.plate}`, amount: t.leaseRate, category: 'leasing' });
   }
   for (const p of Object.values(state.players)) if (p.character.salary > 0) items.push({ label: `Geschäftsführergehalt ${p.character.name}`, amount: p.character.salary, category: 'salary' });
-  for (const l of state.company.loans) items.push({ label: `Kreditrate (Rest ${formatMoney(l.remaining)})`, amount: Math.min(l.monthly, l.remaining + loanInterest(l)), category: 'loan' });
+  for (const l of state.company.loans) items.push({ label: `${l.label ?? 'Kreditrate'} (Rest ${formatMoney(l.remaining)})`, amount: Math.min(l.monthly, l.remaining + loanInterest(l)), category: 'loan' });
   items.push({ label: 'Software, Telefon, Verwaltung', amount: 120_00 + 25_00 * Object.keys(state.vehicles).length, category: 'other' });
   return items;
 }
@@ -178,6 +178,18 @@ export function loanLimit(state: GameState, vehicleValue: (id: Id) => Money): Mo
   const base = 20_000_00 + Object.keys(state.vehicles).length * 5_000_00;
   const debt = state.company.loans.reduce((s, l) => s + l.remaining, 0);
   return Math.max(0, Math.round(Math.min(300_000_00, base + collateral - debt) / 1000_00) * 1000_00);
+}
+
+/** Fahrzeugfinanzierung: Zins mit Fahrzeug als Sicherheit, Laufzeiten 24–60 Monate. */
+export const VEHICLE_LOAN_TERMS = [24, 36, 48, 60] as const;
+export const VEHICLE_DOWN_PAYMENT = 0.1;
+export function vehicleLoanRate(months: number): number {
+  return 0.049 + (months > 36 ? 0.008 : 0);
+}
+
+/** Kurzzeitmiete: deutlich teurer als Leasing, dafür tageweise und jederzeit rückgabefähig. */
+export function vehicleRentPerDay(leaseRate: Money): Money {
+  return Math.round((leaseRate * 1.6) / 30 / 100) * 100;
 }
 
 export function annuity(amount: Money, ratePa: number, months: number): Money {

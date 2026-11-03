@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 – unveröffentlicht
+
+- **Beiladung:** Weitere Aufträge können in eine laufende Fahrt aufgenommen werden (Auftrag auf den fahrenden LKW ziehen → „Zuladen“). Das Spiel fügt Laden und Entladen an der günstigsten Stelle ein, prüft die Nutzlast über die ganze Tour und warnt, wenn bereits geladene Aufträge dadurch zu spät kämen. Das Fahrzeugfenster auf der Karte zeigt alle Halte mit voraussichtlichen Zeiten; noch nicht abgeholte Beiladungen lassen sich wieder herausnehmen.
+- **Verkehrsstörungen:** Sperrungen und Staus entstehen laufend in ganz Europa, häufiger auf den Strecken der eigenen LKW. Sie erscheinen auf der Karte und in der Liste „Verkehrslage“. LKW werden um Sperrungen automatisch umgeleitet, Staus kosten Zeit. Planung und Ankunftsprognosen berücksichtigen die aktuelle Lage.
+- **Rahmenverträge:** Stammkunden und Ausschreibungen bieten Verträge mit festen Touren pro Woche an (Kunden & Verträge). Die Touren erscheinen am Vortag als „Vertragstour“ in der Disposition; nicht gefahrene Touren kosten eine Strafe, gute Erfüllung bringt ein Verlängerungsangebot. Zufriedene Stammkunden zahlen in der Börse etwas besser.
+- **Personalakte** je Fahrer: Personalgespräch (zeigt, was den Fahrer beschäftigt), Gehalt anpassen, Urlaub (30 Tage/Jahr), Schulungen (ADR, Kühltransport, Schwertransport, Spritsparen). Fahrer werden gelegentlich krank. Dauerhaft unzufriedene Fahrer kündigen – mit Frist, in der sich die Kündigung noch abwenden lässt.
+- **Fahrzeugbeschaffung:** Neufahrzeuge auch finanziert (10 % Anzahlung, 24–60 Monate) oder tageweise gemietet; beim Kauf kann ein eigenes Fahrzeug in Zahlung gegeben werden (95 % des Marktwerts).
+- Ankunftsprognosen rechnen Wartezeit am Ladefenster wie die Simulation als Ruhezeit.
+- Behoben: Sicherungskopien von Spielständen erschienen doppelt in der Liste „Laden“.
+
 ## 0.5.0 – 03.11.2026
 
 - **Vorausplanung/Tourenketten:** Aufträge lassen sich auf fahrende LKW ziehen (oder im Dispositionsdialog „Nach laufender Fahrt einplanen“). Bis zu 5 Folgeaufträge je Fahrzeug starten automatisch mit demselben Fahrer, sobald die laufende Fahrt endet. Die Plantafel zeigt sie gestreift mit voraussichtlicher Abholung/Ankunft und Verspätungswarnung; ein Klick auf ✕ nimmt sie wieder heraus.

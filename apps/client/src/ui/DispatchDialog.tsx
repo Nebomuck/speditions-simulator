@@ -1,9 +1,10 @@
 // Dispositionsdialog: Fahrer, LKW und Auflieger wählen, Route & Kosten prüfen, Konflikte sehen, Fahrt starten.
-// Ist der LKW noch unterwegs, wird der Auftrag als Folgeauftrag vorausgeplant (Start nach der laufenden Fahrt).
+// Ist der LKW noch unterwegs, wird der Auftrag entweder zugeladen (Beiladung in die laufende Fahrt)
+// oder als Folgeauftrag vorausgeplant (Start nach der laufenden Fahrt).
 
 import { useMemo, useState } from 'react';
-import { ArrowRight, Truck, User, Container, ListPlus } from 'lucide-react';
-import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, formatDateTime, formatDuration, loadSpace, validateDispatch, REST_KIND_LABEL, type DispatchInput } from '@spedsim/core';
+import { ArrowRight, Truck, User, Container, ListPlus, PackagePlus } from 'lucide-react';
+import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, formatDateTime, formatDuration, loadSpace, planCoLoad, validateDispatch, REST_KIND_LABEL, type DispatchInput } from '@spedsim/core';
 import { sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
 import { Badge, IssueList, Modal, Money } from './components.tsx';
 import { bodyName, cargoName, cityName, km, tons, modelName, trailerName, QUAL_LABEL } from './format.ts';
@@ -45,31 +46,48 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, orderId, driverId, vehicleId, trailerId, queued],
   );
-  const hasErrors = issues.some((i) => i.level === 'error');
-  const ready = orderId && driverId && vehicleId && (trailerId || !needsTrailer) && !hasErrors && estimate;
+  // Beiladung: Auftrag in die laufende Fahrt aufnehmen (nur bei Auftragsfahrten)
+  const co = useMemo(
+    () => (queued && orderId && currentTrip?.stops ? planCoLoad(state, world, vehicleId, orderId) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state, orderId, vehicleId, queued],
+  );
+  const coOk = !!co?.plan && !co.issues.some((i) => i.level === 'error');
+  const [modePick, setMode] = useState<'coload' | 'queue' | null>(null);
+  const mode = queued ? (modePick ?? (coOk ? 'coload' : 'queue')) : 'direct';
+  const coload = mode === 'coload';
+
+  const hasErrors = coload ? !coOk : issues.some((i) => i.level === 'error');
+  const ready = coload ? coOk : orderId && driverId && vehicleId && (trailerId || !needsTrailer) && !hasErrors && estimate;
+  const shownIssues = coload ? (co?.issues ?? []) : issues;
+  const profit = coload ? co?.plan?.profit : estimate?.profit;
 
   async function submit() {
     setBusy(true);
-    const r = queued ? await sendCommand({ type: 'queueDispatch', orderId, vehicleId }) : await sendCommand({ type: 'dispatch', ...input });
+    const r = coload
+      ? await sendCommand({ type: 'coLoad', orderId, vehicleId })
+      : queued
+        ? await sendCommand({ type: 'queueDispatch', orderId, vehicleId })
+        : await sendCommand({ type: 'dispatch', ...input });
     setBusy(false);
     if (r.ok) close();
   }
 
   return (
     <Modal
-      title={queued ? 'Folgeauftrag vorausplanen' : 'Fahrt disponieren'}
+      title={coload ? 'Beiladung in laufende Fahrt' : queued ? 'Folgeauftrag vorausplanen' : 'Fahrt disponieren'}
       onClose={close}
       width={1060}
       footer={
         <>
-          {estimate && (
+          {profit !== undefined && (
             <span className="muted" style={{ marginRight: 'auto' }}>
-              Voraussichtlicher Gewinn: <b><Money value={estimate.profit} colored /></b>
+              Voraussichtlicher Gewinn{coload ? ' der Beiladung' : ''}: <b><Money value={profit} colored /></b>
             </span>
           )}
           <button className="btn" onClick={close}>Abbrechen</button>
           <button className="btn primary" disabled={!ready || busy} onClick={submit}>
-            {queued ? <><ListPlus size={16} /> Nach laufender Fahrt einplanen</> : <><Truck size={16} /> Fahrt verbindlich starten</>}
+            {coload ? <><PackagePlus size={16} /> Zuladen</> : queued ? <><ListPlus size={16} /> Nach laufender Fahrt einplanen</> : <><Truck size={16} /> Fahrt verbindlich starten</>}
           </button>
         </>
       }
@@ -130,7 +148,7 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
                     <div>{v.plate} <small>{modelName(v.modelId)}</small></div>
                     <small>
                       {cityName(v.cityId)} · {spaceLabel(v.modelId)} · Zustand {Math.round(v.condition)} % ·{' '}
-                      {v.status === 'idle' ? 'frei' : v.status === 'on_trip' ? `unterwegs – vorausplanen${v.queue?.length ? ` (${v.queue.length} geplant)` : ''}` : 'nicht verfügbar'}
+                      {v.status === 'idle' ? 'frei' : v.status === 'on_trip' ? `unterwegs – zuladen/vorausplanen${v.queue?.length ? ` (${v.queue.length} geplant)` : ''}` : 'nicht verfügbar'}
                     </small>
                   </div>
                 </div>
@@ -139,10 +157,17 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
           </div>
           {queued && (
             <div className="card mb" style={{ background: 'var(--accent-soft)' }}>
-              <b>Vorausplanung</b>
+              {currentTrip?.stops && (
+                <div className="seg mb" style={{ display: 'inline-flex' }}>
+                  <button className={coload ? 'active' : ''} onClick={() => setMode('coload')}>Zuladen</button>
+                  <button className={!coload ? 'active' : ''} onClick={() => setMode('queue')}>Nach der Fahrt</button>
+                </div>
+              )}
+              <b style={{ display: 'block' }}>{coload ? 'Beiladung' : 'Vorausplanung'}</b>
               <div className="dim" style={{ fontSize: 12.5 }}>
-                Der Auftrag startet automatisch, sobald {vehicle?.plate} die laufende Fahrt beendet hat – mit {state.drivers[driverId]?.name}
-                {currentTrip?.trailerId ? ` und Auflieger ${state.trailers[currentTrip.trailerId]?.plate}` : ''}.
+                {coload
+                  ? `Der Auftrag fährt in der laufenden Fahrt von ${vehicle?.plate} mit. Lade- und Entladestelle werden an der günstigsten Stelle der Route eingefügt; die Nutzlast wird über die ganze Tour geprüft.`
+                  : `Der Auftrag startet automatisch, sobald ${vehicle?.plate} die laufende Fahrt beendet hat – mit ${state.drivers[driverId]?.name}${currentTrip?.trailerId ? ` und Auflieger ${state.trailers[currentTrip.trailerId]?.plate}` : ''}.`}
               </div>
             </div>
           )}
@@ -182,7 +207,33 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
 
         <div>
           <label className="muted" style={{ fontSize: 12.5, fontWeight: 550 }}>5. Route, Kosten & Prüfung</label>
-          {estimate ? (
+          {coload ? (
+            co?.plan ? (
+              <div className="card mt" style={{ background: 'var(--panel-2)' }}>
+                <dl className="kv" style={{ gridTemplateColumns: '150px 1fr' }}>
+                  <dt>Umweg</dt><dd>{co.plan.extraKm >= 0.5 ? km(co.plan.extraKm) : 'keiner'}</dd>
+                  <dt>Fahrt endet</dt><dd>{co.plan.extraMin > 0 ? `${formatDuration(co.plan.extraMin)} später` : 'nicht später'}</dd>
+                  <dt>Beladung fertig</dt><dd>{formatDateTime(co.plan.pickupEta)}</dd>
+                  <dt>Entladung fertig</dt><dd className={co.plan.lateMin > 0 ? 'neg' : 'pos'}>{formatDateTime(co.plan.deliveryEta)}</dd>
+                  <dt>Zusatzkosten</dt><dd><Money value={-co.plan.extraCost} /></dd>
+                  <dt>Erlös</dt><dd><Money value={co.plan.revenue} /></dd>
+                  <dt><b>Ergebnis</b></dt><dd><b><Money value={co.plan.profit} colored /></b></dd>
+                </dl>
+                <div className="mt" style={{ fontSize: 12.5 }}>
+                  <b>Neue Haltefolge</b>
+                  <ol style={{ margin: '4px 0 0', paddingLeft: 20 }}>
+                    {co.plan.stops.slice(currentTrip!.legIndex).map((st, i) => (
+                      <li key={i} style={st.orderId === orderId ? { color: 'var(--accent)', fontWeight: 600 } : undefined}>
+                        {st.kind === 'pickup' ? 'Laden' : 'Entladen'} in {cityName(st.cityId)} · {cargoName(state.orders[st.orderId].cargoId)} {tons(state.orders[st.orderId].weightT)}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+            ) : (
+              <div className="card mt dim" style={{ background: 'var(--panel-2)' }}>Beiladung nicht möglich – siehe Prüfung.</div>
+            )
+          ) : estimate ? (
             <div className="card mt" style={{ background: 'var(--panel-2)' }}>
               <dl className="kv" style={{ gridTemplateColumns: '150px 1fr' }}>
                 {queued && <><dt>Start (geschätzt)</dt><dd>nach laufender Fahrt</dd></>}
@@ -204,7 +255,7 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
             <div className="card mt dim" style={{ background: 'var(--panel-2)' }}>Wähle Auftrag, LKW, Fahrer{needsTrailer ? ' und Auflieger' : ''}, um Route und Kosten zu berechnen.</div>
           )}
           <div className="mt">
-            <IssueList issues={issues} okText={estimate ? (queued ? 'Keine Konflikte – Folgeauftrag kann eingeplant werden.' : 'Keine Konflikte – Fahrt kann gestartet werden.') : undefined} />
+            <IssueList issues={shownIssues} okText={coload ? undefined : estimate ? (queued ? 'Keine Konflikte – Folgeauftrag kann eingeplant werden.' : 'Keine Konflikte – Fahrt kann gestartet werden.') : undefined} />
           </div>
         </div>
       </div>

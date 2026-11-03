@@ -26,6 +26,11 @@ export function citiesNear(cityId: string, maxKm: number): CityDef[] {
   return CITIES.filter((x) => haversineKm([c.lon, c.lat], [x.lon, x.lat]) <= maxKm);
 }
 
+/** Lohnniveau eines Landes relativ zu Deutschland. */
+export function wageLevel(country: string): number {
+  return ['DE', 'AT', 'CH', 'NL', 'BE', 'LU', 'DK', 'SE', 'NO', 'FR', 'GB'].includes(country) ? 1 : 0.88;
+}
+
 /** Bewerber für den Fahrerberuf, Wohnort in der Nähe eines Firmenstandorts. */
 export function makeApplicant(state: GameState, nearCityId: string): Applicant {
   const near = citiesNear(nearCityId, 350);
@@ -37,8 +42,7 @@ export function makeApplicant(state: GameState, nearCityId: string): Applicant {
   if (rand.chance(state, 0.2 + experience / 300)) quals.push('reefer');
   const age = Math.round(Math.max(21, Math.min(63, 22 + experience * 0.35 + rand.float(state, 0, 14))));
   // Gehaltsvorstellung: abhängig von Erfahrung, Qualifikationen und Lohnniveau des Herkunftslandes
-  const wageLevel = ['DE', 'AT', 'CH', 'NL', 'BE', 'LU', 'DK', 'SE', 'NO', 'FR', 'GB'].includes(home.country) ? 1 : 0.88;
-  const salary: Money = Math.round((2_850_00 + experience * 16_00 + quals.length * 140_00) * wageLevel * rand.float(state, 0.93, 1.1) / 1000) * 1000;
+  const salary: Money = Math.round((2_850_00 + experience * 16_00 + quals.length * 140_00) * wageLevel(home.country) * rand.float(state, 0.93, 1.1) / 1000) * 1000;
   return {
     id: newId(state, 'app'),
     name: personName(state, home.country),
@@ -87,6 +91,11 @@ export function vehicleMarketValue(state: GameState, vehicleId: string): Money {
   const m = TRUCK_BY_ID[v.modelId];
   const age = toDate(state.time).getUTCFullYear() - v.year;
   return usedValue(m.price, age, v.odometerKm, v.condition);
+}
+
+/** Inzahlungnahme beim Händler: etwas besser als ein Privatverkauf (90 %). */
+export function tradeInValue(state: GameState, vehicleId: string): Money {
+  return Math.round(vehicleMarketValue(state, vehicleId) * 0.95);
 }
 
 const SIZE_WEIGHTS: Record<CustomerSize, number> = { small: 3, medium: 2, large: 1 };

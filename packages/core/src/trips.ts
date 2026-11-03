@@ -4,14 +4,16 @@
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
-import { FUEL_RESERVE, FUEL_STOP_MIN, UNLOAD_MIN_FACTOR, consumptionPerKm, loadFraction, penaltyFor, speedFactor, startNextQueued, tollFactor } from './dispatch.ts';
+import { FUEL_RESERVE, FUEL_STOP_MIN, UNLOAD_MIN_FACTOR, consumptionPerKm, penaltyFor, speedFactor, startNextQueued, tollFactor, tripLoadFraction } from './dispatch.ts';
+import { disruptionLabel, disruptionOnEdge, routeNow } from './disruptions.ts';
+import { onContractDelivery } from './contracts.ts';
 import { addLog, adjustSatisfaction, book, createInvoice, formatMoney } from './finance.ts';
 import { drivableNow, hosDrive, hosRest, hosWork } from './hos.ts';
 import { rand } from './rng.ts';
 import { formatDuration, hourOfDay } from './time.ts';
-import type { GameState, Trip, TripActivity } from './types.ts';
+import type { GameState, Order, Trip, TripActivity } from './types.ts';
 
-const STATIONARY_REST: TripActivity[] = ['break', 'rest_daily', 'rest_weekly', 'waiting'];
+export const STATIONARY_REST: TripActivity[] = ['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked'];
 const BIG_CITY_POP = 1000;
 
 export const ACTIVITY_LABEL: Record<TripActivity, string> = {
@@ -23,6 +25,7 @@ export const ACTIVITY_LABEL: Record<TripActivity, string> = {
   loading: 'Beladung',
   unloading: 'Entladung',
   waiting: 'Wartet auf Ladefenster',
+  blocked: 'Wartet an Sperrung',
   ferry: 'Fähre',
   breakdown: 'Defekt',
   done: 'Abgeschlossen',
@@ -73,6 +76,16 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   }
   if (trip.activity === 'ferry') trip.activity = 'driving';
 
+  // Verkehrsstörung auf der aktuellen Kante
+  const dis = disruptionOnEdge(state, loc.edge);
+  if (dis?.kind === 'closure') {
+    trip.activity = 'blocked';
+    trip.activityLeft = Math.max(1, dis.until - state.time);
+    trip.speedKmh = 0;
+    tlog(state, trip, `${disruptionLabel(dis)} – Wartezeit ca. ${formatDuration(trip.activityLeft)}`);
+    return;
+  }
+
   // Lenkzeit erschöpft → Pause/Ruhezeit
   if (drivableNow(driver.hos) <= 0) {
     const kind = driver.hos.requiredRestKind;
@@ -102,14 +115,13 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
 
   // Fahren
   const ecoFactor = 0.97 + driver.experience / 1000;
-  const speed = Math.min(loc.edge.truckKmh * speedFactor(vehicle.modelId), 120) * trafficFactor(state, loc.edge.a, loc.edge.b) * ecoFactor;
+  const speed = Math.min(loc.edge.truckKmh * speedFactor(vehicle.modelId), 120) * trafficFactor(state, loc.edge.a, loc.edge.b) * ecoFactor * (dis?.speedFactor ?? 1);
   const km = Math.min(speed / 60, leg.km - trip.progressKm);
   trip.speedKmh = Math.round(speed);
   trip.progressKm += km;
   hosDrive(driver.hos, 1);
 
-  const order = trip.orderId ? state.orders[trip.orderId] : undefined;
-  const loadFrac = leg.loaded ? loadFraction(state, vehicle, trip.trailerId, order) : 0;
+  const loadFrac = leg.loaded ? tripLoadFraction(state, trip) : 0;
   vehicle.fuelL = Math.max(0, vehicle.fuelL - km * consumptionPerKm(vehicle.modelId, loadFrac, driver.ecoDriving));
   vehicle.odometerKm += km;
   driver.kmDriven += km;
@@ -159,6 +171,12 @@ function startDriving(trip: Trip) {
   trip.activityLeft = 0;
 }
 
+/** Auftrag des aktuellen Halts (legs[i] führt zu stops[i]). */
+function stopOrder(state: GameState, trip: Trip): Order | undefined {
+  const stop = trip.stops?.[trip.legIndex];
+  return stop ? state.orders[stop.orderId] : undefined;
+}
+
 function onActivityEnd(state: GameState, ctx: SimContext, trip: Trip) {
   switch (trip.activity) {
     case 'waiting': {
@@ -166,25 +184,40 @@ function onActivityEnd(state: GameState, ctx: SimContext, trip: Trip) {
       return;
     }
     case 'loading': {
-      const order = state.orders[trip.orderId!];
+      const order = stopOrder(state, trip)!;
       order.status = 'in_transit';
-      trip.phase = 'to_delivery';
-      trip.legIndex = 1;
-      trip.progressKm = 0;
-      startDriving(trip);
-      tlog(state, trip, 'Beladen – Fahrt zum Empfänger');
+      tlog(state, trip, `Beladen: ${CARGO_BY_ID[order.cargoId].name} (${order.weightT.toLocaleString('de-DE')} t)`);
+      nextStop(state, ctx, trip);
       return;
     }
     case 'unloading':
-      completeDelivery(state, ctx, trip);
+      completeDelivery(state, trip, stopOrder(state, trip)!);
+      nextStop(state, ctx, trip);
       return;
     default:
       startDriving(trip);
   }
 }
 
+/** Weiter zum nächsten Halt; die Route wird nach aktueller Verkehrslage neu bestimmt. */
+function nextStop(state: GameState, ctx: SimContext, trip: Trip) {
+  if (trip.legIndex + 1 >= trip.legs.length) {
+    finishTrip(state, ctx, trip);
+    return;
+  }
+  trip.legIndex++;
+  trip.progressKm = 0;
+  const leg = trip.legs[trip.legIndex];
+  const r = routeNow(state, ctx, leg.nodes[0], leg.nodes[leg.nodes.length - 1]);
+  if (r) trip.legs[trip.legIndex] = { nodes: r.nodes, km: r.km, loaded: leg.loaded };
+  const stop = trip.stops![trip.legIndex];
+  trip.phase = stop.kind === 'pickup' ? 'to_pickup' : 'to_delivery';
+  startDriving(trip);
+  tlog(state, trip, `${stop.kind === 'pickup' ? 'Fahrt zur Ladestelle' : 'Fahrt zum Empfänger'} ${CITY_BY_ID[stop.cityId].name}`);
+}
+
 function startLoading(state: GameState, trip: Trip) {
-  const order = state.orders[trip.orderId!];
+  const order = stopOrder(state, trip)!;
   const cargo = CARGO_BY_ID[order.cargoId];
   const delay = rand.chance(state, 0.15 * state.difficulty.eventFactor) ? rand.int(state, 30, 150) : 0;
   trip.phase = 'loading';
@@ -196,12 +229,13 @@ function startLoading(state: GameState, trip: Trip) {
 }
 
 function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
-  if (trip.phase === 'to_pickup') {
-    if (!trip.orderId) {
-      finishTrip(state, ctx, trip);
-      return;
-    }
-    const order = state.orders[trip.orderId];
+  const stop = trip.stops?.[trip.legIndex];
+  if (!stop) {
+    finishTrip(state, ctx, trip);
+    return;
+  }
+  const order = state.orders[stop.orderId];
+  if (stop.kind === 'pickup') {
     tlog(state, trip, `Ankunft Ladestelle ${CITY_BY_ID[order.fromCityId].name}`);
     if (state.time < order.pickupStart) {
       trip.phase = 'loading';
@@ -210,18 +244,13 @@ function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
     } else startLoading(state, trip);
     return;
   }
-  if (trip.phase === 'to_delivery') {
-    const order = state.orders[trip.orderId!];
-    const cargo = CARGO_BY_ID[order.cargoId];
-    trip.phase = 'unloading';
-    trip.activity = 'unloading';
-    trip.activityLeft = Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);
-    tlog(state, trip, `Ankunft Empfänger ${CITY_BY_ID[order.toCityId].name} – Entladung`);
-  }
+  trip.phase = 'unloading';
+  trip.activity = 'unloading';
+  trip.activityLeft = Math.round(CARGO_BY_ID[order.cargoId].loadMin * UNLOAD_MIN_FACTOR);
+  tlog(state, trip, `Ankunft Empfänger ${CITY_BY_ID[order.toCityId].name} – Entladung`);
 }
 
-function completeDelivery(state: GameState, ctx: SimContext, trip: Trip) {
-  const order = state.orders[trip.orderId!];
+function completeDelivery(state: GameState, trip: Trip, order: Order) {
   const customer = state.customers[order.customerId];
   const driver = state.drivers[trip.driverId];
   const lateMin = Math.max(0, state.time - order.deliveryEnd);
@@ -232,8 +261,6 @@ function completeDelivery(state: GameState, ctx: SimContext, trip: Trip) {
   customer.deliveries++;
   const c = state.company;
   c.totals.deliveries++;
-  c.totals.kmLoaded += trip.kmLoaded;
-  c.totals.kmEmpty += trip.kmEmpty;
   c.totals.revenue += order.payment - penalty;
   if (lateMin > 0) {
     c.totals.lateDeliveries++;
@@ -250,18 +277,13 @@ function completeDelivery(state: GameState, ctx: SimContext, trip: Trip) {
     c.reputation = Math.min(100, c.reputation + 0.4);
   }
   createInvoice(state, order, order.payment - penalty);
-  // Maut wird gesammelt am Ende der Fahrt abgerechnet
-  const toll = Math.round(trip.costs.toll);
-  book(state, 'company', -toll, 'toll', `Maut Fahrt ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name}`);
-  trip.costs.toll = toll;
-  driver.experience = Math.min(100, driver.experience + trip.kmLoaded / 4000);
+  onContractDelivery(state, order, lateMin);
   addLog(state, {
     level: lateMin > 0 ? 'warning' : 'success',
     category: 'order',
     text: `${driver.name} hat ${CARGO_BY_ID[order.cargoId].name} in ${CITY_BY_ID[order.toCityId].name} ${lateMin > 0 ? 'verspätet' : 'pünktlich'} zugestellt.`,
     ref: { kind: 'order', id: order.id },
   });
-  finishTrip(state, ctx, trip);
 }
 
 function finishTrip(state: GameState, ctx: SimContext, trip: Trip) {
@@ -271,15 +293,19 @@ function finishTrip(state: GameState, ctx: SimContext, trip: Trip) {
   trip.activity = 'done';
   trip.finishedAt = state.time;
   trip.speedKmh = 0;
-  if (!trip.orderId) {
-    const toll = Math.round(trip.costs.toll);
-    book(state, 'company', -toll, 'toll', `Maut Überführung nach ${CITY_BY_ID[dest].name}`);
-    trip.costs.toll = toll;
-    state.company.totals.kmEmpty += trip.kmEmpty;
+  // Maut wird gesammelt am Ende der Fahrt abgerechnet
+  const toll = Math.round(trip.costs.toll);
+  const start = trip.stops?.[0]?.cityId ?? trip.legs[0].nodes[0];
+  book(state, 'company', -toll, 'toll', trip.stops ? `Maut Fahrt ${CITY_BY_ID[start].name} → ${CITY_BY_ID[dest].name}` : `Maut Überführung nach ${CITY_BY_ID[dest].name}`);
+  trip.costs.toll = toll;
+  state.company.totals.kmLoaded += trip.kmLoaded;
+  state.company.totals.kmEmpty += trip.kmEmpty;
+  if (!trip.stops) {
     addLog(state, { level: 'info', category: 'trip', text: `Überführung nach ${CITY_BY_ID[dest].name} abgeschlossen.`, ref: { kind: 'trip', id: trip.id } });
   }
   const driver = state.drivers[trip.driverId];
   if (driver) {
+    driver.experience = Math.min(100, driver.experience + trip.kmLoaded / 4000);
     driver.status = 'idle';
     driver.tripId = undefined;
     driver.cityId = dest;

@@ -45,8 +45,13 @@ export async function readSave(name: string): Promise<{ text: string; backup?: s
 }
 
 export async function listSaves(): Promise<SaveMeta[]> {
+  // Backups liegen unter „<name>.bak“, tragen aber die Metadaten des Originals – daher nach Schlüssel filtern
+  const keys = await tx<IDBValidKey[]>('readonly', (s) => s.getAllKeys());
   const all = await tx<Stored[]>('readonly', (s) => s.getAll());
-  return all.map((x) => x.meta).filter((m) => !m.name.endsWith('.bak')).sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  return all
+    .filter((_, i) => !String(keys[i]).endsWith('.bak'))
+    .map((x) => x.meta)
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 
 export async function deleteSave(name: string): Promise<void> {

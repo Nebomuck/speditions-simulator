@@ -32,7 +32,10 @@ packages/core/src
 ├── generate.ts     Bewerber, Kunden, Gebrauchtfahrzeuge, Kennzeichen, Marktwert
 ├── orders.ts       OrderSystem: Warenflussmodell, Auftragsbörse
 ├── dispatch.ts     DispatchSystem: Vorkalkulation, Konfliktprüfung, Fahrtanlage, Vorausplanung
-│                   (Warteschlange je Fahrzeug, vehicleSchedule, startNextQueued)
+│                   (Warteschlange je Fahrzeug, vehicleSchedule, startNextQueued), Beiladung (planCoLoad)
+├── disruptions.ts  Verkehrsstörungen (Sperrung/Stau), Routing nach Verkehrslage, Umleitung
+├── contracts.ts    Rahmenverträge: Angebote, Touren je Wochentag, Strafen, Verlängerung
+├── personnel.ts    Personal: Urlaub, Krankheit, Schulungen, Gehalt, Gespräche, Kündigungen
 ├── trips.ts        VehicleSystem: minutengenaue Fahrtsimulation
 ├── sim.ts          SimulationEngine: Minuten-Tick, stündliche/tägliche/monatliche Prozesse
 ├── commands.ts     CommandSystem: alle Spieleraktionen + Berechtigungen
@@ -66,8 +69,8 @@ Die Abhängigkeiten zeigen nur in eine Richtung: `types/data/geo/time/rng` → `
 Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed ─► tickMinute() × n
                                                        │
      tickMinute: Fahrten (Fahren/Pausen/Tanken/Laden/Pannen) → Fahrer-Ruhe → Werkstatt
-                 + stündlich: Auftragsbörse, Rechnungen
-                 + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Statistik, Monatsabrechnung
+                 + stündlich: Auftragsbörse, Rechnungen, Verkehrsstörungen, Rückkehr/Austritt Personal, verpasste Vertragstouren
+                 + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Zufriedenheit/Krankheit, Vertragstouren für morgen, Miete, Statistik, Monatsabrechnung
 ```
 
 - Die Simulation läuft unabhängig von der Darstellung: im Worker (Einzelspieler) bzw. auf dem Server (Multiplayer).
@@ -81,6 +84,14 @@ Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed 
 - `loadSpace(modelId, trailerType)` liefert den Laderaum: Solo-LKW und Transporter haben einen festen Aufbau (`TruckModel.body`, `payloadT`), Sattelzugmaschinen den des Aufliegers. Maut und Tempo skalieren über `tollFactor`/`speedFactor` des Modells.
 - Vorausplanung: `Vehicle.queue` hält bis zu 5 Folgeaufträge (`queueDispatch`). `estimateTrip` und `validateDispatch` rechnen dafür ab einem `PlanStart` (Ort, Zeit, Lenkzeit) am Ende der vorherigen Fahrt. `vehicleSchedule` verkettet laufende Fahrt (ETA aus `tripEta`) und Warteschlange; Plantafel und Kalender lesen nur daraus.
 - Endet eine Fahrt, startet `startNextQueued` den nächsten Auftrag mit demselben Fahrer und Auflieger. Ist er nicht mehr zulässig, geht er mit Warnung zurück in die angenommenen Aufträge.
+- Halte: Jede Auftragsfahrt hat `stops` (Laden/Entladen je Auftrag), `legs[i]` führt zu `stops[i]`. `planCoLoad` probiert alle Einfügestellen für Laden und Entladen eines weiteren Auftrags ab dem Planungsanker (nächster Knoten bzw. aktueller Halt), prüft die Nutzlast über die ganze Folge und wählt die mit den wenigsten Umweg-km und Verspätungsminuten. Der bereits befahrene Teil des aktuellen Abschnitts bleibt erhalten, damit die Fahrzeugposition gültig bleibt.
+- `tripStopEtas` schätzt Ende jedes Halts mit Lenk-/Ruhezeiten, Ladefenstern und Störungen; Plantafel, Kalender, Fahrzeugfenster und Verspätungsprüfung nutzen sie.
+
+## Verkehrsstörungen
+
+- `state.disruptions` hält bis zu 6 Sperrungen/Staus auf Straßenkanten. Stündlich laufen alte ab und neue entstehen, bevorzugt auf Strecken eigener Fahrten.
+- `routeNow` sucht Routen nach aktueller Verkehrslage (`RoadNetwork.route(from, to, traffic)`: gesperrte Kanten ausgeschlossen, Staus mit höherer Fahrzeit; eigener Cache je Verkehrszustand). Neue Fahrten und jeder neue Abschnitt einer laufenden Fahrt werden damit geplant.
+- Entsteht eine Sperrung auf dem weiteren Weg einer laufenden Fahrt, leitet `rerouteAffected` sie ab dem nächsten Knoten um. Steht ein LKW schon auf der gesperrten Kante, wartet er (`blocked`).
 
 Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx, actorId, cmd)` prüft das Recht, validiert die Eingaben und ändert den Zustand atomar. Im Multiplayer führt **nur der Server** Befehle aus, und zwar strikt nacheinander. Doppelte Zuweisungen sind dadurch ausgeschlossen: Der zweite von zwei gleichzeitigen Dispositionsbefehlen scheitert an der Konfliktprüfung (getestet).
 

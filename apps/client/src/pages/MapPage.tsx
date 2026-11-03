@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Crosshair, X, Navigation } from 'lucide-react';
+import { Crosshair, X, Navigation, PackagePlus, MapPin, TriangleAlert } from 'lucide-react';
 import {
-  CARGO_BY_ID, TRUCK_BY_ID, CITY_BY_ID, drivableNow, formatDateTime, formatDuration, nearestCity, remainingKm, tripEta, vehicleMarker, isTripLate, REST_KIND_LABEL,
+  CARGO_BY_ID, TRUCK_BY_ID, CITY_BY_ID, drivableNow, formatDateTime, formatDuration, nearestCity, remainingKm, vehicleSchedule, vehicleMarker, isTripLate, ordersOnBoard,
+  REST_KIND_LABEL, loadSpace, disruptionLabel,
 } from '@spedsim/core';
-import { setUi, useGame, useUi, world } from '../game/store.ts';
+import { sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Bar, Money } from '../ui/components.tsx';
 import { MapView, type MapFilter } from '../ui/MapView.tsx';
 import { activityLabel, cityName, countryName, km, tons, modelName, tripLabel } from '../ui/format.ts';
@@ -22,6 +23,8 @@ export function MapPage() {
   const [driverId, setDriverId] = useState('');
   const s = useGame();
   const selected = useUi((u) => u.selectedVehicleId);
+  const [traffic, setTraffic] = useState(false);
+  const disruptions = s.disruptions ?? [];
   return (
     <div className="page-full">
       <MapView filter={filter} driverId={driverId} />
@@ -33,7 +36,36 @@ export function MapPage() {
           <option value="">Alle Fahrer</option>
           {Object.values(s.drivers).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
+        <button className={`chip ${traffic ? 'active' : ''}`} onClick={() => setTraffic(!traffic)}>
+          <TriangleAlert size={13} /> Verkehrslage ({disruptions.length})
+        </button>
       </div>
+      {traffic && (
+        <div className="map-panel" style={{ top: 112, left: 12, width: 340, maxHeight: 300, overflow: 'auto' }}>
+          {disruptions.length === 0 ? (
+            <div className="dim">Derzeit keine Sperrungen oder Staus.</div>
+          ) : (
+            <div className="list">
+              {disruptions.map((d) => {
+                const e = world.net.edgeBetween(d.a, d.b);
+                return (
+                  <div
+                    key={d.id}
+                    className="list-item clickable"
+                    onClick={() => e && setUi({ mapFocus: e.coords[Math.floor(e.coords.length / 2)] as [number, number] })}
+                  >
+                    <Badge kind={d.kind === 'closure' ? 'danger' : 'warning'}>{d.kind === 'closure' ? 'Sperrung' : 'Stau'}</Badge>
+                    <span style={{ flex: 1 }}>
+                      {disruptionLabel(d).replace(/^(Sperrung|Stau) /, '')}
+                      <div className="dim" style={{ fontSize: 11.5 }}>bis ca. {formatDateTime(d.until)}{d.kind === 'jam' ? ` · Tempo ${Math.round(d.speedFactor * 100)} %` : ''}</div>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
       <div className="map-panel map-legend">
         <span><i className="dot" style={{ background: '#38bdf8' }} />Fahrt</span>
         <span><i className="dot" style={{ background: '#fbbf24' }} />Pause</span>
@@ -42,6 +74,8 @@ export function MapPage() {
         <span><i className="dot" style={{ background: '#f87171' }} />Verspätet/Defekt</span>
         <span><i className="dot" style={{ background: '#64748b' }} />Frei</span>
         <span><i className="dot" style={{ background: '#f59e0b' }} />Standort</span>
+        <span><i className="dot" style={{ background: '#ef4444' }} />Sperrung</span>
+        <span><i className="dot" style={{ background: '#f97316' }} />Stau</span>
       </div>
       {selected && s.vehicles[selected] && <VehiclePanel vehicleId={selected} />}
     </div>
@@ -59,7 +93,10 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
   const near = nearestCity(m.pos);
   const model = TRUCK_BY_ID[v.modelId];
   const late = trip ? isTripLate(s, trip) : false;
-  const eta = trip ? tripEta(s, world, trip) : 0;
+  const sched = trip ? vehicleSchedule(s, world, vehicleId)[0] : undefined;
+  const eta = sched?.end.time ?? 0;
+  const onBoard = trip ? ordersOnBoard(trip, trip.legIndex).reduce((w, id) => w + s.orders[id].weightT, 0) : 0;
+  const space = loadSpace(v.modelId, trip?.trailerId ? s.trailers[trip.trailerId]?.type : undefined);
   const drive = driver ? drivableNow(driver.hos) : 0;
   return (
     <div className="map-panel vehicle-panel">
@@ -86,7 +123,8 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
         {trip && (
           <>
             <dt>Auftrag</dt><dd>{tripLabel(s, trip)}</dd>
-            {order && <><dt>Ladung</dt><dd>{CARGO_BY_ID[order.cargoId].name}, {tons(order.weightT)}</dd></>}
+            {order && (trip.stops?.length ?? 0) <= 2 && <><dt>Ladung</dt><dd>{CARGO_BY_ID[order.cargoId].name}, {tons(order.weightT)}</dd></>}
+            {(trip.stops?.length ?? 0) > 2 && space && <><dt>Geladen</dt><dd>{tons(onBoard)} von {tons(space.payloadT)}</dd></>}
             <dt>Start → Ziel</dt><dd>{cityName(trip.legs[0].nodes[0])} → {cityName(trip.legs[trip.legs.length - 1].nodes.at(-1)!)}</dd>
             <dt>Reststrecke</dt><dd>{km(remainingKm(trip))}</dd>
             <dt>Voraussichtl. Ankunft</dt><dd className={late ? 'neg' : ''}>{formatDateTime(eta)}</dd>
@@ -110,6 +148,36 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
           </>
         )}
       </dl>
+      {trip && sched?.stops && sched.stops.length > 0 && (
+        <>
+          <div className="card-title mt" style={{ marginBottom: 6 }}><MapPin size={14} />Halte</div>
+          <div className="list">
+            {sched.stops.map((st, i) => {
+              const o = s.orders[st.orderId];
+              const removable = st.kind === 'pickup' && !st.done && o.status === 'planned' && trip.orderId !== o.id;
+              return (
+                <div key={i} className="list-item" style={st.done ? { opacity: 0.5 } : i === trip.legIndex ? { fontWeight: 600 } : undefined}>
+                  <time>{st.done ? 'erledigt' : formatDateTime(st.eta).slice(3)}</time>
+                  <span style={{ flex: 1 }}>
+                    {st.kind === 'pickup' ? 'Laden' : 'Entladen'} {cityName(st.cityId)} · {CARGO_BY_ID[o.cargoId].name} {tons(o.weightT)}
+                    {st.kind === 'delivery' && !st.done && st.eta > o.deliveryEnd && <Badge kind="danger">zu spät</Badge>}
+                  </span>
+                  {removable && (
+                    <button className="icon-btn" title="Beiladung herausnehmen" onClick={() => sendCommand({ type: 'removeCoLoad', orderId: o.id })}>
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {trip.stops && (
+            <button className="btn small mt" onClick={() => setUi({ dispatchDraft: { vehicleId } })}>
+              <PackagePlus size={14} /> Auftrag zuladen
+            </button>
+          )}
+        </>
+      )}
       {trip && trip.log.length > 0 && (
         <>
           <div className="card-title mt" style={{ marginBottom: 6 }}><Navigation size={14} />Fahrtverlauf</div>
