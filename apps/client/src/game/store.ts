@@ -105,7 +105,25 @@ export function useGame(): GameState {
   return useUi((u) => u.state!);
 }
 
+/** Team-Benachrichtigungen, die der Spieler schon gesehen hat (Nachrichten, Aufgaben, Einladungen, Abstimmungen) */
+let seenTeam: Set<string> | null = null;
+
+function teamNotices(state: GameState, pid: string): { key: string; text: string }[] {
+  const team = state.team;
+  if (!team) return [];
+  const name = (id: string) => state.players[id]?.name ?? '?';
+  return [
+    ...team.messages.filter((m) => m.to.includes(pid) && !m.readBy.includes(pid)).map((m) => ({ key: m.id, text: `Neue Nachricht von ${name(m.from)}: ${m.subject}` })),
+    ...team.tasks.filter((t) => t.assignee === pid && t.status !== 'done' && t.createdBy !== pid).map((t) => ({ key: `${t.id}:${pid}`, text: `Neue Aufgabe von ${name(t.createdBy)}: ${t.title}` })),
+    ...team.activities.filter((a) => a.status === 'pending' && a.invited.includes(pid)).map((a) => ({ key: a.id, text: `${name(a.host)} lädt dich ein – siehe Team & Kommunikation → Gemeinsam.` })),
+    ...team.votes.filter((v) => v.status === 'open' && v.createdBy !== pid).map((v) => ({ key: v.id, text: `Abstimmung: ${v.question}` })),
+  ];
+}
+
 export function receiveSnapshot(state: GameState, at: number, playerId: string) {
+  const notices = teamNotices(state, playerId);
+  if (seenTeam) for (const n of notices) if (!seenTeam.has(n.key)) toast('info', n.text);
+  seenTeam = new Set([...(seenTeam ?? []), ...notices.map((n) => n.key)]);
   // neue Ereignisse als Benachrichtigungen anzeigen
   const fresh = lastLogId < 0 ? [] : state.log.filter((l) => l.id > lastLogId);
   lastLogId = state.log.length ? state.log[state.log.length - 1].id : lastLogId === -1 ? 0 : lastLogId;
@@ -118,6 +136,7 @@ export function receiveSnapshot(state: GameState, at: number, playerId: string) 
 
 export function resetGameUi() {
   lastLogId = -1;
+  seenTeam = null;
   setUi({ state: null, host: null, page: 'dashboard', selectedVehicleId: null, dispatchDraft: null, toasts: [], hosting: false, connection: '' });
 }
 

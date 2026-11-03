@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Crosshair, X, Navigation, PackagePlus, MapPin, TriangleAlert } from 'lucide-react';
 import {
-  CARGO_BY_ID, TRUCK_BY_ID, CITY_BY_ID, drivableNow, formatDateTime, formatDuration, nearestCity, remainingKm, vehicleSchedule, vehicleMarker, isTripLate, ordersOnBoard,
+  CARGO_BY_ID, TRUCK_BY_ID, CITY_BY_ID, drivableNow, formatDateTime, formatDuration, formatHours, nearestCity, remainingKm, vehicleSchedule, vehicleMarker, isTripLate, ordersOnBoard,
   REST_KIND_LABEL, loadSpace, disruptionLabel,
 } from '@spedsim/core';
 import { sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
@@ -144,7 +144,7 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
           <>
             <dt>Restlenkzeit</dt><dd>{driver.hos.requiredRest > 0 ? `${REST_KIND_LABEL[driver.hos.requiredRestKind]} (${formatDuration(driver.hos.requiredRest)})` : formatDuration(drive)}</dd>
             <dt>Lenkzeit heute</dt><dd>{formatDuration(driver.hos.drivenToday)} / 9 h</dd>
-            <dt>Lenkzeit Woche</dt><dd>{formatDuration(driver.hos.drivenWeek)} / 56 h</dd>
+            <dt>Lenkzeit Woche</dt><dd>{formatHours(driver.hos.drivenWeek)} / 56 h</dd>
           </>
         )}
       </dl>

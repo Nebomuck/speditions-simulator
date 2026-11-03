@@ -1,5 +1,5 @@
 import { Pause, Play, LayoutDashboard, Map, CalendarRange, ClipboardList, Users, Truck, Wallet, Handshake, Building2, Home, MessagesSquare, BarChart3, Settings, Wifi } from 'lucide-react';
-import { SPEEDS, formatTime, formatDate, WEEKDAY_NAMES, weekday, holidayName, season, SEASON_NAMES } from '@spedsim/core';
+import { SPEEDS, formatTime, formatDate, WEEKDAY_NAMES, weekday, holidayName, season, SEASON_NAMES, unreadMessages, openTasksFor, pendingInvitesFor } from '@spedsim/core';
 import { navigate, sendCommand, useGame, useUi, type Page } from '../game/store.ts';
 import { Money } from './components.tsx';
 
@@ -21,8 +21,10 @@ const NAV: { page: Page; label: string; icon: typeof Map }[] = [
 
 export function Sidebar() {
   const page = useUi((u) => u.page);
+  const pid = useUi((u) => u.playerId);
   const s = useGame();
   const counts: Partial<Record<Page, number>> = {
+    multiplayer: unreadMessages(s, pid) + openTasksFor(s, pid) + pendingInvitesFor(s, pid) + s.team.votes.filter((v) => v.status === 'open' && !(pid in v.votes)).length,
     dispatch: Object.values(s.orders).filter((o) => o.status === 'accepted').length,
     map: Object.values(s.trips).filter((t) => t.phase !== 'done').length,
   };

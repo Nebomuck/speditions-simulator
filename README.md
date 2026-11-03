@@ -6,7 +6,7 @@
 
 Ein Speditions- und Unternehmenssimulator für Windows: Du gründest eine kleine Spedition mit einem gebrauchten LKW, einem Fahrer und wenig Kapital, nimmst Aufträge an, disponierst Fahrten über **echte europäische Straßen**, verfolgst deine LKW **live auf der Europakarte** und baust Schritt für Schritt ein internationales Logistikunternehmen auf – allein oder im **kooperativen Multiplayer**.
 
-> Entwicklungsstand: **Version 0.8.0 – Phasen 1–8 spielbar**, Teile von Phase 9 und 12 umgesetzt.
+> Entwicklungsstand: **Version 0.9.0 – Phasen 1–9 spielbar**, Teile von Phase 12 umgesetzt.
 > Was genau funktioniert und getestet ist, steht in [FEATURE_CHECKLIST.md](FEATURE_CHECKLIST.md).
 
 ## Schnellstart (Entwicklung)
@@ -32,6 +32,16 @@ npm run server
 Startet den serverautoritativen Spielserver auf `ws://localhost:8787` (Port per `PORT` oder `--port`, Datenbank per `DB` oder `--db` änderbar). Nur für die Browser-Version und für dedizierte Server nötig – **die Desktop-App startet ihren mitgelieferten Server automatisch**, sobald du eine Multiplayer-Firma hostest oder fortsetzt, und beendet ihn beim Schließen (vorher wird gespeichert).
 
 Im Spiel unter **Multiplayer → Neue Firma hosten** gründen. Die Desktop-App öffnet automatisch einen Internet-Zugang (Cloudflare Quick Tunnel, keine Portfreigabe nötig); unter „Team & Kommunikation“ steht die **Internet-Einladung** zum Kopieren. Freunde wählen **Einer Firma beitreten** und fügen sie ein. Im Heimnetz reichen Heimnetz-Adresse und Einladungscode. Alternativ: dedizierter Server mit Portfreigabe oder Reverse Proxy (siehe [ARCHITECTURE.md](ARCHITECTURE.md#multiplayer)).
+
+Dedizierter Server mit TLS, z. B. auf einem VPS hinter [Caddy](https://caddyserver.com) (holt das Zertifikat automatisch):
+
+```
+spiel.example.de {
+    reverse_proxy localhost:8787
+}
+```
+
+Den Server startest du dort mit `PORT=8787 DB=/var/lib/cargovia/spedsim.db npm run server`. Mitspieler geben als Server `https://spiel.example.de` (oder `wss://spiel.example.de`) und den Einladungscode ein. Eine Adresse ohne `https://` bzw. `wss://` verbindet unverschlüsselt auf Port 8787.
 
 ### Tests
 

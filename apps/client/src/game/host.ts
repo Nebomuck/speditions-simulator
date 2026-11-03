@@ -2,7 +2,7 @@
 // Simulations-Worker (Einzelspieler) oder dem Multiplayer-Server über WebSocket.
 // Beide liefern Zustandsschnappschüsse und führen Befehle aus.
 
-import type { Command, CommandResult, NewGameOptions } from '@spedsim/core';
+import { applyPatch, type Command, type CommandResult, type GameState, type NewGameOptions } from '@spedsim/core';
 import type { HostRequest, HostResponse, SaveMeta, Snapshot } from './protocol.ts';
 
 export interface HostEvents {
@@ -103,6 +103,9 @@ export class RemoteHost implements GameHost {
   private closed = false;
   private welcomed = false;
   private companyReported = false;
+  /** Delta-Synchronisation: zuletzt empfangener Zustand und Zählstand */
+  private state: GameState | null = null;
+  private rev = -1;
 
   /** aktuelle Server-Adresse (kann sich bei Wiederverbindung ändern) */
   url: string;
@@ -118,6 +121,9 @@ export class RemoteHost implements GameHost {
 
   private connect(): WebSocket {
     const ws = new WebSocket(this.url);
+    // neue Verbindung beginnt immer mit einem Vollzustand
+    this.state = null;
+    this.rev = -1;
     ws.onopen = () => {
       this.events.onStatus?.('verbunden');
       ws.send(JSON.stringify(this.hello));
@@ -131,12 +137,22 @@ export class RemoteHost implements GameHost {
         // bei Wiederverbindung als bestehender Spieler beitreten
         this.hello = { t: 'join', code: m.inviteCode, playerId: m.playerId, token: m.token };
         this.events.onWelcome?.(m);
-      } else if (m.t === 'state') {
+      } else if (m.t === 'state' || m.t === 'patch') {
+        if (m.t === 'patch') {
+          // Delta passt nicht zum vorhandenen Stand → Vollzustand anfordern
+          if (!this.state || m.base !== this.rev) {
+            if (this.rev !== -2) ws.send(JSON.stringify({ t: 'resync' }));
+            this.rev = -2;
+            return;
+          }
+          this.state = applyPatch(this.state, m.ops);
+        } else this.state = m.state as GameState;
+        this.rev = m.rev;
         if (!this.companyReported && this.gameId) {
           this.companyReported = true;
-          this.events.onCompany?.(this.gameId, m.state.company.name);
+          this.events.onCompany?.(this.gameId, this.state.company.name);
         }
-        this.events.onSnapshot({ state: m.state, at: Date.now(), playerId: m.playerId });
+        this.events.onSnapshot({ state: this.state, at: Date.now(), playerId: m.playerId });
       } else if (m.t === 'result') {
         this.pending.get(m.id)?.(m.result);
         this.pending.delete(m.id);

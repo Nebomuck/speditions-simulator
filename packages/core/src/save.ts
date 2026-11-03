@@ -95,6 +95,12 @@ export const MIGRATIONS: Record<number, Migration> = {
     }
     return s;
   },
+  // 0.9.0: Multiplayer-Zusammenarbeit
+  7: (s) => {
+    s.team ??= { messages: [], tasks: [], activities: [], votes: [] };
+    for (const p of Object.values(s.players as Record<string, Record<string, unknown>>)) p.role ??= p.isFounder ? 'ceo' : 'custom';
+    return s;
+  },
 };
 
 export function deserializeSave(text: string): GameState {

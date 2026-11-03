@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
-import type { GameState } from '@spedsim/core';
+import { applyPatch, playerView, sameJson, type GameState } from '@spedsim/core';
 import { startServer } from '../src/server.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'spedsim-'));
@@ -19,6 +19,8 @@ class TestClient {
   private pending = new Map<number, (r: { ok: boolean; error?: string }) => void>();
   private waiters: (() => void)[] = [];
   bytes = 0;
+  rev = 0;
+  patches = 0;
 
   constructor(port: number, hello: Record<string, unknown>) {
     this.ws = new WebSocket(`ws://localhost:${port}`);
@@ -27,7 +29,17 @@ class TestClient {
       this.bytes += String(raw).length;
       const m = JSON.parse(String(raw));
       if (m.t === 'welcome') this.welcome = m;
-      if (m.t === 'state') this.state = m.state;
+      if (m.t === 'state') {
+        this.state = m.state;
+        this.rev = m.rev;
+      }
+      if (m.t === 'patch') {
+        // Delta muss genau auf den vorherigen Stand passen
+        expect(m.base).toBe(this.rev);
+        this.state = applyPatch(this.state!, m.ops);
+        this.rev = m.rev;
+        this.patches++;
+      }
       if (m.t === 'error') this.errors.push(m.message);
       if (m.t === 'result') {
         this.pending.get(m.id)?.(m.result);
@@ -127,6 +139,22 @@ describe('Multiplayertest', () => {
     const evil = new TestClient(18787, { t: 'join', code, playerId: bId, token: 'falsch' });
     await evil.until(() => evil.errors.length > 0);
     evil.close();
+
+    // Interne Nachricht und Aufgabe an B
+    expect((await a.cmd({ type: 'sendMessage', to: [bId], subject: 'Tour Prag', text: 'Bitte den Kühl-Auftrag übernehmen.' })).ok).toBe(true);
+    expect((await a.cmd({ type: 'createTask', title: 'Kühlauftrag disponieren', area: 'dispatch', assignee: bId })).ok).toBe(true);
+    await b2.until(() => b2.state!.team.messages.some((m) => m.subject === 'Tour Prag') && b2.state!.team.tasks.length === 1);
+
+    // Delta-Synchronisation: nach Pause stimmt der Client-Zustand exakt mit dem Server überein
+    expect((await a.cmd({ type: 'setPaused', paused: true })).ok).toBe(true);
+    await new Promise((r) => setTimeout(r, 400));
+    const room = [...server.rooms.values()][0];
+    expect(sameJson(b2.state, JSON.parse(JSON.stringify(playerView(room.session.state, bId))))).toBe(true);
+    expect(sameJson(a.state, JSON.parse(JSON.stringify(playerView(room.session.state, a.welcome!.playerId))))).toBe(true);
+    expect(a.patches).toBeGreaterThan(5);
+    const st = server.stats;
+    console.log(`Synchronisation: ${st.full} Vollzustände Ø ${Math.round(st.fullBytes / st.full / 1024)} KB, ${st.patches} Deltas Ø ${Math.round(st.patchBytes / st.patches / 1024 * 10) / 10} KB`);
+    expect(st.patchBytes / st.patches).toBeLessThan(st.fullBytes / st.full / 5);
 
     // Persistenz: Server neu starten → Spielstand und Fahrzeugposition bleiben erhalten
     const tripBefore = Object.values(a.state!.trips)[0];

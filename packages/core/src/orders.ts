@@ -4,6 +4,7 @@
 // Marktnachfrage beeinflussen das Volumen.
 
 import { negotiationBonus } from './life.ts';
+import { meetingBonus } from './team.ts';
 import { CITIES, CITY_BY_ID, type CityDef } from './data/cities.ts';
 import { CARGOS, CARGO_BY_ID, type CargoDef } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
@@ -105,7 +106,7 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
 
   // Vergütung; zufriedene Stammkunden zahlen etwas besser
   const loyalty = customer.deliveries > 0 ? ((customer.satisfaction - 50) / 50) * 0.05 : 0;
-  const priceFactor = 1 + (0.5 - customer.priceSensitivity) * 0.12 + loyalty + salesPriceBonus(state) + negotiationBonus(state);
+  const priceFactor = 1 + (0.5 - customer.priceSensitivity) * 0.12 + loyalty + salesPriceBonus(state) + negotiationBonus(state) + meetingBonus(state);
   let payment = baseRate(state, cargo, route.km) * priceFactor * rand.float(state, 0.9, 1.12);
   if (express) payment *= 1.3;
   // Teilladung: weniger Gesamterlös, aber höherer Preis je Tonne

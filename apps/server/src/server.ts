@@ -1,7 +1,8 @@
 // MultiplayerServer: serverautoritativer Spielserver für kooperative Speditionen.
 //
 // - Jede Multiplayer-Firma ist ein "Room" mit genau einer GameSession (gemeinsame Simulationslogik aus @spedsim/core).
-// - Nur der Server simuliert. Clients senden Befehle und erhalten Zustandsschnappschüsse.
+// - Nur der Server simuliert. Clients senden Befehle und erhalten zuerst den Vollzustand, danach nur Änderungen
+//   (Delta-Synchronisation, `diffState`/`applyPatch`). Fremde interne Nachrichten werden je Spieler herausgefiltert.
 // - Befehle werden strikt nacheinander ausgeführt → keine Doppelbelegungen oder widersprüchlichen Aktionen.
 // - Persistenz: SQLite (node:sqlite) mit versionierten, prüfsummengeschützten Spielständen + rotierenden Backups.
 // - Spielzeit läuft nur, solange mindestens ein Spieler verbunden ist; danach wird gespeichert und pausiert.
@@ -13,7 +14,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { WebSocketServer, type WebSocket } from 'ws';
 import roadnet from '@spedsim/core/roadnet.json' with { type: 'json' };
 import {
-  GameSession, addPlayer, createNewGame, createSimContext, deserializeSave, serializeSave, CITY_BY_ID, LIFE_GOALS,
+  GameSession, addPlayer, applyPatch, createNewGame, createSimContext, deserializeSave, diffState, playerView, serializeSave, CITY_BY_ID, LIFE_GOALS,
   type Character, type Command, type DifficultyId, type RoadNetData,
 } from '@spedsim/core';
 
@@ -31,6 +32,17 @@ interface Client {
   ws: WebSocket;
   roomId?: string;
   playerId?: string;
+  /** zuletzt übertragener Zustand (Basis für das nächste Delta) */
+  sent?: unknown;
+  /** Zählstand der Übertragungen an diesen Client */
+  rev: number;
+}
+
+export interface SyncStats {
+  full: number;
+  patches: number;
+  fullBytes: number;
+  patchBytes: number;
 }
 
 interface Room {
@@ -138,12 +150,40 @@ export function startServer(opts: ServerOptions) {
     if (c.ws.readyState === c.ws.OPEN) c.ws.send(JSON.stringify(msg));
   }
 
+  const stats: SyncStats = { full: 0, patches: 0, fullBytes: 0, patchBytes: 0 };
+
+  /** Zustand an einen Client: beim ersten Mal (oder nach `resync`) vollständig, sonst nur die Änderungen. */
+  function syncClient(room: Room, c: Client) {
+    if (c.ws.readyState !== c.ws.OPEN || !c.playerId) return;
+    const view = playerView(room.session.state, c.playerId);
+    const pid = JSON.stringify(c.playerId);
+    if (c.sent !== undefined) {
+      const ops = diffState(c.sent, view);
+      if (!ops.length) return;
+      const opsJson = JSON.stringify(ops);
+      // sehr große Änderungen (z. B. nach langem Vorspulen): lieber den Vollzustand schicken
+      if (opsJson.length < 200_000) {
+        const msg = `{"t":"patch","playerId":${pid},"base":${c.rev},"rev":${c.rev + 1},"ops":${opsJson}}`;
+        c.ws.send(msg);
+        c.sent = applyPatch(c.sent, JSON.parse(opsJson));
+        c.rev++;
+        stats.patches++;
+        stats.patchBytes += msg.length;
+        return;
+      }
+    }
+    const json = JSON.stringify(view);
+    c.rev++;
+    const msg = `{"t":"state","playerId":${pid},"rev":${c.rev},"state":${json}}`;
+    c.ws.send(msg);
+    c.sent = JSON.parse(json);
+    stats.full++;
+    stats.fullBytes += msg.length;
+  }
+
   function broadcastState(room: Room) {
     room.lastBroadcastRev = room.session.revision;
-    const stateJson = JSON.stringify(room.session.state);
-    for (const c of room.clients) {
-      if (c.ws.readyState === c.ws.OPEN) c.ws.send(`{"t":"state","playerId":${JSON.stringify(c.playerId)},"state":${stateJson}}`);
-    }
+    for (const c of room.clients) syncClient(room, c);
   }
 
   function attach(c: Client, room: Room, playerId: string, playerToken: string) {
@@ -198,7 +238,7 @@ export function startServer(opts: ServerOptions) {
     const name = cleanName(m.name, 'Mitspieler/in');
     const playerId = `pl${randomBytes(5).toString('hex')}`;
     const t = token();
-    addPlayer(room.session.state, { id: playerId, name, permissions: ['dispatch', 'fleet'], character: sanitizeCharacter(m.character, name) });
+    addPlayer(room.session.state, { id: playerId, name, role: 'dispatcher', character: sanitizeCharacter(m.character, name) });
     q.insertPlayer.run(room.id, playerId, t);
     persist(room);
     attach(c, room, playerId, t);
@@ -220,7 +260,7 @@ export function startServer(opts: ServerOptions) {
   const wss = new WebSocketServer({ port: opts.port, maxPayload: 64 * 1024, perMessageDeflate: { threshold: 4096 } });
 
   wss.on('connection', (ws) => {
-    const c: Client = { ws };
+    const c: Client = { ws, rev: 0 };
     ws.on('message', (raw) => {
       let m: Record<string, unknown>;
       try {
@@ -232,6 +272,12 @@ export function startServer(opts: ServerOptions) {
         if (m.t === 'create' && !c.roomId) handleCreate(c, m);
         else if (m.t === 'join' && !c.roomId) handleJoin(c, m);
         else if (m.t === 'cmd') handleCommand(c, m);
+        else if (m.t === 'resync' && c.roomId) {
+          // Client hat ein Delta verpasst → Vollzustand
+          c.sent = undefined;
+          const room = rooms.get(c.roomId);
+          if (room) syncClient(room, c);
+        }
         else send(c, { t: 'error', message: 'Unbekannter Nachrichtentyp.' });
       } catch (e) {
         log('handler_error', { error: (e as Error).message });
@@ -289,6 +335,7 @@ export function startServer(opts: ServerOptions) {
   return {
     port: opts.port,
     rooms,
+    stats,
     async close() {
       clearInterval(tick);
       clearInterval(saver);

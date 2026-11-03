@@ -1,7 +1,7 @@
 {
   "name": "speditions-simulator",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Speditions- und Unternehmenssimulator mit Lebenssimulation und kooperativem Multiplayer",
   "type": "module",
   "workspaces": [

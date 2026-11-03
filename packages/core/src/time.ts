@@ -105,3 +105,11 @@ export function formatDuration(min: number): string {
   if (h > 0) return `${h} h ${pad2(m)} min`;
   return `${m} min`;
 }
+
+/** Dauer immer in Stunden, ohne Umrechnung in Tage (z. B. Wochenlenkzeit „42 h 18 min“). */
+export function formatHours(min: number): string {
+  min = Math.max(0, Math.round(min));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h} h ${pad2(m)} min` : `${m} min`;
+}

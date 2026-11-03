@@ -2,6 +2,7 @@
 // werden an Zeitgrenzen ausgelöst. Wird identisch im Einzelspieler-Worker und auf dem Server ausgeführt.
 
 import { dailyLife } from './life.ts';
+import { hourlyTeam } from './team.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney, processInvoices, processMonthEnd } from './finance.ts';
 import { makeApplicant, makeVehicleOffer } from './generate.ts';
@@ -48,6 +49,7 @@ function hourly(state: GameState, ctx: SimContext) {
   hourlyPersonnel(state);
   hourlyContracts(state);
   hourlyCompany(state);
+  hourlyTeam(state);
   runAutoDispatch(state, ctx);
 }
 

@@ -34,6 +34,8 @@ packages/core/src
 ├── dispatch.ts     DispatchSystem: Vorkalkulation, Konfliktprüfung, Fahrtanlage, Vorausplanung
 │                   (Warteschlange je Fahrzeug, vehicleSchedule, startNextQueued), Beiladung (planCoLoad)
 ├── disruptions.ts  Verkehrsstörungen (Sperrung/Stau), Routing nach Verkehrslage, Umleitung
+├── team.ts         Multiplayer-Zusammenarbeit: Rollen, Grenzen, Nachrichten, Aufgaben, gemeinsame Aktivitäten, Abstimmungen
+├── delta.ts        Delta-Synchronisation (diffState/applyPatch)
 ├── contracts.ts    Rahmenverträge: Angebote, Touren je Wochentag, Strafen, Verlängerung
 ├── personnel.ts    Personal: Urlaub, Krankheit, Schulungen, Gehalt, Gespräche, Kündigungen
 ├── company.ts      Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilungen, Flottenwartung
@@ -72,7 +74,7 @@ Die Abhängigkeiten zeigen nur in eine Richtung: `types/data/geo/time/rng` → `
 Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed ─► tickMinute() × n
                                                        │
      tickMinute: Fahrten (Fahren/Pausen/Tanken/Laden/Pannen) → Fahrer-Ruhe → Werkstatt
-                 + stündlich: Auftragsbörse, Rechnungen, Verkehrsstörungen, Rückkehr/Austritt Personal, verpasste Vertragstouren, automatische Wartung, KI-Disposition
+                 + stündlich: Auftragsbörse, Rechnungen, Verkehrsstörungen, Rückkehr/Austritt Personal, verpasste Vertragstouren, automatische Wartung, KI-Disposition, Team (Einladungen, Abstimmungen)
                  + täglich:   Diesel/Nachfrage, Bewerber, Gebrauchtmarkt, Zufriedenheit/Krankheit, Vertragstouren für morgen, Miete, Unternehmensstufe, Lagerauslastung, Lebenssimulation, Statistik, Monatsabrechnung (inkl. Lagererlöse)
 ```
 
@@ -92,7 +94,10 @@ Echtzeit Δt ─► GameSession.advance(Δt) ─► Spielminuten = Δt × speed 
 
 ## Verkehrsstörungen
 
-- `state.disruptions` hält bis zu 6 Sperrungen/Staus auf Straßenkanten. Stündlich laufen alte ab und neue entstehen, bevorzugt auf Strecken eigener Fahrten.
+- `state.disruptions` hält Sperrungen/Staus auf Straßenkanten. Stündlich laufen alte ab und neue entstehen:
+  - je fahrendem LKW nach gefahrener Strecke (`JAMS_PER_1000_KM` ≈ 1 Stau, `CLOSURES_PER_1000_KM` ≈ 0,12 Sperrungen je 1.000 km, mal Ereignisfaktor) auf einer Kante bis 150 km voraus, höchstens eine Störung gleichzeitig vor einem LKW;
+  - dazu wenige Hintergrundstörungen im übrigen Netz für die Verkehrslage auf der Karte.
+- Ein Stau kostet einen festen Zeitverlust (meist 8–20 min, selten bis 40 min); der Geschwindigkeitsfaktor wird aus der Fahrzeit der Kante berechnet. Sperrungen dauern meist 1–3 h, Bauarbeiten/Brückensperrungen 2–4 h.
 - `routeNow` sucht Routen nach aktueller Verkehrslage (`RoadNetwork.route(from, to, traffic)`: gesperrte Kanten ausgeschlossen, Staus mit höherer Fahrzeit; eigener Cache je Verkehrszustand). Neue Fahrten und jeder neue Abschnitt einer laufenden Fahrt werden damit geplant.
 - Entsteht eine Sperrung auf dem weiteren Weg einer laufenden Fahrt, leitet `rerouteAffected` sie ab dem nächsten Knoten um. Steht ein LKW schon auf der gesperrten Kante, wartet er (`blocked`).
 
@@ -102,13 +107,21 @@ Jede Spieleraktion ist ein serialisierbarer `Command`. `applyCommand(state, ctx,
 
 - **Betriebsmodell:** Serverprozess, entweder automatisch von der Desktop-App des Hosts gestartet (Sidecar, siehe unten) oder dediziert (`npm run server`), lokal, im LAN oder gehostet (VPS/Container). Ein Server verwaltet beliebig viele Firmen (Räume).
 - **Protokoll (JSON über WebSocket):**
-  - Client → Server: `create`, `join` (Einladungscode + Name oder playerId + Token), `cmd`
-  - Server → Client: `welcome` (playerId, inviteCode, Token), `state` (vollständiger Zustand), `result`, `error`
-- **Synchronisation:** vollständige Zustandsschnappschüsse (~160 KB unkomprimiert, WebSocket-Deflate aktiv) alle 250 ms bei Änderungen und sofort nach erfolgreichen Befehlen. *Optimierung geplant:* Delta-Updates und getrennte Positionskanäle für sehr große Flotten.
+  - Client → Server: `create`, `join` (Einladungscode + Name oder playerId + Token), `cmd`, `resync`
+  - Server → Client: `welcome` (playerId, inviteCode, Token), `state` (Vollzustand mit `rev`), `patch` (`base`, `rev`, `ops`), `result`, `error`
+- **Delta-Synchronisation (`delta.ts`):** Jeder Client bekommt beim Beitritt den Vollzustand (~160 KB), danach alle 250 ms bei Änderungen und sofort nach erfolgreichen Befehlen nur noch die Änderungen.
+  - Der Server merkt sich je Client den zuletzt gesendeten Zustand; `diffState` vergleicht ihn mit dem aktuellen und liefert Operationen (Wert setzen, Schlüssel löschen, Liste „vorne n entfernen, hinten anhängen“ für Protokoll, Chat und Buchungen).
+  - `applyPatch` wendet sie auf Server- und Clientseite identisch und unveränderlich an. Unveränderte Teile bleiben dieselben Objekte, das passt zu React.
+  - Jedes Delta nennt seine Basis (`base`). Passt sie nicht zum Stand des Clients, fordert er mit `resync` den Vollzustand an. Sehr große Deltas (> 200 KB, z. B. nach Vorspulen) werden als Vollzustand geschickt.
+  - Gemessen im Multiplayertest: Ø 0,5 KB je Delta statt 162 KB je Schnappschuss.
+- **Sicht je Spieler (`playerView`):** Interne Nachrichten gehen nur an Absender und Empfänger; alles andere ist für alle Spieler gleich.
 - **Wiederverbindung:** Der Client speichert playerId und Token und verbindet sich bei Abbruch automatisch neu. Die Simulation bleibt unbeschädigt, weil sie serverseitig liegt.
 - **Gemeinsame Zeit:** Der Raum simuliert nur, solange Spieler verbunden sind. Ohne Spieler wird gespeichert (mit Backup) und der Raum entladen.
 - **Persistenz:** Autosave alle 30 s bei Änderungen, Backup alle 10 min (die letzten 10 je Firma), beim Beenden und beim Verlassen des letzten Spielers. Ist der Spielstand beschädigt, wird das letzte Backup geladen.
-- **Sicherheit:** Nachrichten maximal 64 KB, Eingaben werden bereinigt, Berechtigungen serverseitig geprüft, Spieler-Token mit 144 Bit Zufall. TLS (wss://) übernimmt ein vorgeschalteter Reverse Proxy (z. B. Caddy).
+- **Sicherheit:** Nachrichten maximal 64 KB, Eingaben werden bereinigt, Berechtigungen serverseitig geprüft, Spieler-Token mit 144 Bit Zufall. TLS (wss://) übernimmt ein vorgeschalteter Reverse Proxy (Beispiel für Caddy im README).
+- **Zusammenarbeit (`team.ts`):** Rollen als Rechtevorlagen (Geschäftsführung, Disposition, Fuhrparkleitung, Personalleitung, Individuell), Ausgabenlimit je Ausgabe und Beschränkung auf zugewiesene Niederlassungen, interne Nachrichten, Aufgaben, gemeinsame Aktivitäten und Abstimmungen.
+  - Alles sind Commands und damit serverautoritativ. Stündlich verfallen offene Einladungen bzw. finden mit den Zusagen statt, und abgelaufene Abstimmungen werden ausgewertet (`hourlyTeam`).
+  - Das Ausgabenlimit gilt für Befehle, die vom Firmenkonto zahlen (Kauf, Ausbau, Wartung, Einstellung, Schulung, Ausschüttung). `applyCommand` führt den Befehl aus und stellt den vorherigen Zustand wieder her, wenn er mehr gekostet hat als erlaubt. So gilt das Limit für jede Kostenquelle, ohne sie einzeln vorab zu berechnen.
 
 ## Speicherformat
 

@@ -107,7 +107,61 @@ export function rerouteAffected(state: GameState, ctx: SimContext): void {
   }
 }
 
-/** Stündlich: abgelaufene Störungen aufheben, neue erzeugen (bevorzugt auf Strecken eigener Fahrten). */
+/** Störungen je 1.000 gefahrene km und LKW (bei Ereignisfaktor 1): rund ein Stau, selten eine Sperrung. */
+export const JAMS_PER_1000_KM = 1;
+export const CLOSURES_PER_1000_KM = 0.12;
+/** Hintergrundstörungen im ganzen Netz (für die Verkehrslage auf der Karte) je Stunde */
+const BACKGROUND_RATE = 0.2;
+/** Störungen für eine Fahrt entstehen in diesem Abstand vor dem LKW */
+const AHEAD_KM = 150;
+/** angenommene Durchschnittsgeschwindigkeit eines fahrenden LKW */
+const AVG_KMH = 70;
+
+/** Zeitverlust eines Staus in Minuten: meist 10–20, selten bis 40 */
+function jamDelay(state: GameState): number {
+  return rand.chance(state, 0.75) ? rand.int(state, 8, 20) : rand.int(state, 21, 40);
+}
+
+/** Geschwindigkeitsfaktor so, dass die Kante insgesamt um `delayMin` länger dauert */
+function jamFactor(edge: RoadEdge, delayMin: number): number {
+  return Math.max(0.05, Math.round((edge.truckMin / (edge.truckMin + delayMin)) * 100) / 100);
+}
+
+function makeDisruption(state: GameState, edge: RoadEdge, closure: boolean, extraMin = 0): Disruption {
+  const cause = rand.pick(state, closure ? CLOSURE_CAUSES : JAM_CAUSES);
+  // Sperrungen meist 1–3 h (Unfall), Bauarbeiten/Brücken bis 4 h
+  const hours = closure ? (cause === 'Bauarbeiten' || cause === 'Brückensperrung' ? rand.int(state, 2, 4) : rand.int(state, 1, 3)) : 0;
+  return {
+    id: newId(state, 'dis'),
+    kind: closure ? 'closure' : 'jam',
+    a: edge.a,
+    b: edge.b,
+    cause,
+    from: state.time,
+    until: state.time + (closure ? hours * 60 : extraMin + rand.int(state, 45, 120)),
+    speedFactor: closure ? 0 : jamFactor(edge, jamDelay(state)),
+  };
+}
+
+/** Kanten in Fahrtrichtung bis `maxKm` voraus (ohne die gerade befahrene) mit Abstand zum LKW. */
+function edgesWithin(ctx: SimContext, trip: Trip, maxKm: number): { edge: RoadEdge; km: number }[] {
+  const out: { edge: RoadEdge; km: number }[] = [];
+  const nodes = trip.legs[trip.legIndex]?.nodes ?? [];
+  let acc = 0;
+  for (let i = 1; i < nodes.length; i++) {
+    const e = ctx.net.edgeBetween(nodes[i - 1], nodes[i]);
+    if (!e) continue;
+    const start = acc;
+    acc += e.km;
+    if (start <= trip.progressKm) continue; // bereits befahren oder gerade darauf
+    const dist = start - trip.progressKm;
+    if (dist > maxKm) break;
+    out.push({ edge: e, km: dist });
+  }
+  return out;
+}
+
+/** Stündlich: abgelaufene Störungen aufheben, neue erzeugen – je fahrendem LKW nach gefahrener Strecke, dazu wenige im ganzen Netz. */
 export function updateDisruptions(state: GameState, ctx: SimContext): void {
   state.disruptions ??= [];
   const lifted = state.disruptions.filter((d) => d.until <= state.time && d.kind === 'closure');
@@ -120,34 +174,47 @@ export function updateDisruptions(state: GameState, ctx: SimContext): void {
       if (diff !== null && diff < 0) trip.log.push({ t: state.time, text: `Sperrung aufgehoben – zurück auf die kürzere Route (${Math.round(diff)} km)` });
     }
 
-  let created: Disruption | undefined;
-  if (state.disruptions.length < MAX_DISRUPTIONS && rand.chance(state, 0.45 * state.difficulty.eventFactor)) {
-    const ahead = Object.values(state.trips)
-      .filter((t) => t.phase !== 'done')
-      .flatMap((t) => edgesAhead(ctx, t));
-    const pool = (ahead.length && rand.chance(state, 0.6) ? ahead : ctx.net.edges).filter((e) => !e.ferry && !disruptionOnEdge(state, e));
+  const ef = state.difficulty.eventFactor;
+  let closureCreated = false;
+
+  // Störungen auf den Strecken der eigenen LKW: proportional zur gefahrenen Strecke (eine Stunde Fahrt ≈ 70 km)
+  const perHour = AVG_KMH / 1000;
+  for (const trip of Object.values(state.trips)) {
+    if (trip.phase !== 'to_pickup' && trip.phase !== 'to_delivery') continue;
+    if (trip.activity !== 'driving') continue;
+    const closure = rand.chance(state, perHour * CLOSURES_PER_1000_KM * ef);
+    if (!closure && !rand.chance(state, perHour * JAMS_PER_1000_KM * ef)) continue;
+    const ahead = edgesWithin(ctx, trip, AHEAD_KM).filter((x) => !x.edge.ferry);
+    // höchstens eine Störung gleichzeitig vor einem LKW
+    if (!ahead.length || ahead.some((x) => disruptionOnEdge(state, x.edge))) continue;
+    const { edge, km } = rand.pick(state, ahead);
+    const d = makeDisruption(state, edge, closure, Math.round((km / AVG_KMH) * 60));
+    state.disruptions.push(d);
+    closureCreated ||= closure;
+    const delay = Math.round(edge.truckMin * (1 / Math.max(0.05, d.speedFactor) - 1));
+    addLog(state, {
+      level: 'warning',
+      category: 'trip',
+      text: `Verkehr: ${disruptionLabel(d)} bis ca. ${formatDateTime(d.until)}${d.kind === 'jam' ? ` – Zeitverlust ca. ${formatDuration(delay)}` : ''}.`,
+      ref: { kind: 'trip', id: trip.id },
+    });
+  }
+
+  // Hintergrund: Verkehrslage im übrigen Netz
+  const background = state.disruptions.length - Object.values(state.trips).filter((t) => t.phase !== 'done').length;
+  if (background < MAX_DISRUPTIONS - 2 && rand.chance(state, BACKGROUND_RATE * ef)) {
+    const pool = ctx.net.edges.filter((e) => !e.ferry && !disruptionOnEdge(state, e));
     if (pool.length) {
       const edge = rand.pick(state, pool);
-      const closure = rand.chance(state, 0.3);
-      created = {
-        id: newId(state, 'dis'),
-        kind: closure ? 'closure' : 'jam',
-        a: edge.a,
-        b: edge.b,
-        cause: rand.pick(state, closure ? CLOSURE_CAUSES : JAM_CAUSES),
-        from: state.time,
-        until: state.time + (closure ? rand.int(state, 2, 8) : rand.int(state, 1, 3)) * 60,
-        speedFactor: closure ? 0 : Math.round(rand.float(state, 0.3, 0.6) * 100) / 100,
-      };
-      state.disruptions.push(created);
-      const affects = ahead.includes(edge);
-      if (closure || affects)
-        addLog(state, {
-          level: affects ? 'warning' : 'info',
-          category: 'trip',
-          text: `Verkehr: ${disruptionLabel(created)} bis ca. ${formatDateTime(created.until)}${created.kind === 'jam' ? ` – Zeitverlust bis ${formatDuration(Math.round((ctx.net.edgeBetween(edge.a, edge.b)!.truckMin * (1 / created.speedFactor - 1))))}` : ''}.`,
-        });
+      const closure = rand.chance(state, 0.25);
+      const d = makeDisruption(state, edge, closure);
+      state.disruptions.push(d);
+      // trifft zufällig eine eigene Route?
+      const affects = Object.values(state.trips).some((t) => t.phase !== 'done' && edgesAhead(ctx, t).includes(edge));
+      closureCreated ||= closure && affects;
+      if (affects || closure)
+        addLog(state, { level: affects ? 'warning' : 'info', category: 'trip', text: `Verkehr: ${disruptionLabel(d)} bis ca. ${formatDateTime(d.until)}.` });
     }
   }
-  if (created?.kind === 'closure') rerouteAffected(state, ctx);
+  if (closureCreated) rerouteAffected(state, ctx);
 }

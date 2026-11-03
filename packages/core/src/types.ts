@@ -273,7 +273,15 @@ export interface Player {
   permissions: Permission[];
   character: Character;
   online?: boolean;
+  /** Rolle im Team (Vorlage für die Rechte) */
+  role?: TeamRole;
+  /** höchste Einzelausgabe vom Firmenkonto in Cent; fehlt = unbegrenzt */
+  spendLimit?: Money;
+  /** nur diese Standorte verwalten; fehlt/leer = alle */
+  locationIds?: Id[];
 }
+
+export type TeamRole = 'ceo' | 'dispatcher' | 'fleet_manager' | 'hr_manager' | 'custom';
 
 /** Lenk- und Ruhezeiten (vereinfachtes Modell der VO (EG) 561/2006, siehe GAME_DESIGN.md). */
 export interface HoursOfService {
@@ -583,6 +591,74 @@ export interface ChatMessage {
   text: string;
 }
 
+/** Interne Nachricht zwischen Spielern (nur Absender und Empfänger sehen sie). */
+export interface InternalMessage {
+  id: Id;
+  t: GameTime;
+  from: Id;
+  to: Id[];
+  subject: string;
+  text: string;
+  readBy: Id[];
+  ref?: { kind: 'order' | 'trip' | 'vehicle' | 'driver'; id: Id };
+}
+
+export type TaskArea = 'dispatch' | 'fleet' | 'personnel' | 'finance' | 'expansion' | 'general';
+export type TaskStatus = 'open' | 'doing' | 'done';
+
+/** Aufgabe im Team (Aufgabenverteilung) */
+export interface TeamTask {
+  id: Id;
+  title: string;
+  note?: string;
+  area: TaskArea;
+  createdBy: Id;
+  assignee?: Id;
+  created: GameTime;
+  due?: GameTime;
+  status: TaskStatus;
+  done?: GameTime;
+}
+
+export type JointKind = 'dinner' | 'event' | 'leisure' | 'meeting';
+
+/** Gemeinsame Aktivität mehrerer Spieler (Einladung → Zusage → Durchführung) */
+export interface JointActivity {
+  id: Id;
+  kind: JointKind;
+  host: Id;
+  invited: Id[];
+  accepted: Id[];
+  declined: Id[];
+  created: GameTime;
+  expires: GameTime;
+  status: 'pending' | 'done' | 'cancelled' | 'expired';
+}
+
+/** Abstimmung über eine Unternehmensentscheidung */
+export interface TeamVote {
+  id: Id;
+  question: string;
+  options: string[];
+  votes: Record<Id, number>;
+  createdBy: Id;
+  created: GameTime;
+  closes: GameTime;
+  status: 'open' | 'closed';
+  /** Index der Gewinner-Option nach Abschluss (-1 = Gleichstand/keine Stimmen) */
+  result?: number;
+}
+
+/** Zusammenarbeit im Team: Nachrichten, Aufgaben, gemeinsame Aktivitäten, Abstimmungen */
+export interface TeamState {
+  messages: InternalMessage[];
+  tasks: TeamTask[];
+  activities: JointActivity[];
+  votes: TeamVote[];
+  /** Teambesprechung: bessere Abstimmung im Vertrieb bis zu diesem Zeitpunkt */
+  meetingBonusUntil?: GameTime;
+}
+
 export interface Market {
   /** Dieselpreis netto in Cent pro Liter */
   diesel: number;
@@ -632,4 +708,6 @@ export interface GameState {
   contracts: Record<Id, Contract>;
   /** KI-Disposition: Modus, Regeln, Vorschläge */
   autoDispatch: AutoDispatchState;
+  /** Multiplayer-Zusammenarbeit */
+  team: TeamState;
 }

@@ -145,16 +145,20 @@ Stand: 02.11.2026 · Version 0.1.0
 | Auftrag im Team teilen (Chat-Link öffnet Auftrag bei allen) | Getestet (Mitspielerin teilt, Host öffnet per Klick) |
 | Internet-Multiplayer ohne Portfreigabe (Cloudflare-Tunnel, Einladung einfügen) | Getestet (Desktop-App hostet, zweiter Spieler tritt über wss-Tunneladresse bei und chattet; Prozesse enden beim Schließen) |
 | Echte Netzwerkverbindung & gemeinsame Datenhaltung | Getestet |
-| Rollen/Rechte flexibel, durch Gründer vergeben | Getestet |
-| Synchronisierung aller Spielinhalte | Getestet (vollständiger Zustand) |
+| Rollen/Rechte flexibel, durch Gründer vergeben (Rollenvorlagen Geschäftsführung, Disposition, Fuhrparkleitung, Personalleitung) | Getestet |
+| Rechtegrenzen: Ausgabenlimit je Ausgabe, nur zugewiesene Niederlassungen | Getestet (zu teurer Kauf wird vollständig zurückgerollt) |
+| Synchronisierung aller Spielinhalte | Getestet (Vollzustand beim Beitritt, danach Delta-Updates Ø 0,5 KB; Client-Zustand stimmt exakt mit dem Server überein) |
 | Serverseitige Konfliktverhinderung | Getestet |
 | Gemeinsame Spielzeit (Pause/Tempo nur Spielleitung, nur mit verbundenen Spielern) | Getestet |
 | Firmenchat, Ereignisprotokoll, Benachrichtigungen | Implementiert |
-| Interne Nachrichten an einzelne Spieler, Aufgabenverteilung | Geplant (Phase 9) |
+| Interne Nachrichten an einzelne Spieler (nur für Absender/Empfänger sichtbar) | Getestet (auch im Browser mit zwei Spielern) |
+| Aufgabenverteilung (Bereich, Zuständige, Fälligkeit, Offen/In Arbeit/Erledigt) | Getestet |
+| Abstimmungen über Unternehmensentscheidungen | Getestet |
 | Wiederverbindung ohne Schaden | Getestet |
 | Backups | Implementiert |
 | Eigene Charaktere/Privatkonten je Spieler | Implementiert |
-| Gemeinsame Aktivitäten | Geplant (Phase 9) |
+| Gemeinsame Aktivitäten (Essen, Veranstaltung, Freizeit, Geschäftsbesprechung) | Getestet (Einladung, Zusage, Wirkung, Verfall nach 12 h) |
+| Gemeinsam Immobilienprojekte planen | Offen (später) |
 | Sprachchat | Optional / später |
 
 ## 17 · Zeitsystem

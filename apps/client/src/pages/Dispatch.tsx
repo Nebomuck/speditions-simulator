@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { GripVertical, ArrowRight, Send, RotateCcw, CalendarRange, CalendarDays, List, Users, X } from 'lucide-react';
 import {
-  CITY_BY_ID, formatDateTime, formatDuration, formatTime, isTripLate, remainingKm, tripEta, dayIndex, MIN_PER_DAY, WEEKDAY_SHORT, weekday,
+  CITY_BY_ID, formatDateTime, formatDuration, formatHours, formatTime, isTripLate, remainingKm, tripEta, dayIndex, MIN_PER_DAY, WEEKDAY_SHORT, weekday,
   drivableNow, REST_KIND_LABEL, CITIES, vehicleSchedule,
 } from '@spedsim/core';
 import { CalendarView } from './Calendar.tsx';
@@ -302,7 +302,7 @@ function DriverView() {
                 <td>{trip ? `unterwegs: ${tripLabel(s, trip)}` : CITY_BY_ID[d.cityId].name}</td>
                 <td>{formatDuration(drivableNow(d.hos))}</td>
                 <td>{formatDuration(d.hos.drivenToday)} / 9 h</td>
-                <td>{formatDuration(d.hos.drivenWeek)} / 56 h</td>
+                <td>{formatHours(d.hos.drivenWeek)} / 56 h</td>
                 <td>{d.hos.requiredRest > 0 ? `${REST_KIND_LABEL[d.hos.requiredRestKind]} ${formatDuration(d.hos.requiredRest)}` : '–'}</td>
               </tr>
             );

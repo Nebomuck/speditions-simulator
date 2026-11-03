@@ -16,8 +16,14 @@ import { buildFacility, closeBranch, fireStaff, hireStaff, openBranch, promoteDr
 import { freshHos } from './hos.ts';
 import { newId } from './rng.ts';
 import { SPEEDS, toDate } from './time.ts';
-import type { Department, DispatchMode, DispatchRules, FacilityKind, GameState, Id, LocationKind, Permission, StaffGrade, TrailerType, TrainingCourse, Vehicle } from './types.ts';
+import type {
+  Department, DispatchMode, DispatchRules, FacilityKind, GameState, Id, InternalMessage, JointKind, LocationKind, Permission, Player, StaffGrade, TaskArea, TaskStatus, TeamRole, TrailerType,
+  TrainingCourse, Vehicle,
+} from './types.ts';
 import { acceptSuggestion, dismissSuggestion, setAutoDispatch } from './autodispatch.ts';
+import {
+  cancelJoint, castVote, closeVote, createTask, createVote, deleteTask, mayManageLocation, proposeJoint, readMessage, respondJoint, sendMessage, setPlayerLimits, setRole, updateTask,
+} from './team.ts';
 
 export type Command =
   | { type: 'setSpeed'; speed: number }
@@ -62,7 +68,20 @@ export type Command =
   | { type: 'life'; action: LifeAction }
   | { type: 'payDividend'; amount: number }
   | { type: 'chat'; text: string }
-  | { type: 'setPermissions'; playerId: Id; permissions: Permission[] };
+  | { type: 'setPermissions'; playerId: Id; permissions: Permission[] }
+  | { type: 'setRole'; playerId: Id; role: TeamRole }
+  | { type: 'setPlayerLimits'; playerId: Id; spendLimit: number | null; locationIds: Id[] }
+  | { type: 'sendMessage'; to: Id[]; subject: string; text: string; ref?: InternalMessage['ref'] }
+  | { type: 'readMessage'; messageId: Id }
+  | { type: 'createTask'; title: string; note?: string; area?: TaskArea; assignee?: Id; due?: number }
+  | { type: 'updateTask'; taskId: Id; status?: TaskStatus; assignee?: Id | null }
+  | { type: 'deleteTask'; taskId: Id }
+  | { type: 'proposeJoint'; kind: JointKind; playerIds: Id[] }
+  | { type: 'respondJoint'; activityId: Id; accept: boolean }
+  | { type: 'cancelJoint'; activityId: Id }
+  | { type: 'createVote'; question: string; options: string[]; hours: number }
+  | { type: 'castVote'; voteId: Id; option: number }
+  | { type: 'closeVote'; voteId: Id };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -110,7 +129,43 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   life: null,
   payDividend: 'finance',
   setPermissions: 'admin',
+  setRole: 'admin',
+  setPlayerLimits: 'admin',
+  sendMessage: null,
+  readMessage: null,
+  createTask: null,
+  updateTask: null,
+  deleteTask: null,
+  proposeJoint: null,
+  respondJoint: null,
+  cancelJoint: null,
+  createVote: null,
+  castVote: null,
+  closeVote: null,
 };
+
+/** Befehle, die Geld vom Firmenkonto ausgeben können (unterliegen dem Ausgabenlimit eines Spielers) */
+const SPENDING: ReadonlySet<Command['type']> = new Set<Command['type']>([
+  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff',
+]);
+
+/** Standort, den ein Befehl verwaltet (für die Beschränkung auf zugewiesene Niederlassungen); null = neuer Standort */
+function commandLocation(state: GameState, cmd: Command): Id | undefined | null {
+  switch (cmd.type) {
+    case 'buyNewVehicle':
+    case 'buyTrailer':
+      return cmd.locationId ?? state.company.locations.find((l) => l.cityId === state.company.hqCityId)?.id;
+    case 'upgradeLocation':
+    case 'closeBranch':
+    case 'buildFacility':
+    case 'hireStaff':
+      return cmd.locationId;
+    case 'openBranch':
+      return null;
+    default:
+      return undefined;
+  }
+}
 
 export const ALL_PERMISSIONS: Permission[] = ['dispatch', 'fleet', 'purchase', 'sellVehicles', 'personnel', 'fireStaff', 'finance', 'loans', 'expansion', 'admin'];
 
@@ -150,7 +205,26 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
   const perm = COMMAND_PERMISSION[cmd.type];
   if (perm === undefined) return fail('Unbekannter Befehl.');
   if (perm && !actor.permissions.includes(perm)) return fail(`Keine Berechtigung: ${PERMISSION_LABEL[perm]}.`);
+  const loc = commandLocation(state, cmd);
+  if (loc === null && actor.locationIds?.length) return fail('Keine Berechtigung: Du verwaltest nur zugewiesene Niederlassungen.');
+  if (loc && !mayManageLocation(actor, loc)) return fail('Keine Berechtigung: Dieser Standort ist dir nicht zugewiesen.');
+  if (actor.spendLimit === undefined || !SPENDING.has(cmd.type)) return execute(state, ctx, actor, cmd);
 
+  // Ausgabenlimit: Befehl ausführen und zurückrollen, wenn er mehr kostet als erlaubt
+  const before = structuredClone(state);
+  const balance = state.company.account.balance;
+  const result = execute(state, ctx, actor, cmd);
+  const spent = balance - state.company.account.balance;
+  if (result.ok && spent > actor.spendLimit) {
+    for (const k of Object.keys(state) as (keyof GameState)[]) delete state[k];
+    Object.assign(state, before);
+    return fail(`Ausgabenlimit überschritten: ${formatMoney(spent)} – du darfst höchstens ${formatMoney(actor.spendLimit)} je Ausgabe freigeben.`);
+  }
+  return result;
+}
+
+function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command): CommandResult {
+  const actorId = actor.id;
   switch (cmd.type) {
     case 'setSpeed': {
       if (!SPEEDS.includes(cmd.speed as (typeof SPEEDS)[number])) return fail('Ungültige Geschwindigkeit.');
@@ -505,9 +579,36 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
       if (!p) return fail('Spieler nicht gefunden.');
       if (p.isFounder) return fail('Rechte des Firmengründers können nicht geändert werden.');
       p.permissions = cmd.permissions.filter((x) => ALL_PERMISSIONS.includes(x));
+      p.role = 'custom';
       addLog(state, { level: 'info', category: 'multiplayer', text: `Rechte von ${p.name} geändert.` });
       return { ok: true };
     }
+    case 'setRole':
+      return setRole(state, cmd.playerId, cmd.role);
+    case 'setPlayerLimits':
+      return setPlayerLimits(state, cmd.playerId, cmd.spendLimit, cmd.locationIds ?? []);
+    case 'sendMessage':
+      return sendMessage(state, actorId, cmd.to ?? [], cmd.subject, cmd.text, cmd.ref);
+    case 'readMessage':
+      return readMessage(state, actorId, cmd.messageId);
+    case 'createTask':
+      return createTask(state, actorId, cmd);
+    case 'updateTask':
+      return updateTask(state, actorId, cmd.taskId, { status: cmd.status, assignee: cmd.assignee });
+    case 'deleteTask':
+      return deleteTask(state, actorId, cmd.taskId);
+    case 'proposeJoint':
+      return proposeJoint(state, actorId, cmd.kind, cmd.playerIds ?? []);
+    case 'respondJoint':
+      return respondJoint(state, actorId, cmd.activityId, !!cmd.accept);
+    case 'cancelJoint':
+      return cancelJoint(state, actorId, cmd.activityId);
+    case 'createVote':
+      return createVote(state, actorId, cmd.question, cmd.options, cmd.hours);
+    case 'castVote':
+      return castVote(state, actorId, cmd.voteId, cmd.option);
+    case 'closeVote':
+      return closeVote(state, actorId, cmd.voteId);
   }
 }
 

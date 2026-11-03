@@ -171,9 +171,30 @@ Ein benutzerdefinierter Schwierigkeitsgrad ist im Datenmodell vorhanden (`custom
 
 Mehrere Spieler leiten **dieselbe** Firma. Der Server simuliert allein (serverautoritativ), Clients senden Befehle.
 
-- **Rechte:** Disposition, Fuhrpark, Beschaffung, Fahrzeugverkauf, Einstellen, Entlassen, Finanzen, Kredite, Standorte, Spielleitung. Der Gründer hat alle Rechte und vergibt sie. Neue Spieler starten mit Disposition und Fuhrpark.
+- **Rechte:** Disposition, Fuhrpark, Beschaffung, Fahrzeugverkauf, Einstellen, Entlassen, Finanzen, Kredite, Standorte, Spielleitung. Der Gründer hat alle Rechte und vergibt sie.
+- **Rollen** sind Vorlagen für die Rechte; einzelne Rechte lassen sich danach anpassen (Rolle „Individuell“). Neue Spieler starten als Disposition.
+
+  | Rolle | Aufgaben | Rechte |
+  |---|---|---|
+  | Geschäftsführung | Investitionen, Finanzen, Unternehmensentwicklung, Verträge | alle |
+  | Disposition | Aufträge, Fahrerzuweisung, Routenplanung, Live-Überwachung | Disposition |
+  | Fuhrparkleitung | Fahrzeuge, Reparaturen, Wartung, Beschaffung | Fuhrpark, Beschaffung, Fahrzeugverkauf |
+  | Personalleitung | Mitarbeiter, Gehälter, Urlaub, Weiterbildung, Personalgewinnung | Einstellen, Entlassen |
+
+- **Grenzen je Spieler:** Ausgabenlimit je Ausgabe vom Firmenkonto (z. B. „keine großen Investitionen über 20.000 €“) und „nur zugewiesene Niederlassungen verwalten“ (Ausbau, Einrichtungen, Büropersonal und Lieferort neuer Fahrzeuge). Wer auf Niederlassungen beschränkt ist, kann keine neuen eröffnen.
 - **Gemeinsame Spielzeit:** Nur Spieler mit dem Recht „Spielleitung“ ändern Tempo und Pause. Die Zeit läuft nur, solange mindestens ein Spieler verbunden ist.
-- **Kommunikation:** Firmenchat, Ereignisprotokoll und Benachrichtigungen.
+- **Kommunikation:** Firmenchat (alle), interne Nachrichten (nur Absender und Empfänger), Ereignisprotokoll und Benachrichtigungen. Neue Nachrichten, zugewiesene Aufgaben, Einladungen und Abstimmungen erscheinen als Meldung und als Zähler im Menü.
+- **Aufgabenverteilung:** Aufgaben mit Bereich, Zuständigem und Fälligkeit; Spalten Offen → In Arbeit → Erledigt. Löschen darf, wer sie angelegt hat, oder die Spielleitung.
+- **Gemeinsame Aktivitäten:** Ein Spieler lädt Mitspieler ein; die Aktivität findet statt, sobald alle geantwortet haben, spätestens nach 12 Spielstunden mit allen Zusagen (mindestens zwei Teilnehmer). Jeder zahlt vom eigenen Privatkonto. Gesellige Aktivitäten wirken je weiterem Teilnehmer 15 % stärker.
+
+  | Aktivität | Dauer | Kosten p. P. | Wirkung |
+  |---|---|---|---|
+  | Zusammen essen gehen | 2 h | 55 € | Sättigung +25, Geselligkeit +14, Freizeit +8 |
+  | Veranstaltung besuchen | 4 h | 80 € | Freizeit +20, Geselligkeit +12, Stress −8 |
+  | Gemeinsame Freizeit | 3 h | 35 € | Freizeit +16, Geselligkeit +10, Stress −8 |
+  | Geschäftsbesprechung | 2 h | – | eine Woche +2 % auf neue Auftragsangebote |
+
+- **Abstimmungen** über Unternehmensentscheidungen: 2–6 Antworten, Laufzeit 6 h bis 1 Woche. Ausgewertet wird, sobald alle abgestimmt haben, bei Ablauf oder vorzeitig durch den Ersteller bzw. die Spielleitung. Bei Gleichstand gibt es keine Entscheidung.
 - **Eigene Charaktere:** Jeder Spieler hat ein eigenes Privatkonto, das Firmenkonto ist gemeinsam.
 
 ## 16. Spielfortschritt: Unternehmensstufen

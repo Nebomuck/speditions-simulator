@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   CITIES, CITY_BY_ID, CARGO_BY_ID, GameSession, HOS_RULES, PRIVATE_LIVING_COST, TRAILER_BY_TYPE, applyCommand, book,
   deserializeSave, haversineKm, serializeSave, tickMinutes, vehicleMarker, processMonthEnd, generateOrder, SaveError, createInvoice,
-  TRUCK_BY_ID, estimateTrip, vehicleSchedule, STATE_VERSION, planCoLoad, ordersOnBoard, rerouteAffected, routeNow, tripEta, updateDisruptions,
+  TRUCK_BY_ID, estimateTrip, vehicleSchedule, STATE_VERSION, planCoLoad, ordersOnBoard, rerouteAffected, routeNow, tripEta, updateDisruptions, disruptionLabel,
   type Disruption, type Contract, generateContractOffer, marketSalary, COURSES, dailyPersonnel, tradeInValue, MIN_PER_DAY,
   type GameState, LOCATION_DEFS, BRANCH_SETUP_COST, capacity, monthlyFixedCosts, dailyCompany, monthlyCompany, serviceCost, dispatchShortfall,
   satisfactionFactors, accountingRiskFactor, salesVolumeFactor, warehouseIncome, companyValue, runAutoDispatch, searchDepth,
   type LifeAction, dailyLife, ceoManagedVehicles, ACTIVITIES, isAway, negotiationBonus, HOMES, MOVING_COST, goalDone, privateWealth,
   monthlyPrivateCosts, LIVING_BASE, CHILD_COST, DIVIDEND_TAX,
+  addPlayer, TEAM_ROLES, playerView, unreadMessages, openTasksFor, pendingInvitesFor, JOINT_ACTIVITIES, meetingBonus, hourlyTeam, voteCounts,
+  diffState, applyPatch, sameJson,
 } from '../src/index.ts';
 import { addOrder, ctx, first, newGame, runUntil } from './helpers.ts';
 
@@ -606,6 +608,41 @@ describe('Verkehrsstörungen und Umleitung', () => {
     }
     expect(created).toBeGreaterThan(10);
     expect(s.disruptions.length).toBeLessThanOrEqual(6);
+  });
+
+  it('Störungen vor eigenen LKW richten sich nach der Strecke: selten, höchstens eine voraus, Stau kostet unter einer Stunde', () => {
+    const s = newGame(5);
+    s.difficulty.eventFactor = 1;
+    const [d, v, t] = [first(s.drivers), first(s.vehicles), first(s.trailers)];
+    const o = addOrder(s, 'leipzig', 'muenchen');
+    applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+    const trip = s.trips[v.tripId!];
+    trip.activity = 'driving';
+    trip.phase = 'to_delivery';
+    trip.legIndex = trip.legs.length - 1;
+    trip.progressKm = 0;
+    let jams = 0;
+    let closures = 0;
+    // 2.000 Fahrstunden ≈ 140.000 km
+    for (let h = 0; h < 2000; h++) {
+      s.time += 60;
+      s.disruptions = [];
+      updateDisruptions(s, ctx);
+      const mine = s.disruptions.filter((x) => s.log.some((l) => l.ref?.id === trip.id && l.t === s.time && l.text.startsWith('Verkehr:') && l.text.includes(disruptionLabel(x))));
+      expect(mine.length).toBeLessThanOrEqual(1);
+      for (const x of mine) {
+        if (x.kind === 'closure') closures++;
+        else {
+          jams++;
+          const e = ctx.net.edgeBetween(x.a, x.b)!;
+          expect(e.truckMin * (1 / x.speedFactor - 1)).toBeLessThan(60);
+        }
+      }
+    }
+    // erwartet ≈ 140 Staus und ≈ 17 Sperrungen
+    expect(jams).toBeGreaterThan(80);
+    expect(jams).toBeLessThan(220);
+    expect(closures).toBeLessThan(40);
   });
 
   it('Spielstände der Version 2 erhalten Halte je Fahrt und eine leere Störungsliste', () => {
@@ -1223,5 +1260,155 @@ describe('Lebenssimulation: Bedürfnisse, Work-Life-Balance, Wohnen, Beziehungen
     expect(c.workStyle).toBe('hands_on');
     expect(c.relations).toEqual([]);
     expect(c.skills.logistics).toBe(30);
+  });
+});
+
+describe('Multiplayer-Zusammenarbeit (Phase 9)', () => {
+  const withTeam = () => {
+    const s = newGame();
+    addPlayer(s, { id: 'p2', name: 'Ben' });
+    addPlayer(s, { id: 'p3', name: 'Cem' });
+    return s;
+  };
+
+  it('Rollen setzen passende Rechte; Ausgabenlimit rollt zu teure Befehle vollständig zurück', () => {
+    const s = withTeam();
+    expect(s.players.p2.role).toBe('dispatcher');
+    expect(s.players.p2.permissions).toEqual(['dispatch']);
+    expect(applyCommand(s, ctx, 'p2', { type: 'setRole', playerId: 'p2', role: 'ceo' }).ok).toBe(false);
+    expect(applyCommand(s, ctx, 'p1', { type: 'setRole', playerId: 'p2', role: 'fleet_manager' }).ok).toBe(true);
+    expect(s.players.p2.permissions).toEqual(TEAM_ROLES.fleet_manager.permissions);
+    expect(applyCommand(s, ctx, 'p1', { type: 'setRole', playerId: 'p1', role: 'dispatcher' }).ok).toBe(false);
+
+    s.company.account.balance = 400_000_00;
+    expect(applyCommand(s, ctx, 'p1', { type: 'setPlayerLimits', playerId: 'p2', spendLimit: 20_000_00, locationIds: [] }).ok).toBe(true);
+    const before = JSON.stringify(s);
+    const r = applyCommand(s, ctx, 'p2', { type: 'buyNewVehicle', modelId: 'velkor-s460', financing: 'cash' });
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.error).toMatch(/Ausgabenlimit/);
+    expect(JSON.stringify(s)).toBe(before);
+    // kleine Ausgabe (Auflieger leasen) bleibt erlaubt
+    expect(applyCommand(s, ctx, 'p2', { type: 'buyTrailer', trailerType: 'box', financing: 'lease' }).ok).toBe(true);
+  });
+
+  it('Beschränkung auf zugewiesene Niederlassungen', () => {
+    const s = withTeam();
+    s.company.account.balance = 400_000_00;
+    const hq = s.company.locations[0];
+    s.company.locations.push({ ...structuredClone(hq), id: 'locx', cityId: 'hamburg' });
+    applyCommand(s, ctx, 'p1', { type: 'setRole', playerId: 'p2', role: 'hr_manager' });
+    applyCommand(s, ctx, 'p1', { type: 'setPlayerLimits', playerId: 'p2', spendLimit: null, locationIds: ['locx'] });
+    expect(s.players.p2.locationIds).toEqual(['locx']);
+    const denied = applyCommand(s, ctx, 'p2', { type: 'hireStaff', dept: 'dispatch', locationId: hq.id });
+    expect(denied.ok === false && denied.error).toMatch(/nicht zugewiesen/);
+    expect(applyCommand(s, ctx, 'p2', { type: 'hireStaff', dept: 'dispatch', locationId: 'locx' }).ok).toBe(true);
+  });
+
+  it('Interne Nachrichten sehen nur Absender und Empfänger; Aufgaben werden verteilt und erledigt', () => {
+    const s = withTeam();
+    expect(applyCommand(s, ctx, 'p1', { type: 'sendMessage', to: ['p2'], subject: 'Gehalt', text: 'Vertraulich' }).ok).toBe(true);
+    const id = s.team.messages[0].id;
+    expect(unreadMessages(s, 'p2')).toBe(1);
+    expect(playerView(s, 'p3').team.messages).toHaveLength(0);
+    expect(playerView(s, 'p2').team.messages).toHaveLength(1);
+    expect(playerView(s, 'p1')).toBe(s);
+    expect(applyCommand(s, ctx, 'p3', { type: 'readMessage', messageId: id }).ok).toBe(false);
+    applyCommand(s, ctx, 'p2', { type: 'readMessage', messageId: id });
+    expect(unreadMessages(s, 'p2')).toBe(0);
+
+    const t = applyCommand(s, ctx, 'p1', { type: 'createTask', title: 'Werkstatttermine planen', area: 'fleet', assignee: 'p3' });
+    expect(t.ok).toBe(true);
+    const tid = t.ok ? t.id! : '';
+    expect(openTasksFor(s, 'p3')).toBe(1);
+    expect(applyCommand(s, ctx, 'p3', { type: 'updateTask', taskId: tid, status: 'done' }).ok).toBe(true);
+    expect(openTasksFor(s, 'p3')).toBe(0);
+    expect(applyCommand(s, ctx, 'p2', { type: 'deleteTask', taskId: tid }).ok).toBe(false);
+    expect(applyCommand(s, ctx, 'p1', { type: 'deleteTask', taskId: tid }).ok).toBe(true);
+  });
+
+  it('Gemeinsame Aktivität: Einladung, Zusage, Wirkung für alle; Besprechung verbessert die Angebotspreise', () => {
+    const s = withTeam();
+    for (const p of Object.values(s.players)) p.character.needs.social = 20;
+    const r = applyCommand(s, ctx, 'p1', { type: 'proposeJoint', kind: 'dinner', playerIds: ['p2', 'p3'] });
+    expect(r.ok).toBe(true);
+    const id = r.ok ? r.id! : '';
+    expect(pendingInvitesFor(s, 'p2')).toBe(1);
+    const bal = s.players.p2.character.privateAccount.balance;
+    applyCommand(s, ctx, 'p2', { type: 'respondJoint', activityId: id, accept: true });
+    expect(s.team.activities[0].status).toBe('pending');
+    applyCommand(s, ctx, 'p3', { type: 'respondJoint', activityId: id, accept: false });
+    expect(s.team.activities[0].status).toBe('done');
+    expect(s.players.p2.character.privateAccount.balance).toBe(bal - JOINT_ACTIVITIES.dinner.cost);
+    expect(s.players.p1.character.needs.social).toBeGreaterThan(20);
+    expect(s.players.p3.character.needs.social).toBe(20);
+
+    // Besprechung: alle sagen zu → eine Woche +2 % auf Angebote
+    s.time += 3 * 60;
+    expect(meetingBonus(s)).toBe(0);
+    const m = applyCommand(s, ctx, 'p2', { type: 'proposeJoint', kind: 'meeting', playerIds: ['p1'] });
+    applyCommand(s, ctx, 'p1', { type: 'respondJoint', activityId: m.ok ? m.id! : '', accept: true });
+    expect(meetingBonus(s)).toBeCloseTo(0.02);
+    s.time += 8 * MIN_PER_DAY;
+    expect(meetingBonus(s)).toBe(0);
+
+    // unbeantwortete Einladung verfällt nach 12 h
+    applyCommand(s, ctx, 'p3', { type: 'proposeJoint', kind: 'leisure', playerIds: ['p1'] });
+    s.time += 13 * 60;
+    hourlyTeam(s);
+    expect(s.team.activities.at(-1)!.status).toBe('expired');
+  });
+
+  it('Abstimmung über eine Unternehmensentscheidung', () => {
+    const s = withTeam();
+    const r = applyCommand(s, ctx, 'p2', { type: 'createVote', question: 'Niederlassung in Hamburg?', options: ['Ja', 'Nein'], hours: 24 });
+    const id = r.ok ? r.id! : '';
+    applyCommand(s, ctx, 'p1', { type: 'castVote', voteId: id, option: 0 });
+    applyCommand(s, ctx, 'p2', { type: 'castVote', voteId: id, option: 0 });
+    expect(s.team.votes[0].status).toBe('open');
+    applyCommand(s, ctx, 'p3', { type: 'castVote', voteId: id, option: 1 });
+    expect(s.team.votes[0].status).toBe('closed');
+    expect(s.team.votes[0].result).toBe(0);
+    expect(voteCounts(s.team.votes[0])).toEqual([2, 1]);
+    // Ablauf schließt offene Abstimmungen
+    applyCommand(s, ctx, 'p1', { type: 'createVote', question: 'Mehr Kühlauflieger?', options: ['Ja', 'Nein'], hours: 1 });
+    s.time += 61;
+    hourlyTeam(s);
+    expect(s.team.votes[1].status).toBe('closed');
+    expect(s.team.votes[1].result).toBe(-1);
+  });
+
+  it('Delta-Synchronisation: Diff und Patch ergeben über viele Spielstunden exakt den Serverzustand', () => {
+    const s = withTeam();
+    const v = first(s.vehicles), d = first(s.drivers), t = first(s.trailers);
+    const o = addOrder(s, 'leipzig', 'muenchen');
+    applyCommand(s, ctx, 'p1', { type: 'dispatch', orderId: o.id, driverId: d.id, vehicleId: v.id, trailerId: t.id });
+    let client: GameState = JSON.parse(JSON.stringify(s));
+    let full = 0;
+    let delta = 0;
+    for (let i = 0; i < 48; i++) {
+      tickMinutes(s, ctx, 30);
+      if (i % 7 === 0) applyCommand(s, ctx, 'p2', { type: 'chat', text: `Nachricht ${i}` });
+      const ops = JSON.parse(JSON.stringify(diffState(client, s)));
+      client = applyPatch(client, ops);
+      full += JSON.stringify(s).length;
+      delta += JSON.stringify(ops).length;
+      expect(sameJson(client, JSON.parse(JSON.stringify(s)))).toBe(true);
+    }
+    expect(delta).toBeLessThan(full / 10);
+    // unveränderte Teile bleiben dasselbe Objekt (strukturelles Teilen)
+    const after = applyPatch(client, [{ p: ['company', 'name'], v: 'Neu' }]);
+    expect(after.vehicles).toBe(client.vehicles);
+    expect(after.company).not.toBe(client.company);
+    expect(diffState({ a: [1, 2, 3, 4] }, { a: [3, 4, 5] })).toEqual([{ p: ['a'], drop: 2, push: [5] }]);
+  });
+
+  it('Spielstände der Version 7 erhalten den Teambereich und Rollen', () => {
+    const s = newGame();
+    const old = JSON.parse(JSON.stringify(s));
+    delete old.team;
+    delete old.players.p1.role;
+    const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":7'));
+    expect(loaded.team).toEqual({ messages: [], tasks: [], activities: [], votes: [] });
+    expect(loaded.players.p1.role).toBe('ceo');
   });
 });

@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.9.0 – 03.11.2026
+
+- **Multiplayer – Zusammenarbeit im Team** (Team & Kommunikation, jetzt mit Tabs):
+  - Rollen: Geschäftsführung, Disposition, Fuhrparkleitung, Personalleitung oder individuell. Die Rolle setzt passende Rechte; neue Mitspieler starten als Disposition.
+  - Grenzen je Spieler: Ausgabenlimit je Ausgabe vom Firmenkonto und „nur zugewiesene Niederlassungen verwalten“.
+  - Interne Nachrichten an einzelne Mitspieler (nur für Absender und Empfänger sichtbar), mit Posteingang, Gesendet und Antworten.
+  - Aufgabenverteilung mit Bereich, Zuständigem und Fälligkeit: Offen → In Arbeit → Erledigt.
+  - Gemeinsame Aktivitäten: zusammen essen gehen, Veranstaltung, Freizeit und Geschäftsbesprechung (eine Woche +2 % auf neue Aufträge). Einladung, Zusage, jeder zahlt privat.
+  - Abstimmungen über Unternehmensentscheidungen.
+  - Neue Nachrichten, Aufgaben, Einladungen und Abstimmungen erscheinen als Meldung und als Zähler im Menü.
+- **Delta-Synchronisation:** Nach dem Beitritt schickt der Server nur noch Änderungen statt des ganzen Spielstands – im Schnitt 0,5 KB statt 160 KB je Aktualisierung. Das entlastet langsame Verbindungen und den Tunnel deutlich.
+- Anleitung für einen eigenen Server mit TLS hinter Caddy (README).
+- Dashboard: Die Mitarbeiterzahl zählt jetzt auch das Büropersonal.
+- **Verkehrsstörungen realistischer:** Staus und Sperrungen entstehen jetzt nach der gefahrenen Strecke statt pauschal pro Stunde – im Schnitt etwa ein Stau je 1.000 km und eine Sperrung je 8.000 km. Vor einem LKW liegt höchstens eine Störung gleichzeitig.
+  - Ein Stau kostet meist 8–20 Minuten, selten bis 40 Minuten (vorher konnte ein Stau eine ganze lange Strecke auf 30–60 % Tempo bremsen).
+  - Sperrungen sind kürzer: meist 1–3 Stunden, Bauarbeiten und Brückensperrungen 2–4 Stunden.
+  - Messung mit einem LKW über 15 Tage: Zeitverlust durch Staus von 9 % auf rund 1 % der Fahrzeit, Umleitungen von 14 auf 1, Warten an Sperrungen von 7 h auf 0 h.
+- Die Wochenlenkzeit wird in Stunden angezeigt (z. B. „42 h 18 min“) statt in Tagen.
+
 ## 0.8.0 – 03.11.2026
 
 - **Lebenssimulation:** Das Privatleben wirkt jetzt tatsächlich und beeinflusst die Firma.

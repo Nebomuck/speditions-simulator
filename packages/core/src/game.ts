@@ -10,11 +10,12 @@ import { freshHos } from './hos.ts';
 import { updateOrderMarket } from './orders.ts';
 import { defaultAutoDispatch } from './autodispatch.ts';
 import { BACKGROUNDS } from './life.ts';
+import { TEAM_ROLES } from './team.ts';
 import { newId } from './rng.ts';
 import { toDate } from './time.ts';
-import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player } from './types.ts';
+import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, TeamRole } from './types.ts';
 
-export const STATE_VERSION = 7;
+export const STATE_VERSION = 8;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.15, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -104,6 +105,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     disruptions: [],
     contracts: {},
     autoDispatch: defaultAutoDispatch(),
+    team: { messages: [], tasks: [], activities: [], votes: [] },
   };
 
   const founderId = opts.founder.id ?? newId(state, 'pl');
@@ -159,14 +161,16 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
 
 export function addPlayer(
   state: GameState,
-  p: { id: Id; name: string; isFounder?: boolean; permissions?: Permission[]; character?: Partial<Character> },
+  p: { id: Id; name: string; isFounder?: boolean; permissions?: Permission[]; role?: TeamRole; character?: Partial<Character> },
 ): Player {
+  const role: TeamRole = p.isFounder ? 'ceo' : (p.role ?? (p.permissions ? 'custom' : 'dispatcher'));
   const player: Player = {
     id: p.id,
     name: p.name,
     isFounder: !!p.isFounder,
-    permissions: p.permissions ?? ['dispatch', 'fleet'],
+    permissions: p.permissions ?? (role === 'custom' ? [] : [...TEAM_ROLES[role].permissions]),
     character: makeCharacter(p.name, p.character),
+    role,
   };
   state.players[p.id] = player;
   if (!p.isFounder) addLog(state, { level: 'info', category: 'multiplayer', text: `${p.name} ist der Firma beigetreten.` });
