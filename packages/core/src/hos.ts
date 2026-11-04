@@ -53,6 +53,11 @@ export function hosDrive(h: HoursOfService, min: number): void {
   checkLimits(h);
 }
 
+/** Ruhepflicht aus den Lenkzeiten ableiten (auch als Sicherheitsnetz, falls eine Grenze ohne Ruhepflicht erreicht ist). */
+export function requireRest(h: HoursOfService): void {
+  checkLimits(h);
+}
+
 function checkLimits(h: HoursOfService) {
   if (h.requiredRest > 0) return;
   if (h.drivenWeek >= HOS_RULES.WEEKLY_DRIVE || (h.drivenToday >= HOS_RULES.DAILY_DRIVE && h.daysSinceWeeklyRest + 1 >= HOS_RULES.DAYS_BEFORE_WEEKLY)) {
@@ -73,7 +78,24 @@ export function hosRest(h: HoursOfService, min: number): void {
   h.restStreak += min;
   if (h.requiredRest > 0) {
     h.requiredRest = Math.max(0, h.requiredRest - min);
-    if (h.requiredRest === 0) h.requiredRestKind = 'none';
+    if (h.requiredRest === 0) {
+      // Pflichtruhe abgeleistet – auch wenn sie unterbrochen war (z. B. Warten an der Ladestelle, dann Beladen,
+      // dann der Rest der Ruhe). Ohne das blieb die Lenkzeit erschöpft, ohne dass eine Ruhe verlangt wurde:
+      // Der Fahrer pendelte endlos zwischen Pause und Fahren.
+      const kind = h.requiredRestKind;
+      h.requiredRestKind = 'none';
+      if (kind === 'break') h.drivenSinceBreak = 0;
+      else if (kind === 'daily') {
+        if (h.drivenToday > 0) h.daysSinceWeeklyRest += 1;
+        h.drivenToday = 0;
+        h.drivenSinceBreak = 0;
+      } else if (kind === 'weekly') {
+        h.drivenWeek = 0;
+        h.daysSinceWeeklyRest = 0;
+        h.drivenToday = 0;
+        h.drivenSinceBreak = 0;
+      }
+    }
   }
   if (h.restStreak >= HOS_RULES.BREAK) h.drivenSinceBreak = 0;
   if (before < HOS_RULES.DAILY_REST && h.restStreak >= HOS_RULES.DAILY_REST) {
@@ -110,6 +132,11 @@ export function simulateDriving(h: HoursOfService, driveMin: number): { elapsed:
       continue;
     }
     const chunk = Math.min(left, drivableNow(h));
+    if (chunk <= 0) {
+      requireRest(h);
+      if (h.requiredRest <= 0) break;
+      continue;
+    }
     hosDrive(h, chunk);
     elapsed += chunk;
     left -= chunk;

@@ -2,13 +2,14 @@
 
 Automatisierte Tests: `npm test` (Vitest). Typprüfung: `npm run typecheck`.
 
-**Stand 04.11.2026: 133/133 bestanden** (6 Testdateien, Laufzeit ≈ 80 s; davon ≈ 70 s für den Abschlusstest, der parallel läuft).
+**Stand 04.11.2026: 136/136 bestanden** (7 Testdateien, Laufzeit ≈ 80 s; davon ≈ 70 s für den Abschlusstest, der parallel läuft).
 
 | Datei | Tests | Inhalt |
 |---|---|---|
 | `packages/core/test/core.test.ts` | 91 | Simulationskern: alle Spielsysteme der Phasen 1–12 |
 | `packages/core/test/decisions.test.ts` | 16 | Fokus Firma, Wochenroutine, Entscheidungskarten und Pause bei Entscheidungen, Ausschreibungen, Migration auf Version 10 |
 | `packages/core/test/fun2.test.ts` | 15 | Premium-Aufträge (Genehmigung, Messe-Strafe, keine Beiladung, KI lässt sie liegen), Fahrereigenschaften und Geschichten, Quartalsziele und Bonität, Szenarien, Erfolge und Rekorde, Migration auf Version 11 |
+| `packages/core/test/hos-regression.test.ts` | 3 | unterbrochene Pflichtruhe (Warten → Beladen → Rest), Planung und Fahrt bei erschöpfter Lenkzeit ohne Ruhepflicht |
 | `packages/core/test/playthrough.test.ts` | 1 | Abschlusstest: Spielablauf von der Gründung bis Unternehmensstufe 4 |
 | `apps/server/test/multiplayer.test.ts` | 4 | echter WebSocket-Server, Konfiguration, Betrieb |
 | `apps/client/test/invite.test.ts` | 3 | Einladungen (Adresse/Code) |

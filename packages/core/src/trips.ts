@@ -9,7 +9,7 @@ import { FUEL_RESERVE, FUEL_STOP_MIN, UNLOAD_MIN_FACTOR, consumptionPerKm, penal
 import { disruptionLabel, disruptionOnEdge, routeNow } from './disruptions.ts';
 import { onContractDelivery } from './contracts.ts';
 import { addLog, adjustSatisfaction, book, createInvoice, formatMoney } from './finance.ts';
-import { HOS_RULES, drivableNow, hosDrive, hosRest, hosWork, pickupWaitMin } from './hos.ts';
+import { HOS_RULES, drivableNow, hosDrive, hosRest, hosWork, pickupWaitMin, requireRest } from './hos.ts';
 import { rand } from './rng.ts';
 import { effectiveEco, traitAccident, traitCustomerBonus, traitHandlingMin, traitSpeed, traitWear } from './traits.ts';
 import { onPremiumDelivery } from './premium.ts';
@@ -122,9 +122,11 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
 
   // Lenkzeit erschöpft → Pause/Ruhezeit
   if (drivableNow(driver.hos) <= 0) {
+    // Sicherheitsnetz: Lenkzeit erschöpft, aber keine Ruhe verlangt → Ruhepflicht nachtragen
+    if (driver.hos.requiredRest <= 0) requireRest(driver.hos);
     const kind = driver.hos.requiredRestKind;
     trip.activity = kind === 'weekly' ? 'rest_weekly' : kind === 'daily' ? 'rest_daily' : 'break';
-    trip.activityLeft = driver.hos.requiredRest;
+    trip.activityLeft = Math.max(1, driver.hos.requiredRest);
     trip.speedKmh = 0;
     tlog(state, trip, `${ACTIVITY_LABEL[trip.activity]} (${formatDuration(trip.activityLeft)})`);
     return;

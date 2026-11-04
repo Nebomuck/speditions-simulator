@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.1 – 04.11.2026
+
+- **Behoben: Fahrer hing zwischen Pause und Fahren fest.** Das passierte, wenn ein Fahrer mit erschöpfter Tageslenkzeit an der Ladestelle wartete, dann geladen wurde und den Rest der Ruhe danach nahm. Die Ruhepflicht galt dann als erledigt, die Lenkzeit blieb aber erschöpft. Eine abgeleistete Pflichtruhe zählt jetzt immer. Ein Sicherheitsnetz trägt eine fehlende Ruhe nach, deshalb fahren bereits hängende Fahrer nach einer Ruhezeit weiter.
+- **Auftragsbörse mit fahrenden LKW:** Fahrzeuge unterwegs zählen jetzt für die Umkreissuche, und zwar mit ihrer aktuellen Position und dem Ort, an dem sie frei werden. Anschlussaufträge findest du so schon während der Fahrt, nicht erst nach der Entladung.
+  - Die Auswahl zeigt für jeden LKW, wo er gerade ist und wann er wo frei wird.
+  - Für fahrende LKW rechnet die Gewinnschätzung als Folgeauftrag ab dem Ende der laufenden Fahrt.
+  - Wählst du einen fahrenden LKW aus, prüft die Börse Aufträge in der Nähe auf Beiladung und zeigt den Mehrgewinn („Beiladung möglich“). „Disponieren“ öffnet dann direkt die Beiladung.
+
 ## 0.15.0 – 04.11.2026
 
 Spielspaß-Paket 2: Ziele, Spezialaufträge, Erfolge und Fahrer mit Charakter.

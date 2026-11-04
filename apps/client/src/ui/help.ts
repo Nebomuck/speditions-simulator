@@ -37,6 +37,7 @@ export const HELP: HelpArticle[] = [
       'Aufträge entstehen aus einem Warenflussmodell: Städte erzeugen und verbrauchen Waren je nach Branche und Saison. Ein Teil der Angebote entsteht gezielt im Umkreis (450 km) deiner Standorte, Fahrzeuge und Fahrtziele – so findest du Anschlussladungen.',
       '• Vergütung: Satz je Ladungsart und km, Kurzstrecken- und Dieselzuschlag, Ladepauschale. Express bringt +30 %, Ausschreibungen zahlen besonders gut, sind aber nur kurz verfügbar.',
       '• Teilladungen passen auf Solo-LKW und Transporter und lassen sich als Beiladung kombinieren.',
+      '• Fahrende LKW zählen mit ihrer aktuellen Position und dem Ort, an dem sie frei werden. Wählst du oben einen fahrenden LKW aus, rechnet die Schätzung als Folgeauftrag, und Aufträge in der Nähe der Route zeigen „Beiladung möglich“ mit dem Mehrgewinn.',
       '• Verspätungen kosten 2 % (Express 4 %) der Vergütung je angefangene Stunde, höchstens 50 %.',
       'Neue Angebote stehen zuerst 90 Minuten nur dir zur Verfügung, danach greift auch die Konkurrenz zu.',
     ],
