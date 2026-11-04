@@ -9,7 +9,7 @@ import { dispatchShortfall } from './company.ts';
 import { addLog, annuity, book, formatMoney } from './finance.ts';
 import { personName } from './generate.ts';
 import { newId, rand } from './rng.ts';
-import { MIN_PER_DAY, formatDate, toDate } from './time.ts';
+import { MIN_PER_DAY, formatDate, minuteOfDay, toDate, weekday } from './time.ts';
 import type { Character, CharacterBackground, GameState, HomeKind, Id, Money, Needs, Player, Relation, WorkStyle } from './types.ts';
 
 type Result = { ok: true; text?: string } | { ok: false; error: string };
@@ -265,8 +265,8 @@ function dailyCharacter(state: GameState, p: Player): void {
   n.energy += (100 - hours * 4.5 + cf * 0.4 - n.energy) * 0.35;
   n.hunger += (72 - n.hunger) * 0.3;
   n.stress += (10 + hours * 5 + worries - n.leisure * 0.15 - cf * 0.3 - (partner ? 5 : 0) - n.stress) * 0.25;
-  n.leisure = n.leisure - 7 + (hours <= 5 ? 5 : 0);
-  n.social -= partner ? 2 : 4;
+  n.leisure = n.leisure - 5 + (hours <= 5 ? 4 : 0);
+  n.social -= partner ? 1.5 : 3;
   n.health += (92 - Math.max(0, n.stress - 55) * 0.9 - Math.max(0, 40 - n.energy) * 0.5 - n.health) * 0.06;
   const car = c.car ? PRIVATE_CARS[c.car].happiness : 0;
   const goals = (c.goals ?? []).filter((g) => goalDone(state, c, g)).length;
@@ -277,6 +277,12 @@ function dailyCharacter(state: GameState, p: Player): void {
 
   // Erschöpfung: anhaltend hoher Stress oder schlechte Gesundheit legt den Charakter lahm
   c.burnoutDays = n.stress >= 90 ? (c.burnoutDays ?? 0) + 1 : 0;
+  if (c.burnoutDays === 2)
+    addLog(state, {
+      level: 'danger',
+      category: 'private',
+      text: `${c.name} steht kurz vor dem Burnout (Stress ${Math.round(n.stress)}). In drei Tagen fällt die Geschäftsführung eine Woche aus – Urlaub, Wellness oder ein ruhigerer Arbeitsstil helfen jetzt.`,
+    });
   if (!c.sickUntil && (c.burnoutDays >= 5 || n.health < 20)) {
     const days = c.burnoutDays >= 5 ? 7 : 4;
     c.sickUntil = t + days * MIN_PER_DAY;
@@ -294,7 +300,7 @@ function dailyCharacter(state: GameState, p: Player): void {
   // Beziehungen: ohne Kontakt kühlen sie ab
   for (const r of [...c.relations]) {
     if (r.kind === 'child') continue;
-    if (t - r.lastContact > 10 * MIN_PER_DAY) r.closeness -= r.kind === 'partner' ? 1.5 + (ws.hours >= 12 ? 1 : 0) : 1;
+    if (t - r.lastContact > (r.kind === 'partner' ? 10 : 18) * MIN_PER_DAY) r.closeness -= r.kind === 'partner' ? 1 + (ws.hours >= 12 ? 0.5 : 0) : 0.7;
     else if (r.kind === 'partner' && ws.hours <= 8) r.closeness += 0.3;
     r.closeness = clamp(r.closeness);
     if (r.kind === 'friend' && r.closeness < 5) {
@@ -324,6 +330,56 @@ function dailyCharacter(state: GameState, p: Player): void {
   if (!isAway(state, c)) {
     if (c.workStyle === 'key_accounts') for (const cu of Object.values(state.customers)) if (cu.deliveries > 0) cu.satisfaction = Math.min(100, cu.satisfaction + 0.3 * performance(c));
     if (c.workStyle === 'strategy') state.company.reputation = Math.min(100, state.company.reputation + 0.05 * performance(c));
+  }
+}
+
+/** Uhrzeit, zu der Routine und „Fokus Firma“ die Freizeit planen */
+export const ROUTINE_HOUR = 19;
+/** Aktivitäten, die in der Wochenroutine wählbar sind (Weiterbildung braucht eine Auswahl, Urlaub plant „Fokus Firma“) */
+export const ROUTINE_ACTIVITIES = ['eat_out', 'cinema', 'sport', 'friends', 'shopping', 'wellness', 'hobby'];
+
+/** Was „Fokus Firma“ heute Abend unternimmt (oder null). Erst das dringendste Bedürfnis, dann Kontakte. */
+export function autopilotChoice(state: GameState, c: Character): LifeAction | null {
+  const n = c.needs;
+  const covered = dispatchers(state).length > 0 || (c.workStyle ?? 'hands_on') === 'ceo';
+  const sinceVacation = state.time - (c.lastActivity?.vacation ?? state.company.founded);
+  const day = weekday(state.time);
+  if (n.stress >= 78 && sinceVacation > 30 * MIN_PER_DAY && (covered || day >= 4)) {
+    const v = c.holidayHome ? 'week' : 'short';
+    if (c.privateAccount.balance >= VACATIONS[v].cost * (c.holidayHome ? 0.3 : 1) + 1_000_00) return { kind: 'vacation', vacation: v, holidayHome: c.holidayHome || undefined };
+  }
+  const partner = c.relations.find((r) => r.kind === 'partner');
+  const stale = c.relations.filter((r) => r.kind === 'friend' && state.time - r.lastContact > 14 * MIN_PER_DAY).sort((a, b) => a.lastContact - b.lastContact)[0];
+  const options: [number, LifeAction][] = [
+    [(n.stress - 55) * (day >= 5 ? 1.2 : 0.6), { kind: 'activity', activity: day >= 5 ? 'wellness' : 'sport' }],
+    [55 - n.social + (stale ? 10 : 0), { kind: 'activity', activity: 'friends', relationId: stale?.id }],
+    [52 - n.leisure, { kind: 'activity', activity: c.hobby ? 'hobby' : 'cinema' }],
+    [62 - n.health, { kind: 'activity', activity: 'sport' }],
+    [55 - n.hunger + (partner && state.time - partner.lastContact > 6 * MIN_PER_DAY ? 15 : 0), { kind: 'activity', activity: 'eat_out' }],
+  ];
+  const [score, action] = options.sort((a, b) => b[0] - a[0])[0];
+  if (score <= 0) return null;
+  const def = action.kind === 'activity' ? ACTIVITIES[action.activity] : undefined;
+  if (def && c.privateAccount.balance < def.cost + 500_00) return null;
+  return action;
+}
+
+/** Stündlich: um 19 Uhr Wochenroutine bzw. „Fokus Firma“ ausführen. */
+export function hourlyLife(state: GameState, ctx: SimContext): void {
+  if (minuteOfDay(state.time) !== ROUTINE_HOUR * 60) return;
+  const day = weekday(state.time);
+  for (const p of Object.values(state.players)) {
+    const c = p.character;
+    if (isAway(state, c)) continue;
+    let action: LifeAction | null = null;
+    if (c.autopilot) action = autopilotChoice(state, c);
+    else {
+      const entry = c.routine?.find((r) => r.day === day);
+      if (entry && ACTIVITIES[entry.activity]) action = { kind: 'activity', activity: entry.activity };
+    }
+    if (!action) continue;
+    const r = applyLife(state, ctx, p.id, action);
+    if (!r.ok && !c.autopilot) addLog(state, { level: 'info', category: 'private', text: `Routine (${ACTIVITIES[(action as { activity: string }).activity]?.name}) fällt heute aus: ${r.error}` });
   }
 }
 
@@ -367,7 +423,9 @@ export type LifeAction =
   | { kind: 'furniture' }
   | { kind: 'hobby'; hobby: string }
   | { kind: 'goals'; goals: string[] }
-  | { kind: 'relation'; relationId: Id; action: 'gift' | 'propose' | 'family' };
+  | { kind: 'relation'; relationId: Id; action: 'gift' | 'propose' | 'family' }
+  | { kind: 'routine'; routine: { day: number; activity: string }[] }
+  | { kind: 'autopilot'; on: boolean };
 
 function pay(state: GameState, p: Player, amount: Money, text: string): boolean {
   if (p.character.privateAccount.balance < amount) return false;
@@ -447,6 +505,7 @@ export function applyLife(state: GameState, ctx: SimContext, playerId: Id, a: Li
       }
       for (const r of c.relations) if (r.kind === 'child') r.lastContact = state.time;
       c.activity = { id: 'vacation', until: state.time + v.days * MIN_PER_DAY, text: v.name };
+      (c.lastActivity ??= {}).vacation = state.time;
       const covered = dispatchers(state).length > 0;
       addLog(state, {
         level: 'info',
@@ -548,6 +607,18 @@ export function applyLife(state: GameState, ctx: SimContext, playerId: Id, a: Li
     case 'hobby': {
       if (!HOBBIES[a.hobby]) return fail('Unbekanntes Hobby.');
       c.hobby = { id: a.hobby, level: c.hobby?.id === a.hobby ? c.hobby.level : 0 };
+      return { ok: true };
+    }
+    case 'routine': {
+      const seen = new Set<number>();
+      c.routine = (Array.isArray(a.routine) ? a.routine : [])
+        .filter((r) => Number.isInteger(r?.day) && r.day >= 0 && r.day <= 6 && ROUTINE_ACTIVITIES.includes(r.activity) && !seen.has(r.day) && seen.add(r.day))
+        .map((r) => ({ day: r.day, activity: r.activity }));
+      return { ok: true };
+    }
+    case 'autopilot': {
+      c.autopilot = !!a.on;
+      addLog(state, { level: 'info', category: 'private', text: c.autopilot ? `${c.name}: Fokus Firma – Freizeit, Kontakte und Urlaub plant das Spiel.` : `${c.name} plant das Privatleben wieder selbst.` });
       return { ok: true };
     }
     case 'goals': {

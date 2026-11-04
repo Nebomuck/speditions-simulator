@@ -22,6 +22,7 @@ import { HelpDialog } from './ui/Help.tsx';
 import { ContextMenuHost } from './ui/ContextMenu.tsx';
 import { helpForPage } from './ui/help.ts';
 import { Tutorial } from './ui/Tutorial.tsx';
+import { DecisionCard } from './ui/DecisionCard.tsx';
 import { ErrorBoundary } from './ui/ErrorBoundary.tsx';
 import { Resizer } from './ui/Resizer.tsx';
 import { startBackground, stopBackground } from './ui/sound.ts';
@@ -105,6 +106,7 @@ export function App() {
       </main>
       <DispatchDialog />
       <Tutorial />
+      <DecisionCard />
       <HelpDialog />
       <ContextMenuHost />
       <ConfirmHost />

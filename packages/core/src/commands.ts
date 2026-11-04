@@ -23,6 +23,8 @@ import type {
 } from './types.ts';
 import { acceptSuggestion, dismissSuggestion, setAutoDispatch } from './autodispatch.ts';
 import { winBackCustomer } from './competition.ts';
+import { mayDecide, resolveDecision } from './decisions.ts';
+import { placeBid, withdrawBid } from './tenders.ts';
 import {
   cancelJoint, castVote, closeVote, createTask, createVote, deleteTask, mayManageLocation, proposeJoint, readMessage, respondJoint, sendMessage, setPlayerLimits, setRole, updateTask,
 } from './team.ts';
@@ -86,7 +88,10 @@ export type Command =
   | { type: 'createVote'; question: string; options: string[]; hours: number }
   | { type: 'castVote'; voteId: Id; option: number }
   | { type: 'closeVote'; voteId: Id }
-  | { type: 'winBackCustomer'; customerId: Id };
+  | { type: 'winBackCustomer'; customerId: Id }
+  | { type: 'decide'; decisionId: Id; optionId: string }
+  | { type: 'bidTender'; tenderId: Id; price: number; guarantee?: boolean }
+  | { type: 'withdrawBid'; tenderId: Id };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -150,6 +155,10 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   castVote: null,
   closeVote: null,
   winBackCustomer: 'dispatch',
+  // Berechtigung je Karte (Firmenkarten nach Bereich, private nur der eigene Spieler)
+  decide: null,
+  bidTender: 'dispatch',
+  withdrawBid: 'dispatch',
 };
 
 /** Befehle, die Geld vom Firmenkonto ausgeben können (unterliegen dem Ausgabenlimit eines Spielers) */
@@ -629,6 +638,21 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     case 'winBackCustomer': {
       const r = winBackCustomer(state, cmd.customerId);
       return r.ok ? { ok: true } : r;
+    }
+    case 'decide': {
+      const d = state.decisions.find((x) => x.id === cmd.decisionId);
+      if (!d) return fail('Diese Entscheidung ist bereits gefallen.');
+      if (!mayDecide(state, actorId, d)) return fail(d.category === 'private' ? 'Das ist die Entscheidung eines anderen Spielers.' : 'Keine Berechtigung für diese Entscheidung.');
+      const r = resolveDecision(state, ctx, d.id, String(cmd.optionId));
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'bidTender': {
+      const r = placeBid(state, actorId, cmd.tenderId, Number(cmd.price), !!cmd.guarantee);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'withdrawBid': {
+      const r = withdrawBid(state, cmd.tenderId);
+      return r.ok ? { ok: true } : fail(r.error);
     }
   }
 }

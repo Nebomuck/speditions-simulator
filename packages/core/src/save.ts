@@ -111,6 +111,12 @@ export const MIGRATIONS: Record<number, Migration> = {
     for (const p of Object.values(s.players as Record<string, Record<string, unknown>>)) p.role ??= p.isFounder ? 'ceo' : 'custom';
     return s;
   },
+  // 0.14.0: Entscheidungskarten und Ausschreibungen
+  9: (s) => {
+    s.decisions ??= [];
+    s.tenders ??= {};
+    return s;
+  },
 };
 
 export function deserializeSave(text: string): GameState {

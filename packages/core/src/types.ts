@@ -240,6 +240,10 @@ export interface Character {
   babyDue?: GameTime;
   /** Tage, an denen die Aktivitäten zuletzt vergeben wurden (gegen Spam): letzte Aktivität je Art */
   lastActivity?: Record<string, GameTime>;
+  /** Wochenroutine: feste Freizeitaktivität je Wochentag (0 = Montag), läuft abends von selbst */
+  routine?: { day: number; activity: string }[];
+  /** „Fokus Firma“: Freizeit, Kontakte und Urlaub regelt das Spiel selbst */
+  autopilot?: boolean;
 }
 
 export interface Needs {
@@ -520,6 +524,8 @@ export interface Contract {
   /** Touren sind bis einschließlich dieses Tages angelegt */
   scheduledThrough?: number;
   stats: { tours: number; delivered: number; late: number; missed: number };
+  /** aus einer Ausschreibung mit Pünktlichkeitsgarantie (Verspätungen kosten eine Strafe) */
+  guarantee?: boolean;
 }
 
 /** Halt einer Auftragsfahrt. legs[i] führt zu stops[i]. */
@@ -733,6 +739,54 @@ export interface WorldEvent {
   tone: 'good' | 'bad' | 'neutral';
 }
 
+/** Entscheidungskarte: ein Ereignis, bei dem der Spieler wählt (sonst gilt nach Ablauf die Vorgabe) */
+export interface DecisionOption {
+  id: string;
+  label: string;
+  /** kurze Folge, z. B. „+300 €/Monat, Zufriedenheit +18“ */
+  hint: string;
+}
+
+export interface Decision {
+  id: Id;
+  rule: string;
+  title: string;
+  text: string;
+  category: 'company' | 'personnel' | 'market' | 'private';
+  /** private Entscheidungen gehören einem Spieler */
+  playerId?: Id;
+  created: GameTime;
+  expires: GameTime;
+  options: DecisionOption[];
+  /** gilt, wenn niemand entscheidet */
+  defaultOption: string;
+  data: Record<string, string | number>;
+}
+
+/** Ausschreibung eines Rahmenvertrags: Spieler und KI-Konkurrenz geben verdeckte Gebote ab */
+export interface Tender {
+  id: Id;
+  customerId: Id;
+  cargoId: string;
+  fromCityId: string;
+  toCityId: string;
+  trailerType: TrailerType;
+  qualifications: Qualification[];
+  weightT: number;
+  distanceKm: number;
+  weekdays: number[];
+  pickupHour: number;
+  weeks: number;
+  /** marktüblicher Preis je Tour (Orientierung) */
+  referencePrice: Money;
+  created: GameTime;
+  /** Zuschlag zu diesem Zeitpunkt */
+  deadline: GameTime;
+  status: 'open' | 'won' | 'lost' | 'expired';
+  bid?: { price: Money; guarantee: boolean; by: Id; at: GameTime };
+  result?: { winner: string; price: Money; bids: { name: string; price: Money; player?: boolean }[]; note?: string };
+}
+
 export interface EventState {
   /** letzter Auslösezeitpunkt je Regel (bei privaten Ereignissen je Spieler: `regel:spieler`) */
   last: Record<string, GameTime>;
@@ -809,4 +863,8 @@ export interface GameState {
   competitors: Record<Id, Competitor>;
   /** Ereignisregelwerk */
   events: EventState;
+  /** offene Entscheidungskarten */
+  decisions: Decision[];
+  /** Ausschreibungen von Rahmenverträgen */
+  tenders: Record<Id, Tender>;
 }

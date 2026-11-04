@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 03.11.2026 · Version 0.13.2
+Stand: 04.11.2026 · Version 0.14.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -121,6 +121,7 @@ Stand: 03.11.2026 · Version 0.13.2
 | Kunden mit Branche, Größe, Zahlungsmoral, Zufriedenheit, Preissensibilität | Implementiert |
 | Zufriedenheit durch Pünktlichkeit/Verspätung | Getestet |
 | Stammkunden, Langzeitverträge mit Mindestkapazität | Getestet (Rahmenverträge: feste Touren je Woche, Strafe bei Ausfall, Verlängerung bei guter Erfüllung; zufriedene Stammkunden zahlen in der Börse besser) |
+| Ausschreibungen gegen die Konkurrenz | Getestet (verdeckte Gebote, Ruf und Pünktlichkeitsgarantie in der Bewertung, Ergebnisliste, Zuschlag als Rahmenvertrag) |
 | KI-Konkurrenz (wirtschaftlich simuliert) | Getestet (Flotte, Kasse, Kosten, Kapazität in LKW-Stunden, übernimmt Börsenaufträge, wirbt unzufriedene Kunden ab, wächst, eröffnet Standorte, gerät in Schwierigkeiten, Konkurs, Neugründungen) |
 | Kunden zurückgewinnen | Getestet (Vertriebsbesuch, Chance nach Ruf und Lage des Konkurrenten) |
 
@@ -136,7 +137,8 @@ Stand: 03.11.2026 · Version 0.13.2
 | Charakter mit 2D-Avatar, Name, Alter, Hintergrund (Startfähigkeiten) | Getestet (Charakter-Editor mit 14 Merkmalen, im Spiel änderbar; Porträts für alle Angestellten; Fahrzeugbilder je Modell und Aufliegertyp) |
 | Getrenntes Privat-/Firmenvermögen | Getestet |
 | GF-Gehalt beeinflusst Privateinkommen und Firma | Getestet |
-| Bedürfnisse mit tatsächlicher Wirkung (Leistungsfähigkeit, Erschöpfung) | Getestet (Arbeitsstil → Stress/Energie, Burnout legt die eigene Disposition lahm) |
+| Bedürfnisse mit tatsächlicher Wirkung (Leistungsfähigkeit, Erschöpfung) | Getestet (Arbeitsstil → Stress/Energie, Burnout legt die eigene Disposition lahm; Warnung zwei Tage vorher) |
+| Wenig Pflegeaufwand | Getestet (Fokus Firma plant Freizeit, Kontakte und Urlaub; Wochenroutine; langsamere Bedürfnisse) |
 | Hintergrund, Ziele, Wohnen, Freizeit, Beziehungen, Familie, Work-Life-Balance, Gewinnausschüttung | Getestet (Aktivitäten, Urlaub, Haus mit Immobilienkredit, Partnerschaft und Familie, Abkühlen von Beziehungen, Ausschüttung mit Kapitalertragsteuer; Ferienhaus, Auto, Möbel, Hobbys, Ziele implementiert) |
 
 ## 15–16 · Multiplayer
@@ -177,6 +179,7 @@ Stand: 03.11.2026 · Version 0.13.2
 |---|---|
 | Pannen, verzögerte Beladung | Implementiert |
 | Staus, Unfälle, Sperrungen, Wetter, Grenzwartezeiten, Kundenänderungen, Unternehmens- und private Ereignisse | Getestet (Ereignisregelwerk mit Bedingungen und Abklingzeiten, Fairnessregeln) |
+| Ereignisse mit Entscheidung | Getestet (11 Entscheidungskarten mit Folgen und Vorgabe nach Ablauf, Berechtigungen im Multiplayer) |
 | Sonntags- und Feiertagsfahrverbote | Getestet (DE, AT, CH, FR, IT, CZ, SK, HU, PL; Ausnahmen Transporter, Solo-LKW bis 7,5 t, beladene Kühltransporte) |
 
 ## 19 · Dynamische Wirtschaft
@@ -195,7 +198,7 @@ Stand: 03.11.2026 · Version 0.13.2
 | Kontextmenüs | Implementiert (Rechtsklick auf Fahrzeuge, Aufträge und Fahrer) |
 | Anpassbare Panelgrößen | Implementiert (Seitenleiste, Dispositionsliste, Fahrzeugfenster; gespeichert, Doppelklick setzt zurück) |
 | Tutorial „Erste Schritte“ | Implementiert (9 Schritte, erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor) |
-| Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 15 Artikel) |
+| Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 17 Artikel) |
 | Dezente Animationen | Implementiert (Seitenwechsel, Meldungen, Dialoge; respektiert „Bewegung reduzieren“) |
 
 ## 21–22 · Fortschritt & Schwierigkeit

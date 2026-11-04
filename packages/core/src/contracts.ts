@@ -106,7 +106,7 @@ export function generateContractOffer(state: GameState, ctx: SimContext, renewal
   addLog(state, {
     level: 'info',
     category: 'order',
-    text: `${regular ? 'Stammkunde' : 'Ausschreibung'}: ${customer!.name} bietet einen Rahmenvertrag ${origin.name} → ${dest.name} an (${weekdays.length}× pro Woche, ${c.weeks} Wochen, je ${formatMoney(paymentPerTour)}).`,
+    text: `${regular ? 'Stammkunde' : 'Neukunde'}: ${customer!.name} bietet einen Rahmenvertrag ${origin.name} → ${dest.name} an (${weekdays.length}× pro Woche, ${c.weeks} Wochen, je ${formatMoney(paymentPerTour)}).`,
   });
   return c;
 }
@@ -198,8 +198,14 @@ export function onContractDelivery(state: GameState, order: Order, lateMin: numb
   const c = order.contractId ? state.contracts[order.contractId] : undefined;
   if (!c) return;
   c.stats.delivered++;
-  if (lateMin > 0) c.stats.late++;
-  else {
+  if (lateMin > 0) {
+    c.stats.late++;
+    // Pünktlichkeitsgarantie aus der Ausschreibung
+    if (c.guarantee) {
+      const fee = Math.round(c.penaltyMissed / 2 / 100) * 100;
+      book(state, 'company', -fee, 'penalty', `Garantie verletzt: Tour ${CITY_BY_ID[c.fromCityId].name} → ${CITY_BY_ID[c.toCityId].name} verspätet`);
+    }
+  } else {
     const cust = state.customers[c.customerId];
     if (cust) adjustSatisfaction(cust, 1);
   }

@@ -1,7 +1,9 @@
 // SimulationEngine: deterministischer Minuten-Tick. Stündliche, tägliche und monatliche Prozesse
 // werden an Zeitgrenzen ausgelöst. Wird identisch im Einzelspieler-Worker und auf dem Server ausgeführt.
 
-import { dailyLife } from './life.ts';
+import { dailyLife, hourlyLife } from './life.ts';
+import { dailyDecisions, hourlyDecisions } from './decisions.ts';
+import { dailyTenders, hourlyTenders } from './tenders.ts';
 import { hourlyTeam } from './team.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney, processInvoices, processMonthEnd } from './finance.ts';
@@ -53,6 +55,9 @@ function hourly(state: GameState, ctx: SimContext) {
   processInvoices(state);
   updateDisruptions(state, ctx);
   hourlyEvents(state, ctx);
+  hourlyDecisions(state, ctx);
+  hourlyTenders(state, ctx);
+  hourlyLife(state, ctx);
   hourlyPersonnel(state);
   hourlyContracts(state);
   hourlyCompany(state);
@@ -76,6 +81,7 @@ function daily(state: GameState, ctx: SimContext) {
   dailyEconomy(state);
   dailyCompetition(state);
   dailyEvents(state, ctx);
+  dailyDecisions(state, ctx);
 
   const hq = state.company.hqCityId;
   // Bewerber und Gebrauchtfahrzeuge
@@ -93,6 +99,7 @@ function daily(state: GameState, ctx: SimContext) {
   // Personal (Zufriedenheit, Krankheit, Kündigungen) und Rahmenverträge
   dailyPersonnel(state);
   dailyContracts(state, ctx);
+  dailyTenders(state, ctx);
   // Unternehmensstufe, Lagerauslastung
   dailyCompany(state);
   // Lebenssimulation der Spielercharaktere

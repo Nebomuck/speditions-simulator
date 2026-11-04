@@ -1,11 +1,11 @@
 // Kunden & Verträge, Standorte & Ausbau.
 
 import { useMemo, useState } from 'react';
-import { Building2, ArrowUpCircle, FileSignature, ArrowRight, Award, Wrench, Fuel, Warehouse, MapPin, Briefcase, UserPlus, UserMinus } from 'lucide-react';
+import { Building2, ArrowUpCircle, FileSignature, ArrowRight, Award, Wrench, Fuel, Warehouse, MapPin, Briefcase, UserPlus, UserMinus, Gavel, Clock } from 'lucide-react';
 import {
-  BRANCH_SETUP_COST, CARGO_BY_ID, CITIES, COMPANY_LEVELS, DEPARTMENTS, STAFF_GRADES, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, VEHICLES_PER_DISPATCHER,
-  MIN_PER_DAY, WIN_BACK_COST, capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, warehouseIncome, winBackChance, formatMoney,
-  type Contract, type Department, type FacilityKind, type Location, type StaffGrade,
+  BRANCH_SETUP_COST, CARGO_BY_ID, TRUCK_BY_ID, CITIES, COMPANY_LEVELS, DEPARTMENTS, STAFF_GRADES, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, VEHICLES_PER_DISPATCHER,
+  BID_RANGE, GUARANTEE_BONUS, reputationFactor, MIN_PER_DAY, WIN_BACK_COST, activeCompetitors, formatDateTime, formatDuration, nearCompetitor, tenderCostEstimate, tenderVolume, STRATEGY_LABEL, CITY_BY_ID, capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, warehouseIncome, winBackChance, formatMoney,
+  type Contract, type Tender, type Department, type FacilityKind, type Location, type StaffGrade,
 } from '@spedsim/core';
 import { sendCommand, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
@@ -18,6 +18,7 @@ const INDUSTRY: Record<string, string> = {
   retail: 'Handel', logistics: 'Logistik', electronics: 'Elektronik', pharma: 'Pharma', machinery: 'Maschinenbau', timber: 'Holz', construction: 'Bau',
 };
 const SIZE = { small: 'Klein', medium: 'Mittel', large: 'Groß' };
+const TRUCK_BODY = (modelId: string) => TRUCK_BY_ID[modelId]?.body;
 
 export function CustomersPage() {
   const s = useGame();
@@ -29,6 +30,7 @@ export function CustomersPage() {
   return (
     <div className="page">
       <PageHeader title="Kunden & Verträge" subtitle={`${customers.length} bekannte Unternehmen · Reputation ${Math.round(s.company.reputation)}/100`} />
+      <Tenders />
       <Contracts />
       <Card title="Kundenbeziehungen" sub="Pünktliche Lieferungen steigern die Zufriedenheit; Verspätungen und Stornierungen senken sie.">
         <div className="table-wrap" style={{ border: 'none', maxHeight: 'calc(100vh - 260px)' }}>
@@ -339,6 +341,101 @@ function Departments() {
 
 const CONTRACT_STATUS: Record<Contract['status'], string> = { offered: 'Angebot', active: 'läuft', completed: 'erfüllt', cancelled: 'gekündigt', expired: 'abgelaufen' };
 
+function Tenders() {
+  const s = useGame();
+  const all = Object.values(s.tenders ?? {});
+  const open = all.filter((t) => t.status === 'open').sort((a, b) => a.deadline - b.deadline);
+  const done = all.filter((t) => t.status !== 'open' && t.result).sort((a, b) => b.deadline - a.deadline).slice(0, 6);
+  return (
+    <Card
+      title={<><Gavel size={16} /> Ausschreibungen</>}
+      sub="Große Verlader vergeben Rahmenverträge über 3–6 Monate an das beste Gebot. Die Konkurrenz bietet verdeckt mit – entscheidend ist der Preis je Tour, ein guter Ruf wiegt etwas auf."
+      className="mb"
+    >
+      {open.length === 0 && <Empty>Gerade keine Ausschreibung. Neue erscheinen alle paar Tage, sobald die Firma zwei Fahrzeuge hat – mit Vertriebsmitarbeitern öfter.</Empty>}
+      <div className="grid grid-2">
+        {open.map((t) => <TenderCard key={t.id} t={t} />)}
+      </div>
+      {done.length > 0 && (
+        <>
+          <div className="card-title mt">Ergebnisse</div>
+          <div className="list">
+            {done.map((t) => {
+              const mine = t.result!.bids.find((b) => b.player);
+              return (
+                <div key={t.id} className="list-item">
+                  <Badge kind={t.status === 'won' ? 'success' : t.status === 'lost' ? 'danger' : ''}>{t.status === 'won' ? 'Zuschlag' : t.status === 'lost' ? 'verloren' : 'ohne Gebot'}</Badge>
+                  <span style={{ flex: 1 }}>{cityName(t.fromCityId)} → {cityName(t.toCityId)} · {s.customers[t.customerId]?.name}</span>
+                  <span className="dim" title={t.result!.bids.map((b) => `${b.name}: ${formatMoney(b.price)}`).join('\n')}>
+                    {t.status === 'won' ? `dein Gebot ${formatMoney(t.result!.price)}` : `${t.result!.winner}: ${formatMoney(t.result!.price)}${mine ? ` · du: ${formatMoney(mine.price)}` : ''}`} · {t.result!.bids.length} Gebote
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function TenderCard({ t }: { t: Tender }) {
+  const s = useGame();
+  const cust = s.customers[t.customerId];
+  const [price, setPrice] = useState(Math.round((t.bid?.price ?? t.referencePrice) / 100));
+  const [guarantee, setGuarantee] = useState(t.bid?.guarantee ?? false);
+  const fits = Object.values(s.trailers).some((x) => x.type === t.trailerType) || Object.values(s.vehicles).some((v) => v.modelId && TRUCK_BODY(v.modelId) === t.trailerType);
+  const cost = tenderCostEstimate(s, t);
+  const margin = price * 100 - cost;
+  const rivals = activeCompetitors(s).filter((c) => nearCompetitor(c, CITY_BY_ID[t.fromCityId]));
+  const min = Math.ceil((t.referencePrice * BID_RANGE[0]) / 100);
+  const max = Math.floor((t.referencePrice * BID_RANGE[1]) / 100);
+  return (
+    <div className="card" style={{ background: 'var(--panel-2)' }}>
+      <div className="row">
+        <b style={{ flex: 1 }}>{cust?.name ?? 'Verlader'}</b>
+        {t.bid ? <Badge kind="violet">Gebot {formatMoney(t.bid.price)}</Badge> : <Badge kind="info">offen</Badge>}
+        <span className="dim" style={{ fontSize: 12 }} title={formatDateTime(t.deadline)}><Clock size={12} /> {formatDuration(Math.max(0, t.deadline - s.time))}</span>
+      </div>
+      <div className="row mt" style={{ fontWeight: 600 }}>{cityName(t.fromCityId)} <ArrowRight size={14} /> {cityName(t.toCityId)} <span className="dim" style={{ fontWeight: 400 }}>· {km(t.distanceKm)}</span></div>
+      <dl className="kv mt" style={{ gridTemplateColumns: '120px 1fr' }}>
+        <dt>Ladung</dt><dd>{CARGO_BY_ID[t.cargoId].name}, {tons(t.weightT)} · {trailerName(t.trailerType)}{!fits && <Badge kind="warning">kein passender Auflieger</Badge>}</dd>
+        <dt>Touren</dt><dd>{t.weekdays.length}× pro Woche ({t.weekdays.map((d) => ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][d]).join(', ')}) ab {String(t.pickupHour).padStart(2, '0')}:00 · {t.weeks} Wochen</dd>
+        <dt>Marktpreis</dt><dd>ca. <Money value={t.referencePrice} /> je Tour · Volumen ca. <Money value={tenderVolume(t)} /></dd>
+        <dt>Deine Kosten</dt><dd>grob <Money value={cost} /> je Tour</dd>
+        <dt>Bewertung</dt><dd>{(() => {
+          const f = reputationFactor(s.company.reputation) * (guarantee ? 1 - GUARANTEE_BONUS : 1);
+          const pct = Math.round((f - 1) * 1000) / 10;
+          return `Dein Ruf ${Math.round(s.company.reputation)}${guarantee ? ' und die Garantie' : ''}: Gebot zählt ${pct > 0 ? `${pct.toLocaleString('de-DE')} % teurer` : pct < 0 ? `${(-pct).toLocaleString('de-DE')} % günstiger` : 'wie es ist'}`;
+        })()}</dd>
+        <dt>Mitbewerber</dt><dd>{rivals.length ? rivals.map((c) => `${c.name} (${STRATEGY_LABEL[c.strategy]}, Ruf ${Math.round(c.reputation)})`).join(', ') : 'keine vor Ort – überregionale Speditionen bieten mit'}</dd>
+        {t.qualifications.length > 0 && <><dt>Voraussetzung</dt><dd>{t.qualifications.map((q) => QUAL_LABEL[q]).join(', ')}</dd></>}
+      </dl>
+      <div className="row mt wrap" style={{ gap: 8 }}>
+        <label className="row" style={{ gap: 6 }}>
+          <span className="dim">Gebot je Tour</span>
+          <input className="input" type="number" min={min} max={max} step={10} value={price} onChange={(e) => setPrice(Number(e.target.value))} style={{ width: 110 }} />
+          <span>€</span>
+        </label>
+        <input type="range" min={min} max={max} step={10} value={price} onChange={(e) => setPrice(Number(e.target.value))} style={{ flex: 1, minWidth: 120 }} />
+      </div>
+      <div className="row mt wrap" style={{ fontSize: 12.5 }}>
+        <span className={margin >= 0 ? 'pos' : 'neg'}>Marge ca. {formatMoney(margin)} je Tour ({Math.round((price * 100 / t.referencePrice - 1) * 100)} % zum Marktpreis)</span>
+        <span className="spacer" />
+        <label className="switch-row" title={`Dein Gebot wiegt ${GUARANTEE_BONUS * 100} % besser; jede verspätete Tour kostet die halbe Ausfallstrafe.`}>
+          <input type="checkbox" checked={guarantee} onChange={(e) => setGuarantee(e.target.checked)} /> Pünktlichkeitsgarantie
+        </label>
+      </div>
+      <div className="row mt" style={{ justifyContent: 'flex-end' }}>
+        {t.bid && <button className="btn small ghost" onClick={() => sendCommand({ type: 'withdrawBid', tenderId: t.id })}>Zurückziehen</button>}
+        <button className="btn primary small" onClick={() => sendCommand({ type: 'bidTender', tenderId: t.id, price: price * 100, guarantee })}>
+          <Gavel size={13} /> {t.bid ? 'Gebot ändern' : 'Gebot abgeben'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Contracts() {
   const s = useGame();
   const all = Object.values(s.contracts ?? {});
@@ -387,7 +484,7 @@ function ContractCard({ c }: { c: Contract }) {
     <div className="card" style={{ background: 'var(--panel-2)' }}>
       <div className="row">
         <b style={{ flex: 1 }}>{cust?.name ?? 'Kunde'}</b>
-        <Badge kind={c.regular ? 'success' : 'info'}>{c.regular ? 'Stammkunde' : 'Ausschreibung'}</Badge>
+        <Badge kind={c.regular ? 'success' : 'info'}>{c.regular ? 'Stammkunde' : 'Neukunde'}</Badge>
         {c.status === 'active' && <Badge kind="violet">{CONTRACT_STATUS[c.status]}</Badge>}
       </div>
       <div className="row mt" style={{ fontWeight: 600 }}>{cityName(c.fromCityId)} <ArrowRight size={14} /> {cityName(c.toCityId)} <span className="dim" style={{ fontWeight: 400 }}>· {km(c.distanceKm)}</span></div>

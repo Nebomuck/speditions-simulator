@@ -96,7 +96,7 @@ export const COMPANY_RULES: Rule[] = [
       o.tender = true;
       o.offerExpires = Math.min(o.pickupStart, state.time + 12 * 60);
       return {
-        title: 'Lukrative Ausschreibung',
+        title: 'Lukratives Einzelangebot',
         text: `${CARGO_BY_ID[o.cargoId].name} ${CITY_BY_ID[o.fromCityId].name} → ${CITY_BY_ID[o.toCityId].name} für ${formatMoney(o.payment)} – nur bis ${formatDateTime(o.offerExpires)} in der Auftragsbörse.`,
       };
     },

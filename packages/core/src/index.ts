@@ -24,6 +24,8 @@ export * from './world.ts';
 export * from './economy.ts';
 export * from './competition.ts';
 export * from './events.ts';
+export * from './decisions.ts';
+export * from './tenders.ts';
 export * from './trips.ts';
 export * from './sim.ts';
 export * from './commands.ts';

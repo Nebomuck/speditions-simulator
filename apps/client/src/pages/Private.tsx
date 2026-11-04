@@ -2,10 +2,10 @@
 // Beziehungen, persönliche Entwicklung und Privatkonto. Privat- und Firmenvermögen sind strikt getrennt.
 
 import { Fragment, useState } from 'react';
-import { Home, Heart, Briefcase, Palmtree, Car, Sofa, Target, Wallet, Users, GraduationCap, Baby, Gift, Pencil } from 'lucide-react';
+import { Home, Heart, Briefcase, Palmtree, Car, Sofa, Target, Wallet, Users, GraduationCap, Baby, Gift, Pencil, CalendarClock, Sparkles } from 'lucide-react';
 import {
   ACTIVITIES, BACKGROUNDS, CAR_RESALE, FAMILY_MIN_CLOSENESS, FURNITURE_LEVELS, HOBBIES, HOLIDAY_HOME, HOMES, HOME_ORDER, LIFE_GOALS, MORTGAGE, MOVING_COST,
-  DIVIDEND_TAX, PRIVATE_CARS, PROPERTY_SALE_FACTOR, PROPOSE_MIN_CLOSENESS, VACATIONS, WORK_STYLES, annuity, comfort, formatDate, formatDateTime, goalDone, isAway,
+  DIVIDEND_TAX, PRIVATE_CARS, ROUTINE_ACTIVITIES, ROUTINE_HOUR, WEEKDAY_SHORT, PROPERTY_SALE_FACTOR, PROPOSE_MIN_CLOSENESS, VACATIONS, WORK_STYLES, annuity, comfort, formatDate, formatDateTime, goalDone, isAway,
   monthlyPrivateCosts, performance, privateWealth, type Character, type HomeKind, type LifeAction, type WorkStyle,
 } from '@spedsim/core';
 import { sendCommand, useGame, useUi } from '../game/store.ts';
@@ -57,6 +57,7 @@ export function PrivatePage() {
           <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}><t.icon size={15} />{t.label}</button>
         ))}
       </div>
+      <LifeMode c={c} />
       {tab === 'overview' && <Overview c={c} />}
       {tab === 'leisure' && <Leisure c={c} />}
       {tab === 'home' && <Possessions c={c} />}
@@ -64,6 +65,56 @@ export function PrivatePage() {
       {tab === 'growth' && <Growth c={c} />}
       {tab === 'account' && <Account pid={pid} c={c} />}
     </div>
+  );
+}
+
+/** Fokus Firma und Wochenroutine: weniger Klicks im Privatleben */
+function LifeMode({ c }: { c: Character }) {
+  const [open, setOpen] = useState(false);
+  const routine = c.routine ?? [];
+  const setDay = (day: number, activity: string) =>
+    life({ kind: 'routine', routine: [...routine.filter((r) => r.day !== day), ...(activity ? [{ day, activity }] : [])].sort((a, b) => a.day - b.day) });
+  return (
+    <Card className="mb">
+      <div className="row wrap">
+        <div style={{ flex: 1, minWidth: 260 }}>
+          <b><Sparkles size={15} /> Fokus Firma</b>
+          <div className="dim" style={{ fontSize: 12.5 }}>
+            {c.autopilot
+              ? `Das Spiel plant deine Abende (${ROUTINE_HOUR} Uhr), pflegt Kontakte, nimmt bei hohem Stress Urlaub und entscheidet private Ereignisse ausgewogen. Wohnen, Familie und Ausschüttungen bleiben bei dir.`
+              : 'Freizeit, Kontakte und Urlaub automatisch – für alle, die sich lieber um die Spedition kümmern.'}
+          </div>
+        </div>
+        <label className="switch-row">
+          <input type="checkbox" checked={!!c.autopilot} onChange={(e) => life({ kind: 'autopilot', on: e.target.checked })} />
+          <span>{c.autopilot ? 'an' : 'aus'}</span>
+        </label>
+        {!c.autopilot && (
+          <button className="btn small" onClick={() => setOpen(!open)}>
+            <CalendarClock size={14} /> Wochenroutine{routine.length ? ` (${routine.length})` : ''}
+          </button>
+        )}
+      </div>
+      {!c.autopilot && open && (
+        <div className="routine-grid mt">
+          {WEEKDAY_SHORT.map((label, day) => {
+            const cur = routine.find((r) => r.day === day)?.activity ?? '';
+            return (
+              <label key={day} className="field" style={{ margin: 0 }}>
+                <span>{label}</span>
+                <select className="input" value={cur} onChange={(e) => setDay(day, e.target.value)}>
+                  <option value="">—</option>
+                  {ROUTINE_ACTIVITIES.filter((k) => k !== 'hobby' || c.hobby).map((k) => (
+                    <option key={k} value={k}>{ACTIVITIES[k].name} ({ACTIVITIES[k].cost / 100} €)</option>
+                  ))}
+                </select>
+              </label>
+            );
+          })}
+          <p className="dim" style={{ gridColumn: '1 / -1', fontSize: 12, margin: 0 }}>Die Aktivitäten laufen jeden Abend um {ROUTINE_HOUR} Uhr von selbst, wenn du nicht unterwegs bist und genug Geld hast.</p>
+        </div>
+      )}
+    </Card>
   );
 }
 

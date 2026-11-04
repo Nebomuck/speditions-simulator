@@ -98,7 +98,7 @@ export function seedCompetitors(state: GameState): void {
 
 export const activeCompetitors = (state: GameState) => Object.values(state.competitors ?? {}).filter((c) => c.status !== 'bankrupt');
 
-function nearCompetitor(c: Competitor, city: CityDef): boolean {
+export function nearCompetitor(c: Competitor, city: CityDef): boolean {
   return c.cityIds.some((id) => haversineKm(ll(CITY_BY_ID[id]), ll(city)) <= COMPETITOR_RADIUS_KM);
 }
 

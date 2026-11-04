@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.14.0 – 04.11.2026
+
+Mehr Entscheidungen, weniger Pflege.
+
+- **Entscheidungskarten:** Ereignisse fragen jetzt nach deiner Wahl. Die Karte erscheint unten rechts mit 2–3 Möglichkeiten und ihren Folgen. Wer nicht entscheidet, bekommt nach Ablauf die Vorgabe.
+  - Firma und Markt:
+    - Eilauftrag zum doppelten Preis mit knapper Frist
+    - Gehaltswunsch eines Fahrers
+    - ein erfahrener Fahrer, der wechseln möchte
+    - Beschwerde eines Kunden
+    - Dieselzuschlag bei teurem Diesel
+    - Kundenstamm eines angeschlagenen Konkurrenten übernehmen
+    - Logistik-Fachmesse
+    - Interview mit der Lokalzeitung
+  - Privat: Wochenendausflug mit dem Partner, Freundschaftsdienst, Einladung in einen Verein.
+  - Im Multiplayer entscheidet bei Firmenkarten, wer die passende Berechtigung hat. Private Karten sieht nur der eigene Spieler.
+- **Ausschreibungen:** Große Verlader vergeben Rahmenverträge über 13 oder 26 Wochen per verdecktem Gebot. Zu sehen sind sie unter **Kunden & Verträge**.
+  - Du bietest einen Preis je Tour und kannst eine Pünktlichkeitsgarantie geben. Die Garantie macht dein Gebot 5 % attraktiver, dafür kostet jede verspätete Tour eine Strafe.
+  - KI-Speditionen aus der Region bieten mit. Es gewinnt der beste Preis, der Ruf wiegt etwas auf.
+  - Die Karte zeigt Marktpreis, deine geschätzten Kosten, die Marge und die Mitbewerber. Nach dem Zuschlag siehst du alle Gebote.
+  - Gewonnene Ausschreibungen laufen als Rahmenvertrag.
+- **Lebenssimulation entschärft:**
+  - **Fokus Firma:** Ein Schalter unter **Privatleben** übergibt Freizeit, Kontakte und Urlaub an das Spiel. Es plant jeden Abend das dringendste Bedürfnis ein, nimmt bei hohem Stress Kurzurlaub und entscheidet private Karten ausgewogen.
+  - **Wochenroutine:** Für jeden Wochentag lässt sich eine Freizeitaktivität festlegen, die abends um 19 Uhr von selbst stattfindet.
+  - Freizeit und soziale Kontakte sinken langsamer. Freundschaften kühlen erst nach 18 statt 10 Tagen ohne Kontakt ab.
+  - Zwei Tage vor einem Burnout kommt eine deutliche Warnung.
+- Vertragsangebote von neuen Kunden heißen jetzt „Neukunde“ statt „Ausschreibung“. Einzelne, besonders gut bezahlte Börsenaufträge heißen „Lukratives Einzelangebot“.
+
 ## 0.13.2 – 03.11.2026
 
 - **Update-Ordner, zweiter Teil:** Versionen bis 0.11.0 haben jedes Update weiter nach %LOCALAPPDATA%\Cargovia installiert. Die Desktop-Verknüpfung startete deshalb immer wieder die alte Version, und das Update wurde erneut angeboten. Der Fix aus 0.11.1 steckte in der laufenden App und kam darum bei diesen Installationen nie an.

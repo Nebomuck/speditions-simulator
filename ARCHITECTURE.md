@@ -39,13 +39,15 @@ packages/core/src
 ├── economy.ts      Konjunktur (Normal/Aufschwung/Krise), regionale Nachfrage, Saison
 ├── competition.ts  KI-Konkurrenz: Kapazität, Auftragsübernahme, Kosten, Wachstum, Konkurs, Abwerbung, Rückgewinnung
 ├── events.ts       Ereignisregelwerk (Bedingung, Chance, Abklingzeit, Fairness) für Firma, Markt und Privatleben
+├── decisions.ts    Entscheidungskarten: Regeln mit create/resolve, Vorgabe nach Ablauf, Berechtigung je Bereich
+├── tenders.ts      Ausschreibungen: Gebote, Gebote der KI-Konkurrenz, Zuschlag → Rahmenvertrag
 ├── team.ts         Multiplayer-Zusammenarbeit: Rollen, Grenzen, Nachrichten, Aufgaben, gemeinsame Aktivitäten, Abstimmungen
 ├── delta.ts        Delta-Synchronisation (diffState/applyPatch)
 ├── contracts.ts    Rahmenverträge: Angebote, Touren je Wochentag, Strafen, Verlängerung
 ├── personnel.ts    Personal: Urlaub, Krankheit, Schulungen, Gehalt, Gespräche, Kündigungen
 ├── company.ts      Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilungen, Flottenwartung
 ├── autodispatch.ts KI-Disposition: Regeln, Vorschläge, automatische Fahrten (nutzt estimateTrip/validateDispatch)
-├── life.ts         Lebenssimulation: Bedürfnisse, Arbeitsstil, Wohnen, Freizeit, Beziehungen, Ausschüttung
+├── life.ts         Lebenssimulation: Bedürfnisse, Arbeitsstil, Wohnen, Freizeit, Beziehungen, Ausschüttung, Routine, Fokus Firma
 ├── trips.ts        VehicleSystem: minutengenaue Fahrtsimulation
 ├── sim.ts          SimulationEngine: Minuten-Tick, stündliche/tägliche/monatliche Prozesse
 ├── commands.ts     CommandSystem: alle Spieleraktionen + Berechtigungen

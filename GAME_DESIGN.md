@@ -155,7 +155,8 @@ Jeder Spieler hat einen Charakter mit 2D-Avatar (im Charakter-Editor gestaltet: 
 - **Bedürfnisse** bewegen sich täglich auf Zielwerte zu: Energie (Arbeitszeit, Wohnkomfort), Stress (Arbeitszeit, Geldsorgen, überlastete Disposition, Freizeit, Partnerschaft), Gesundheit (Stress, Erschöpfung), Freizeit und soziale Kontakte (verfallen ohne Aktivitäten), Zufriedenheit (alles zusammen plus Wohnen, Auto, Familie, Hobby, erreichte Ziele). Die **Leistungsfähigkeit** (Energie, Gesundheit, Stress) bestimmt die eigene Disposition. Fünf Tage Stress über 90 oder Gesundheit unter 20 führen zu 7 bzw. 4 Tagen Ausfall.
 - **Freizeit:** Essen gehen, Kino/Konzert, Sport, Freunde treffen, Einkaufsbummel, Wellness, Hobby, Weiterbildung – kostet Privatgeld und 2–8 Stunden, in denen der Charakter nicht disponiert. Wiederholung innerhalb von 24 h wirkt halb. **Urlaub** (3/7/14 Tage, im eigenen Ferienhaus 70 % günstiger) baut Stress stark ab; ohne Disponenten bleibt die Disposition liegen.
 - **Wohnen und Besitz:** kleine/große Mietwohnung, Einfamilienhaus (420.000 €), Villa (1,35 Mio. €), Ferienhaus (260.000 €). Kauf bar oder mit Immobilienkredit (20 % Eigenkapital, 3,9 %, 25 Jahre, Rate höchstens 40 % des GF-Gehalts). Verkauf zu 92 %. Privatwagen vom Kleinwagen bis zum Sportwagen, Einrichtung in drei Stufen.
-- **Beziehungen:** Freundschaften entstehen beim Ausgehen oder melden sich von selbst; ohne Kontakt (10 Tage) kühlen sie ab und enden. Ab Nähe 70 kann aus Freundschaft eine Partnerschaft werden (Annahme nicht garantiert). Partnerschaften brauchen gemeinsame Zeit – wer dauerhaft 12 Stunden arbeitet, riskiert die Trennung. Ab Nähe 75 und größerer Wohnung kann eine Familie gegründet werden (Nachwuchs nach 270 Tagen).
+- **Beziehungen:** Freundschaften entstehen beim Ausgehen oder melden sich von selbst; ohne Kontakt (Freunde 18, Partner 10 Tage) kühlen sie ab und enden. Ab Nähe 70 kann aus Freundschaft eine Partnerschaft werden (Annahme nicht garantiert). Partnerschaften brauchen gemeinsame Zeit – wer dauerhaft 12 Stunden arbeitet, riskiert die Trennung. Ab Nähe 75 und größerer Wohnung kann eine Familie gegründet werden (Nachwuchs nach 270 Tagen).
+- **Weniger Pflege:** Mit **Fokus Firma** plant das Spiel jeden Abend um 19 Uhr die Freizeit nach dem dringendsten Bedürfnis, pflegt Kontakte, nimmt bei Stress ab 78 einen Kurzurlaub (mit Disponent oder am Wochenende) und entscheidet private Karten. Alternativ legt eine **Wochenroutine** je Wochentag eine Aktivität fest. Zwei Tage vor einem Burnout warnt das Spiel deutlich.
 - **Ziele:** bis zu vier persönliche Ziele (Haus, Partnerschaft, Familie, 1 Mio. € Privatvermögen, Konzernstufe, Work-Life-Balance, Sportwagen); erreichte Ziele heben die Zufriedenheit.
 
 ## 14. Schwierigkeitsgrade
@@ -239,6 +240,29 @@ Unzufriedene Kunden können abwandern; ihre Aufträge gehen dann direkt an den K
 
 ### Ereignisregelwerk
 Ereignisse entstehen aus Regeln mit Bedingung, Wahrscheinlichkeit und Abklingzeit, nicht aus reinem Zufall: Großkunde, Ausschreibung (gut bezahlt, 12 h verfügbar), Dieselpreissprung oder -rückgang, Marktchance oder Einbruch in einer Region, Kündigung eines Rahmenvertrags (nur bei vielen verpassten oder verspäteten Touren), Kundenänderungen (Lieferung verschoben oder eilig mit 8 % Aufschlag) sowie private Ereignisse. **Fairness:** Negative Firmenereignisse kommen höchstens alle 4 Tage und nie, solange das Firmenkonto im Minus ist; positive werden in schwierigen Lagen wahrscheinlicher. Der Ereignisfaktor des Schwierigkeitsgrads skaliert alles.
+
+### Entscheidungskarten
+Ein Teil der Ereignisse fragt nach einer Wahl statt nur zu melden. Jede Karte hat 2–3 Möglichkeiten mit sichtbarer Folge und eine Vorgabe, die nach Ablauf gilt (meist 30 Spielstunden, beim Eilauftrag bis zur Abholung):
+- **Firma und Markt:**
+  - **Eilauftrag:** etwa doppelter Preis, enge Frist, hohe Verspätungsstrafe.
+  - **Gehaltswunsch:** 7–12 % mehr. Ein Kompromiss klappt meist; lehnt man ab, kündigen erfahrene Fahrer mit 40 % Wahrscheinlichkeit.
+  - **Erfahrener Fahrer** sucht eine Stelle: sofort einstellen oder Bewerbung aufheben.
+  - **Beschwerde:** Gutschrift (+18 Zufriedenheit), Anruf (+8) oder ignorieren (−6).
+  - **Dieselzuschlag** ab 1,72 €/l: Je Vertrag zahlen 70 % der Kunden 5 % mehr, die übrigen sind verärgert. Wer die Kosten selbst trägt, gewinnt etwas Ruf.
+  - **Übernahme** des Kundenstamms eines angeschlagenen Konkurrenten: abgeworbene Kunden kehren zurück, zwei Fahrer erscheinen als Bewerber.
+  - **Fachmesse** für 4.500 €: Ruf und Vertragsangebote; wer selbst hinfährt, ist zwei Tage weg.
+  - **Interview** mit der Lokalzeitung: Ruf und Bewerber.
+- **Privat:** Wochenendausflug, Freundschaftsdienst, Vereinseinladung.
+
+Höchstens drei Firmenkarten und eine private Karte je Spieler sind gleichzeitig offen.
+
+### Ausschreibungen
+Verlader im Umkreis von 450 km der eigenen Standorte schreiben Rahmenverträge aus: 2, 3 oder 5 Touren pro Woche, 13 oder 26 Wochen, 150–1.100 km. Gebote sind zwischen 60 % und 150 % des Marktpreises möglich. Zur Frist (3–5 Tage) bieten die KI-Speditionen aus der Region mit, mindestens zwei:
+- Preis = Marktpreis × Preisniveau × Zufall (0,92–1,06); Speditionen in Not bieten 5 % billiger.
+- Bewertung = Preis × (1 − (Ruf − 50) / 400); die Pünktlichkeitsgarantie zieht weitere 5 % ab.
+- Das kleinste Ergebnis gewinnt.
+- Gewonnene Ausschreibungen werden zum Rahmenvertrag. Mit Garantie kostet jede verspätete Tour die halbe Ausfallstrafe.
+- Laufende Verträge und offene Gebote zusammen sind auf 2 je Fahrzeug begrenzt.
 
 ## 18. Bedienung, Hilfe und Atmosphäre
 

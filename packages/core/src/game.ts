@@ -19,7 +19,7 @@ import { newId } from './rng.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, TeamRole } from './types.ts';
 
-export const STATE_VERSION = 9;
+export const STATE_VERSION = 10;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.08, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -135,6 +135,8 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     economy: defaultEconomy(startTime),
     competitors: {},
     events: defaultEvents(),
+    decisions: [],
+    tenders: {},
   };
 
   const founderId = opts.founder.id ?? newId(state, 'pl');

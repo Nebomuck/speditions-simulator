@@ -19,7 +19,9 @@
 
 ## Nächste Schritte (in dieser Reihenfolge)
 
-Alle geplanten Punkte sind umgesetzt (zuletzt: anpassbare Panelgrößen, Fahrzeug-Clustering, POI-Ebene, 240 Städte mit dichterem Straßennetz, Fahrzeugbilder, Porträts und Charakter-Editor). Weitere Ideen nach Rückmeldung aus dem Spielbetrieb.
+Spielspaß-Paket 1 (0.14.0) ist umgesetzt: Entscheidungskarten, Ausschreibungen gegen die Konkurrenz, entschärfte Lebenssimulation (Fokus Firma, Wochenroutine).
+
+1. Spielspaß-Paket 2: Premium-Aufträge, die nur manuell disponiert werden können (Schwertransport mit Genehmigung, Messe-Zeitfenster), Szenarien mit eigenem Ziel, Quartalsziele von Bank oder Investor, Erfolge und Rekorde, Fahrer mit Eigenschaften und kleinen Geschichten
 
 ## Arbeitsweise
 
@@ -31,6 +33,6 @@ Alle geplanten Punkte sind umgesetzt (zuletzt: anpassbare Panelgrößen, Fahrzeu
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 102/102 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
+1. `npm install`, dann `npm test` (erwartet: 116/116 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
 3. Alle Phasen sind abgeschlossen. Städte ergänzen in `data/cities.ts`, danach `npm run roadnet` (behält alle bisherigen Kanten, K=5 Nachbarn, OSRM-Antworten werden zwischengespeichert). Balancing prüfen mit `node packages/core/test/measure-balance.ts [Tage] [easy|normal|realistic] [Seed]` (Spieler-Bot aus `test/bot.ts`), Welt mit `measure-world.ts`, Störungen mit `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

@@ -134,6 +134,30 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'tenders',
+    title: 'Ausschreibungen',
+    page: 'customers',
+    keywords: 'ausschreibung gebot zuschlag konkurrenz garantie rahmenvertrag preis',
+    body: [
+      'Große Verlader vergeben Rahmenverträge über 13 oder 26 Wochen an das beste Gebot. Ausschreibungen erscheinen, sobald die Firma zwei Fahrzeuge hat; mit Vertriebsmitarbeitern öfter.',
+      '• Du bietest einen Preis je Tour. Die Karte zeigt Marktpreis, deine groben Kosten und die Marge.',
+      '• KI-Speditionen aus der Region bieten verdeckt mit. Ein guter Ruf macht dein Gebot bis zu gut 6 % attraktiver, ein schlechter entsprechend teurer.',
+      '• Pünktlichkeitsgarantie: Dein Gebot wiegt 5 % besser, jede verspätete Tour kostet aber die halbe Ausfallstrafe.',
+      '• Nach dem Zuschlag stehen alle Gebote unter „Ergebnisse“. Gewonnene Ausschreibungen laufen als Rahmenvertrag.',
+    ],
+  },
+  {
+    id: 'decisions',
+    title: 'Entscheidungskarten',
+    keywords: 'entscheidung karte eilauftrag gehalt beschwerde messe dieselzuschlag übernahme',
+    body: [
+      'Manche Ereignisse fragen nach deiner Wahl: Eilaufträge, Gehaltswünsche, Beschwerden, Messen, Übernahmeangebote und private Anfragen. Die Karte erscheint unten rechts.',
+      '• Jede Möglichkeit zeigt ihre Folge. Entscheidest du nicht, gilt nach Ablauf die Vorgabe (meist „ablehnen“).',
+      '• „Später“ klappt die Karte ein; der Hinweis unten rechts zeigt, wie viele Entscheidungen offen sind.',
+      '• Mit „Fokus Firma“ entscheidet das Spiel private Karten selbst.',
+    ],
+  },
+  {
     id: 'market',
     title: 'Markt, Konjunktur und Konkurrenz',
     page: 'market',
@@ -176,6 +200,8 @@ export const HELP: HelpArticle[] = [
       '• Das Geschäftsführergehalt fließt aufs Privatkonto; Gewinnausschüttungen sind möglich.',
       '• Wohnen, Freizeit, Beziehungen und Ziele kosten Geld und Zeit, geben aber Energie zurück.',
       '• Ein Klick auf dein Bild öffnet den Charakter-Editor für dein Aussehen.',
+      '• Fokus Firma: Das Spiel plant Freizeit, Kontakte und Urlaub selbst und entscheidet private Karten. Wohnen, Familie und Ausschüttungen bleiben bei dir.',
+      '• Wochenroutine: eine feste Aktivität je Wochentag, jeden Abend um 19 Uhr.',
     ],
   },
   {
