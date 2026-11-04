@@ -121,6 +121,8 @@ function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: Sta
   const emptyLimit = maxEmpty * (1 + err * 0.4);
   const pool = Object.values(state.orders).filter((o) => {
     if (reserved.orders.has(o.id)) return false;
+    // Premium-Aufträge disponiert nur die Geschäftsführung selbst
+    if (o.premium) return false;
     if (o.status === 'accepted') {
       if (o.tripId) return false;
     } else if (o.status !== 'offered' || state.time >= o.offerExpires) return false;

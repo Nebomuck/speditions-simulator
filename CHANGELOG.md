@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.15.0 – 04.11.2026
+
+Spielspaß-Paket 2: Ziele, Spezialaufträge, Erfolge und Fahrer mit Charakter.
+
+- **Premium-Aufträge:** Ab dem dritten Spieltag erscheinen gelegentlich Einzelaufträge mit deutlich höherer Vergütung. Sie stehen in der Auftragsbörse in einer eigenen Karte und werden nur von Hand disponiert; die KI-Disposition fasst sie nicht an.
+  - **Schwertransport** (etwa das 1,9-Fache): Tieflader, Fahrer mit Schwertransport-Schein und eine Genehmigung. Der Antrag kostet rund 4,5 % der Vergütung, dauert 30 bis 60 Stunden und nimmt den Auftrag gleich an.
+  - **Messe-Termin** (etwa das 1,7-Fache): drei Stunden Abholfenster, knappe Lieferfrist. Zwei Stunden Verspätung kosten die halbe Vergütung.
+  - Pünktlich erledigt: Ansehen +3. Abholung immer montags bis mittwochs, damit die Lieferung nicht ins Wochenend-Fahrverbot fällt.
+- **Szenarien:** Unter „Spielart“ beim Spielstart: Neustart mit Altlasten, Familienbetrieb übernehmen, Kühlspezialist und Großes Ziel – jeweils mit eigener Ausgangslage, Ziel und Frist. Danach geht es frei weiter.
+- **Quartalsziele der Hausbank:** Alle 13 Wochen drei Ziele (immer Umsatz, dazu zwei aus Lieferungen, Pünktlichkeit, Leerkilometer, Ansehen, Kontostand, Fuhrpark). Das Ergebnis verändert die neue **Bonität A–E**: ±1 % Kreditzins und ±20 % Kreditrahmen.
+- **Erfolge und Rekorde:** 25 Erfolge (Touren, Firma, Spezial) und Bestwerte wie längste Tour, bester Monat und längste Pünktlichkeitsserie unter **Statistiken**; die nächsten offenen Erfolge im Dashboard.
+- **Fahrer mit Eigenschaften:** Etwa zwei von drei Fahrern bringen eine Eigenheit mit: Sparfuchs, Pünktlich, Bleifuß, Frohnatur, Eiserne Gesundheit oder Plaudertasche. Die Wirkung steht im Tooltip und in der Personalakte.
+- **Kleine Geschichten:** neue Entscheidungskarten zu Geburtstagen, Bitten um freie Tage, Blitzerfotos (nur bei Bleifuß) und Ersthelfern; Betriebsjubiläen im Protokoll.
+- Dashboard: Karten für Quartalsziele, Szenario und nächste Erfolge.
+- **Pause bei Entscheidungen:** Erscheint eine Entscheidungskarte, hält das Spiel an, damit sie nicht unbemerkt abläuft. Nach der Wahl läuft es von selbst weiter, sofern keine weitere Karte offen ist. „Später, weiterspielen“ klappt die Karte ein und setzt das Spiel fort.
+  - Abschaltbar unter **Einstellungen → Spiel**.
+  - Im Multiplayer ist die Pause standardmäßig aus, weil sie alle Mitspieler anhält.
+- Startbildschirm: Die Kachel „Benutzerdefiniert“ ragt bei schmalem Fenster nicht mehr über den Rand, das Wort wird getrennt.
+- Disposition: In der Desktop-App lassen sich Aufträge wieder per Maus auf den Zeitstrahl ziehen. Das Programmfenster hatte die Zieh-Ereignisse für das Ablegen von Dateien abgefangen.
+
 ## 0.14.0 – 04.11.2026
 
 Mehr Entscheidungen, weniger Pflege.

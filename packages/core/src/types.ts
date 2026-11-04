@@ -185,6 +185,8 @@ export interface Company {
   staff: StaffMember[];
   /** Unternehmensstufe 1–6 (steigt nur) */
   level: number;
+  /** Bonität bei der Hausbank 0–4 (A … E; fehlt: 2 = C), folgt den Quartalszielen */
+  rating?: number;
 }
 
 /** Ratenkredit (Annuität, monatliche Rate am Monatsersten). */
@@ -342,7 +344,11 @@ export interface Driver {
   unhappyDays?: number;
   /** Kündigung eingereicht: verlässt die Firma zu diesem Zeitpunkt */
   leavesAt?: GameTime;
+  /** Eigenschaft mit spürbarer Wirkung (nicht jeder Fahrer hat eine) */
+  trait?: DriverTrait;
 }
+
+export type DriverTrait = 'frugal' | 'punctual' | 'leadfoot' | 'cheerful' | 'tough' | 'talker';
 
 export interface Applicant extends Omit<
   Driver,
@@ -462,6 +468,8 @@ export interface Order {
   takenBy?: Id;
   /** besonders lukrative Ausschreibung (Ereignis) */
   tender?: boolean;
+  /** Premium-Auftrag: nur von Hand disponierbar */
+  premium?: PremiumInfo;
   offerExpires: GameTime;
   created: GameTime;
   tripId?: Id;
@@ -787,6 +795,84 @@ export interface Tender {
   result?: { winner: string; price: Money; bids: { name: string; price: Money; player?: boolean }[]; note?: string };
 }
 
+/** Premium-Auftrag: Schwertransport (Genehmigung nötig) oder Messe-Termin (enges Zeitfenster, hohe Strafe) */
+export interface PremiumInfo {
+  kind: 'heavy' | 'fair';
+  /** Bezeichnung der Ladung bzw. Messe */
+  title: string;
+  /** Schwertransport: Stand der Genehmigung */
+  permit?: 'none' | 'pending' | 'granted';
+  permitReady?: GameTime;
+  permitCost?: Money;
+  /** Bearbeitungszeit der Behörde in Stunden */
+  permitHours?: number;
+  /** Ansehen bei pünktlicher Lieferung */
+  reputation: number;
+}
+
+export type ScenarioId = 'free' | 'restart' | 'family' | 'reefer' | 'tycoon';
+
+export interface ScenarioState {
+  id: ScenarioId;
+  started: GameTime;
+  deadline: GameTime;
+  status: 'running' | 'won' | 'failed';
+  finishedAt?: GameTime;
+  /** Zählerstände bei Spielbeginn */
+  base: Record<string, number>;
+}
+
+export interface QuarterGoal {
+  kind: 'revenue' | 'deliveries' | 'ontime' | 'empty' | 'reputation' | 'fleet' | 'balance';
+  target: number;
+  /** Zählerstand zu Quartalsbeginn */
+  base: number;
+  /** zweiter Zählerstand (Verspätungen bzw. Last-km) */
+  base2?: number;
+}
+
+export interface QuarterState {
+  /** laufende Nummer ab 1 */
+  index: number;
+  start: GameTime;
+  end: GameTime;
+  goals: QuarterGoal[];
+}
+
+export interface QuarterResult {
+  index: number;
+  end: GameTime;
+  met: number;
+  of: number;
+  rating: number;
+}
+
+/** Erfolge, Rekorde und Zähler für Szenarien und Ziele */
+export interface ProgressState {
+  /** freigeschaltete Erfolge mit Zeitpunkt */
+  achievements: Record<string, GameTime>;
+  records: {
+    longestKm: number;
+    bestPayment: Money;
+    bestMonth: Money;
+    onTimeStreak: number;
+    bestStreak: number;
+    maxVehicles: number;
+    maxBalance: Money;
+  };
+  counts: {
+    international: number;
+    premium: number;
+    heavy: number;
+    fair: number;
+    reefer: number;
+    tendersWon: number;
+    quartersMet: number;
+  };
+  /** Zielländer erfolgreicher Lieferungen */
+  countries: string[];
+}
+
 export interface EventState {
   /** letzter Auslösezeitpunkt je Regel (bei privaten Ereignissen je Spieler: `regel:spieler`) */
   last: Record<string, GameTime>;
@@ -865,6 +951,17 @@ export interface GameState {
   events: EventState;
   /** offene Entscheidungskarten */
   decisions: Decision[];
+  /** bei neuen Entscheidungskarten anhalten (fehlt: an im Einzelspiel, aus im Multiplayer) */
+  pauseOnDecision?: boolean;
+  /** wegen einer Entscheidung angehalten – nach der letzten Wahl geht es von selbst weiter */
+  pausedForDecision?: boolean;
   /** Ausschreibungen von Rahmenverträgen */
   tenders: Record<Id, Tender>;
+  /** Szenario mit eigenem Ziel (fehlt: freies Spiel) */
+  scenario?: ScenarioState;
+  /** Quartalsziele der Hausbank */
+  quarter?: QuarterState;
+  quarterHistory: QuarterResult[];
+  /** Erfolge und Rekorde */
+  progress: ProgressState;
 }

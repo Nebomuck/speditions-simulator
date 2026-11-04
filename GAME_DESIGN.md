@@ -254,7 +254,7 @@ Ein Teil der Ereignisse fragt nach einer Wahl statt nur zu melden. Jede Karte ha
   - **Interview** mit der Lokalzeitung: Ruf und Bewerber.
 - **Privat:** Wochenendausflug, Freundschaftsdienst, Vereinseinladung.
 
-Höchstens drei Firmenkarten und eine private Karte je Spieler sind gleichzeitig offen.
+Höchstens drei Firmenkarten und eine private Karte je Spieler sind gleichzeitig offen. Im Einzelspiel hält eine neue Karte das Spiel an; nach der letzten Wahl läuft es weiter (abschaltbar, im Multiplayer standardmäßig aus).
 
 ### Ausschreibungen
 Verlader im Umkreis von 450 km der eigenen Standorte schreiben Rahmenverträge aus: 2, 3 oder 5 Touren pro Woche, 13 oder 26 Wochen, 150–1.100 km. Gebote sind zwischen 60 % und 150 % des Marktpreises möglich. Zur Frist (3–5 Tage) bieten die KI-Speditionen aus der Region mit, mindestens zwei:
@@ -264,6 +264,15 @@ Verlader im Umkreis von 450 km der eigenen Standorte schreiben Rahmenverträge a
 - Gewonnene Ausschreibungen werden zum Rahmenvertrag. Mit Garantie kostet jede verspätete Tour die halbe Ausfallstrafe.
 - Laufende Verträge und offene Gebote zusammen sind auf 2 je Fahrzeug begrenzt.
 
+### Premium-Aufträge
+Ab Spieltag 3 entsteht täglich mit 40 % ein Premium-Angebot (höchstens zwei offen), Herkunft im Umkreis von 500 km der eigenen Standorte. Abholung montags bis mittwochs. Die KI-Disposition plant sie nicht, als Beiladung sind sie nicht möglich.
+- **Schwertransport** (40 %): Industriemaschinen 30–40 t auf Tieflader, Fahrer mit Schwertransport-Schein, 150–1.200 km, Vergütung 1,9 × Grundrate. Genehmigung: 4,5 % der Vergütung, 30–60 h Bearbeitung; ohne erteilte Genehmigung keine Disposition. Abholung 72–120 h nach Erscheinen in einem 8-Stunden-Fenster, Lieferfrist mit 40 % Puffer.
+- **Messe-Termin** (60 %): Stück-, Paletten- oder Elektronikware zu einer Messe in einer Großstadt (150–1.100 km), Vergütung 1,7 × Grundrate, Abholfenster 3 h, Lieferfrist nur 8 % Puffer. Strafe 25 % je Stunde (Deckel 50 %).
+- Pünktlich: Ansehen +3. Verspätet: Messe −4, Schwertransport −2.
+
+### Fahrereigenschaften
+65 % der Bewerber haben eine Eigenschaft: **Sparfuchs** (Verbrauch wie +25 Sparsamkeit), **Pünktlich** (+2 Kundenzufriedenheit bei pünktlicher Lieferung), **Bleifuß** (+4 % Tempo, ×1,6 Unfallrisiko, +10 % Verschleiß, Blitzer-Karten), **Frohnatur** (+8 Zielzufriedenheit), **Eiserne Gesundheit** (Krankheit × 0,35), **Plaudertasche** (+1 Kundenzufriedenheit, +15 min je Be- und Entladung). Geschichten als Entscheidungskarten: Geburtstag, freie Tage, Blitzerfoto, Ersthelfer; Betriebsjubiläum +3 Zufriedenheit.
+
 ## 18. Bedienung, Hilfe und Atmosphäre
 
 - **Erste Schritte:** In neuen Spielen führt eine Liste durch neun Schritte (Börse, erste Disposition, Zeit, Karte, Lieferung, Finanzen, Fuhrpark, zweites Fahrzeug, Hilfe). Sie erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor und lässt sich ausblenden bzw. über die Hilfe wieder einblenden.
@@ -271,3 +280,21 @@ Verlader im Umkreis von 450 km der eigenen Standorte schreiben Rahmenverträge a
 - **Kontextmenüs:** Rechtsklick auf Fahrzeuge, Aufträge und Fahrer bietet die häufigsten Aktionen.
 - **Audio:** Effekttöne, eine ruhige generative Hintergrundmusik, Büroatmosphäre (Raumklang, Tastatur) und ein Telefonklingeln, wenn Kunden oder Partner anrufen (Ereignisse aus dem Regelwerk). Alles wird zur Laufzeit erzeugt – keine fremden Audiodateien. Musik und Atmosphäre sind getrennt regelbar.
 
+## 19. Ziele
+
+### Szenarien
+| Szenario | Ausgangslage | Ziel | Frist |
+|---|---|---|---|
+| Freies Spiel | wie gewohnt | – | – |
+| Neustart mit Altlasten | 8.000 €, Altkredit 60.000 € (8,5 %, 60 Monate), Bonität D, Ansehen 25 | schuldenfrei und 50.000 € auf dem Konto | 24 Monate |
+| Familienbetrieb übernehmen | 3 eigene, ältere Sattelzüge mit Planen und erfahrenen Fahrern, höchstens 15.000 €, Ansehen 45 | 8 Fahrzeuge und ≥ 90 % pünktlich (ab 100 Lieferungen) | 18 Monate |
+| Kühlspezialist | Kühlauflieger statt Plane | 120 Kühltransporte | 12 Monate |
+| Großes Ziel | wie gewohnt | Unternehmensstufe 5 | 36 Monate |
+
+Geschafft: Ansehen +5 und der Erfolg „Mission erfüllt“. Nach der Frist läuft das Spiel frei weiter.
+
+### Quartalsziele und Bonität
+Alle 91 Tage drei Ziele: Umsatz (Fahrzeuge × 420 € × 91 Tage × 0,85 oder das 1,05-Fache des Umsatztempos der letzten 60 Tage) und zwei zufällige aus Lieferungen (Fahrzeuge × 0,28 je Tag × 0,85), Pünktlichkeit ≥ 90 % (ab 5 Lieferungen), Leerkilometer ≤ 25 % (ab 500 km), Ansehen +5, Kontostand + max(3.000 €, 5 %), Fuhrpark +1 (nur ab 50.000 € Guthaben). Alle erreicht: Bonität eine Stufe besser, Ansehen +3; eines verfehlt: Ansehen +1; mehr verfehlt: Bonität schlechter, Ansehen −2. Bonität A–E (Start C): Zins (Stufe − C) × 0,5 %, Kreditrahmen (C − Stufe) × 10 %.
+
+### Erfolge und Rekorde
+25 Erfolge in drei Gruppen (Touren, Firma, Spezial), geprüft nach jeder Lieferung und täglich. Rekorde: längste Tour, bestbezahlter Auftrag, bestes Monatsergebnis, Pünktlichkeitsserie, größter Fuhrpark, höchster Kontostand, belieferte Länder.

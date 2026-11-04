@@ -138,6 +138,49 @@ describe('Entscheidungskarten (0.14.0)', () => {
     expect(seen).toBeLessThanOrEqual(3);
     expect(s.events.history.some((e) => e.rule.startsWith('dec:'))).toBe(true);
   });
+
+  it('neue Karten halten das Einzelspiel an; nach der letzten Wahl läuft es weiter', () => {
+    const s = newGame();
+    s.paused = false;
+    const d = first(s.drivers);
+    d.hired = s.time - 60 * MIN_PER_DAY;
+    d.satisfaction = 55;
+    const a = offerDecision(s, ctx, 'driver_raise')!;
+    expect(s.paused).toBe(true);
+    expect(s.pausedForDecision).toBe(true);
+    const b = offerDecision(s, ctx, 'press')!;
+    applyCommand(s, ctx, 'p1', { type: 'decide', decisionId: a.id, optionId: 'refuse' });
+    // noch eine Karte offen: weiter angehalten
+    expect(s.paused).toBe(true);
+    applyCommand(s, ctx, 'p1', { type: 'decide', decisionId: b.id, optionId: 'no' });
+    expect(s.paused).toBe(false);
+    expect(s.pausedForDecision).toBe(false);
+  });
+
+  it('wer selbst pausiert oder fortsetzt, übernimmt; abschaltbar und im Multiplayer standardmäßig aus', () => {
+    const s = newGame();
+    // schon pausiert: kein automatisches Fortsetzen nach der Wahl
+    const c = offerDecision(s, ctx, 'press')!;
+    expect(s.pausedForDecision).toBeFalsy();
+    applyCommand(s, ctx, 'p1', { type: 'decide', decisionId: c.id, optionId: 'no' });
+    expect(s.paused).toBe(true);
+    // manuell weiterspielen hebt die automatische Fortsetzung auf
+    s.paused = false;
+    offerDecision(s, ctx, 'press');
+    applyCommand(s, ctx, 'p1', { type: 'setPaused', paused: false });
+    expect(s.pausedForDecision).toBe(false);
+    // abgeschaltet
+    applyCommand(s, ctx, 'p1', { type: 'setPauseOnDecision', on: false });
+    s.decisions = [];
+    offerDecision(s, ctx, 'press');
+    expect(s.paused).toBe(false);
+    // Multiplayer ohne Einstellung: kein Anhalten
+    const m = newGame();
+    addPlayer(m, { id: 'p2', name: 'Kim' });
+    m.paused = false;
+    offerDecision(m, ctx, 'press');
+    expect(m.paused).toBe(false);
+  });
 });
 
 describe('Ausschreibungen (0.14.0)', () => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { X, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
-import { formatMoney, type Issue } from '@spedsim/core';
+import { TRAITS, formatMoney, type DriverTrait, type Issue } from '@spedsim/core';
 
 export function Money({ value, colored = false, cents = false }: { value: number; colored?: boolean; cents?: boolean }) {
   const cls = colored ? (value > 0 ? 'pos' : value < 0 ? 'neg' : '') : '';
@@ -172,5 +172,16 @@ export function LineChart({ series, height = 160, format }: { series: { label: s
         {format && <span className="dim" style={{ marginLeft: 'auto' }}>Max {format(max)}</span>}
       </div>
     </div>
+  );
+}
+
+/** Eigenschaft eines Fahrers als Abzeichen mit Erklärung */
+export function TraitBadge({ trait }: { trait?: DriverTrait }) {
+  if (!trait) return null;
+  const t = TRAITS[trait];
+  return (
+    <span className={`badge trait ${t.tone}`} title={t.effect}>
+      {t.name}
+    </span>
   );
 }

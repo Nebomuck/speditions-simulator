@@ -1,5 +1,6 @@
 // PersistenceSystem: versioniertes Speicherformat mit Prüfsumme und Migrationskette.
 
+import { defaultProgress } from './progress.ts';
 import { STATE_VERSION } from './game.ts';
 import { defaultAutoDispatch } from './autodispatch.ts';
 import { defaultEconomy } from './economy.ts';
@@ -115,6 +116,12 @@ export const MIGRATIONS: Record<number, Migration> = {
   9: (s) => {
     s.decisions ??= [];
     s.tenders ??= {};
+    return s;
+  },
+  // 0.15.0: Erfolge und Rekorde, Quartalsziele (beginnen mit dem nächsten Tageswechsel)
+  10: (s) => {
+    s.progress ??= defaultProgress();
+    s.quarterHistory ??= [];
     return s;
   },
 };

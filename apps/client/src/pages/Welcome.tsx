@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Truck, Map, Users, Wallet, Home, Network, Upload, Trash2, Play, LogIn, Plus, Server, Download, Pencil, Dices } from 'lucide-react';
-import { BACKGROUNDS, CITIES, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type AvatarLook, type CharacterBackground, type Difficulty, type DifficultyId } from '@spedsim/core';
+import { BACKGROUNDS, CITIES, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, formatDateTime, formatMoney, type AvatarLook, type CharacterBackground, type Difficulty, type DifficultyId, SCENARIOS, SCENARIO_IDS, type ScenarioId } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
 import { appVersion, checkForUpdate, installUpdate, type Update } from '../game/updater.ts';
 import { connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
@@ -50,6 +50,7 @@ export function Welcome() {
   const [player, setPlayer] = useState('Alex Mustermann');
   const [hq, setHq] = useState('leipzig');
   const [difficulty, setDifficulty] = useState<DifficultyId>('normal');
+  const [scenario, setScenario] = useState<ScenarioId>('free');
   const [custom, setCustom] = useState<Partial<Difficulty>>({ ...DIFFICULTIES.normal });
   const [avatar, setAvatar] = useState<AvatarLook>(DEFAULT_LOOK);
   const [editLook, setEditLook] = useState(false);
@@ -105,7 +106,7 @@ export function Welcome() {
     setBusy(true);
     try {
       const host = getLocalHost();
-      await host.newGame({ companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, founder: { name: player, character: { name: player, age, avatar, background } } });
+      await host.newGame({ companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario, founder: { name: player, character: { name: player, age, avatar, background } } });
       setUi({ host, page: 'dashboard' });
     } catch (e) {
       toast('danger', (e as Error).message);
@@ -142,7 +143,7 @@ export function Welcome() {
     try {
       const external = externalServer.trim();
       const url = external ? normalizeServerUrl(external) : await ensureLocalServer();
-      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, name: player, character }, !external);
+      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario, name: player, character }, !external);
     } catch (e) {
       toast('danger', `Server konnte nicht gestartet werden: ${(e as Error).message ?? e}`);
       setUi({ connection: '' });
@@ -254,11 +255,27 @@ export function Welcome() {
                         </button>
                       ))}
                       <button className={difficulty === 'custom' ? 'active' : ''} onClick={() => setDifficulty('custom')}>
-                        <b>{DIFFICULTY_LABEL.custom}</b>
+                        {/* weicher Trennstrich: schmale Kachel bricht als „Benutzer-definiert“ um */}
+                        <b>{DIFFICULTY_LABEL.custom.replace('Benutzer', 'Benutzer­')}</b>
                         <small>Startkapital, Margen, Ereignisse und Zahlungsrisiko selbst festlegen</small>
                       </button>
                     </div>
                     {difficulty === 'custom' && <CustomDifficulty value={custom} onChange={setCustom} />}
+                  </div>
+                  <div className="field">
+                    <label>Spielart</label>
+                    <select className="input" value={scenario} onChange={(e) => setScenario(e.target.value as ScenarioId)}>
+                      {SCENARIO_IDS.map((id) => (
+                        <option key={id} value={id}>
+                          {SCENARIOS[id].name}
+                          {SCENARIOS[id].months ? ` (${SCENARIOS[id].months} Monate)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="dim scenario-text">
+                      {SCENARIOS[scenario].intro}
+                      {scenario !== 'free' && <><br /><b>Ziel:</b> {SCENARIOS[scenario].goal}</>}
+                    </p>
                   </div>
                 </>
               ) : null}

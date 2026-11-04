@@ -3,6 +3,7 @@ import { formatDateTime, receivables, isTripLate } from '@spedsim/core';
 import { navigate, useGame } from '../game/store.ts';
 import { Badge, Card, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { MapView } from '../ui/MapView.tsx';
+import { NextAchievements, QuarterCard, ScenarioCard } from '../ui/Goals.tsx';
 
 export function Dashboard() {
   const s = useGame();
@@ -30,6 +31,11 @@ export function Dashboard() {
         <Stat icon={<Users size={15} />} label="Mitarbeiter" value={Object.keys(s.drivers).length + (s.company.staff?.length ?? 0)} hint={`${Object.keys(s.drivers).length} Fahrer · ${s.company.staff?.length ?? 0} im Büro`} />
         <Stat icon={<Smile size={15} />} label="Kundenzufriedenheit" value={customers.length ? `${Math.round(avgSat)} %` : '–'} hint={`Reputation ${Math.round(s.company.reputation)} / 100`} />
         <Stat icon={<Receipt size={15} />} label="Angenommene Aufträge" value={accepted.length} hint={accepted.length ? 'warten auf Disposition' : 'Auftragsbörse prüfen'} />
+      </div>
+      <div className="grid mt goals-grid">
+        <QuarterCard s={s} />
+        <ScenarioCard s={s} />
+        <NextAchievements s={s} count={s.scenario ? 3 : 4} />
       </div>
       <div className="grid mt" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
         <Card title="Live-Karte" actions={<button className="btn small" onClick={() => navigate('map')}>Vollbild</button>}>

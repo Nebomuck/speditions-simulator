@@ -85,6 +85,7 @@ function Board() {
             <div className="meta">
               <span>{cargoName(o.cargoId)}</span>
               <span>{trailerName(o.trailerType)}{o.partial ? ` · Teilladung ${o.weightT.toLocaleString('de-DE')} t` : ''}{o.contractId ? ' · Vertragstour' : ''}</span>
+              {o.premium && <span className="premium-tag">{o.premium.kind === 'heavy' ? `Schwertransport${o.premium.permit === 'pending' ? ' · Genehmigung beantragt' : o.premium.permit !== 'granted' ? ' · Genehmigung fehlt' : ''}` : 'Messe-Termin'}</span>}
               <span>{km(o.distanceKm)}</span>
               <span><Money value={o.payment} /></span>
             </div>

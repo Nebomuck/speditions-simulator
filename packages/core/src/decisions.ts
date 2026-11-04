@@ -131,10 +131,169 @@ export const DECISION_RULES: DecisionRule[] = [
       state.drivers[id] = {
         id, name: a.name, age: a.age, homeCityId: a.homeCityId, cityId: state.company.hqCityId, experience: a.experience, licenses: a.licenses, qualifications: a.qualifications,
         salary: a.salary, reliability: a.reliability, ecoDriving: a.ecoDriving, stressResistance: a.stressResistance, satisfaction: 75, hired: state.time,
-        status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: state.time,
+        status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: state.time, trait: a.trait,
       };
       book(state, 'company', -350_00, 'hiring', `Einstellung ${a.name}`);
       return `${a.name} fängt am Firmensitz an (${formatMoney(a.salary)}/Monat).`;
+    },
+  },
+  // ------------------------------------------------- Fahrergeschichten
+  {
+    id: 'driver_birthday',
+    category: 'personnel',
+    chance: 0.07,
+    cooldownDays: 14,
+    create(state) {
+      const pool = Object.values(state.drivers).filter((d) => d.leavesAt === undefined && state.time - d.hired > 20 * MIN_PER_DAY);
+      const d = rand.pick(state, pool);
+      if (!d) return null;
+      return {
+        title: 'Geburtstag im Team',
+        text: `${d.name} wird heute ${d.age + 1}. Die Kollegen fragen, ob die Firma etwas beisteuert.`,
+        options: [opt('gift', 'Geschenk und Kuchen (150 €)', 'Zufriedenheit +10, Team +2'), opt('card', 'Karte vom Chef', 'Zufriedenheit +4'), opt('none', 'Nichts weiter', 'Zufriedenheit −3')],
+        defaultOption: 'none',
+        hours: 20,
+        data: { driverId: d.id },
+      };
+    },
+    resolve(state, _ctx, dec, o) {
+      const d = state.drivers[str(dec, 'driverId')];
+      if (!d) return 'Der Fahrer ist nicht mehr in der Firma.';
+      d.age += 1;
+      if (o === 'gift') {
+        book(state, 'company', -150_00, 'other', `Geburtstagsgeschenk ${d.name}`);
+        d.satisfaction = clamp(d.satisfaction + 10);
+        for (const x of Object.values(state.drivers)) if (x !== d) x.satisfaction = clamp(x.satisfaction + 2);
+        return `${d.name} freut sich riesig, das ganze Team feiert mit.`;
+      }
+      if (o === 'card') {
+        d.satisfaction = clamp(d.satisfaction + 4);
+        return `${d.name} bedankt sich für die Karte.`;
+      }
+      d.satisfaction = clamp(d.satisfaction - 3);
+      return `${d.name} hat sich etwas mehr erhofft.`;
+    },
+  },
+  {
+    id: 'driver_family',
+    category: 'personnel',
+    chance: 0.05,
+    cooldownDays: 20,
+    create(state) {
+      const pool = Object.values(state.drivers).filter((d) => d.status === 'idle' && d.leavesAt === undefined);
+      const d = rand.pick(state, pool);
+      if (!d) return null;
+      const reason = rand.pick(state, ['die Einschulung der Tochter', 'den Umzug der Eltern', 'die Hochzeit der Schwester', 'die Geburt des ersten Enkels']);
+      return {
+        title: 'Bitte um zwei freie Tage',
+        text: `${d.name} bittet kurzfristig um zwei freie Tage für ${reason} – nicht vom Jahresurlaub, als Sonderurlaub.`,
+        options: [
+          opt('yes', 'Ja, Sonderurlaub', 'Zwei Tage nicht verfügbar, Zufriedenheit +14'),
+          opt('vacation', 'Ja, aber vom Urlaub', 'Zwei Urlaubstage, Zufriedenheit +4'),
+          opt('no', 'Geht gerade nicht', 'Zufriedenheit −10'),
+        ],
+        defaultOption: 'no',
+        hours: 12,
+        data: { driverId: d.id },
+      };
+    },
+    resolve(state, _ctx, dec, o) {
+      const d = state.drivers[str(dec, 'driverId')];
+      if (!d) return 'Der Fahrer ist nicht mehr in der Firma.';
+      if (o === 'no' || d.status !== 'idle') {
+        d.satisfaction = clamp(d.satisfaction - 10);
+        return o === 'no' ? `${d.name} ist enttäuscht.` : `${d.name} ist inzwischen verplant – die freien Tage fallen aus.`;
+      }
+      d.status = 'vacation';
+      d.absentUntil = state.time + 2 * MIN_PER_DAY;
+      if (o === 'vacation') {
+        d.vacationLeft = Math.max(0, (d.vacationLeft ?? 30) - 2);
+        d.satisfaction = clamp(d.satisfaction + 4);
+        return `${d.name} nimmt zwei Urlaubstage.`;
+      }
+      d.satisfaction = clamp(d.satisfaction + 14);
+      return `${d.name} ist dankbar und zwei Tage weg.`;
+    },
+  },
+  {
+    id: 'driver_speeding',
+    category: 'personnel',
+    chance: 0.12,
+    cooldownDays: 18,
+    create(state) {
+      const pool = Object.values(state.drivers).filter((d) => d.trait === 'leadfoot' && d.kmDriven > 2000);
+      const d = rand.pick(state, pool);
+      if (!d) return null;
+      const fine = rand.pick(state, [120_00, 180_00, 240_00]);
+      return {
+        title: 'Blitzerfoto',
+        text: `Post von der Bußgeldstelle: ${d.name} war mit dem LKW deutlich zu schnell unterwegs. Bußgeld ${formatMoney(fine)}, der Halter soll Stellung nehmen.`,
+        options: [
+          opt('pay', 'Firma zahlt', `−${formatMoney(fine)}, Zufriedenheit +3`),
+          opt('deduct', 'Vom Lohn abziehen', 'Zufriedenheit −6'),
+          opt('talk', 'Ernstes Gespräch', 'Zufriedenheit −2, fährt vielleicht ruhiger'),
+        ],
+        defaultOption: 'deduct',
+        data: { driverId: d.id, fine },
+      };
+    },
+    resolve(state, _ctx, dec, o) {
+      const d = state.drivers[str(dec, 'driverId')];
+      if (!d) return 'Der Fahrer ist nicht mehr in der Firma.';
+      if (o === 'pay') {
+        book(state, 'company', -num(dec, 'fine'), 'penalty', `Bußgeld ${d.name}`);
+        d.satisfaction = clamp(d.satisfaction + 3);
+        return `Die Firma übernimmt das Bußgeld.`;
+      }
+      if (o === 'deduct') {
+        d.satisfaction = clamp(d.satisfaction - 6);
+        return `${d.name} zahlt selbst und ist verstimmt.`;
+      }
+      d.satisfaction = clamp(d.satisfaction - 2);
+      if (rand.chance(state, 0.4)) {
+        d.trait = undefined;
+        return `${d.name} nimmt es sich zu Herzen und fährt ab jetzt ruhiger (kein Bleifuß mehr).`;
+      }
+      return `${d.name} nickt – ob es hilft, wird sich zeigen.`;
+    },
+  },
+  {
+    id: 'driver_hero',
+    category: 'personnel',
+    chance: 0.03,
+    cooldownDays: 40,
+    create(state) {
+      const pool = Object.values(state.drivers).filter((d) => d.status === 'on_trip' || d.kmDriven > 5000);
+      const d = rand.pick(state, pool);
+      if (!d) return null;
+      return {
+        title: 'Ersthelfer auf der Autobahn',
+        text: `${d.name} hat an einer Unfallstelle als Erster angehalten und bis zum Eintreffen des Rettungsdienstes geholfen. Die Lokalzeitung möchte darüber berichten.`,
+        options: [
+          opt('bonus', 'Prämie (300 €) und Bericht', 'Zufriedenheit +12, Ansehen +3'),
+          opt('story', 'Bericht ja, keine Prämie', 'Zufriedenheit +4, Ansehen +2'),
+          opt('quiet', 'Lieber kein Rummel', 'Zufriedenheit +2'),
+        ],
+        defaultOption: 'quiet',
+        data: { driverId: d.id },
+      };
+    },
+    resolve(state, _ctx, dec, o) {
+      const d = state.drivers[str(dec, 'driverId')];
+      if (!d) return 'Der Fahrer ist nicht mehr in der Firma.';
+      if (o === 'bonus') {
+        book(state, 'company', -300_00, 'wages', `Prämie ${d.name}`);
+        d.satisfaction = clamp(d.satisfaction + 12);
+        state.company.reputation = Math.min(100, state.company.reputation + 3);
+        return `Der Bericht erscheint mit Foto vor dem LKW – ${d.name} ist stolz.`;
+      }
+      if (o === 'story') {
+        d.satisfaction = clamp(d.satisfaction + 4);
+        state.company.reputation = Math.min(100, state.company.reputation + 2);
+        return 'Der Bericht erscheint und macht die Firma bekannt.';
+      }
+      d.satisfaction = clamp(d.satisfaction + 2);
+      return `${d.name} ist froh, dass es keinen Rummel gibt.`;
     },
   },
   // ---------------------------------------------------------------- Markt
@@ -471,8 +630,18 @@ function open(state: GameState, ctx: SimContext, r: DecisionRule, draft: Draft, 
   // „Fokus Firma“: private Karten entscheidet das Spiel sofort
   const p = playerId ? state.players[playerId] : undefined;
   if (p?.character.autopilot && r.auto) resolveDecision(state, ctx, d.id, r.auto, true);
-  else addLog(state, { level: 'info', category: r.category === 'private' ? 'private' : r.category === 'personnel' ? 'personnel' : 'market', text: `Entscheidung gefragt: ${d.title}` });
+  else {
+    addLog(state, { level: 'info', category: r.category === 'private' ? 'private' : r.category === 'personnel' ? 'personnel' : 'market', text: `Entscheidung gefragt: ${d.title}` });
+    // anhalten, damit die Karte nicht unbemerkt abläuft
+    if (pausesOnDecision(state) && !state.paused) {
+      state.paused = true;
+      state.pausedForDecision = true;
+    }
+  }
 }
+
+/** Hält das Spiel bei neuen Karten an? Ohne Einstellung: im Einzelspiel ja, im Multiplayer nein (würde alle anhalten). */
+export const pausesOnDecision = (state: GameState) => state.pauseOnDecision ?? Object.keys(state.players).length <= 1;
 
 /** Bestimmte Karte sofort anbieten (Tests, Tutorial); null, wenn sie gerade nicht passt */
 export function offerDecision(state: GameState, ctx: SimContext, ruleId: string, playerId?: Id): Decision | null {
@@ -531,6 +700,11 @@ export function resolveDecision(state: GameState, ctx: SimContext, decisionId: I
   if (!option) return { ok: false, error: 'Unbekannte Möglichkeit.' };
   const rule = RULE_BY_ID[d.rule];
   state.decisions = state.decisions.filter((x) => x !== d);
+  // nach der letzten offenen Karte weiterlaufen, wenn das Spiel ihretwegen angehalten wurde
+  if (state.pausedForDecision && !state.decisions.length) {
+    state.paused = false;
+    state.pausedForDecision = false;
+  }
   const text = rule ? rule.resolve(state, ctx, d, optionId) : '';
   const prefix = automatic ? (d.playerId && state.players[d.playerId]?.character.autopilot ? 'Fokus Firma' : 'Keine Entscheidung') : 'Entschieden';
   state.events.history.push({ t: state.time, rule: `dec:${d.rule}`, title: d.title, text: `${option.label} – ${text}`, category: d.category === 'personnel' ? 'company' : d.category, tone: 'neutral' });

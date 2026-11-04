@@ -115,6 +115,7 @@ export const HELP: HelpArticle[] = [
     title: 'Fahrer und Personal',
     keywords: 'fahrer einstellen bewerber gehalt zufriedenheit urlaub krank kündigung schulung adr gespräch anreise bahn',
     body: [
+      'Fahrereigenschaften: Etwa zwei von drei Fahrern bringen eine Eigenheit mit, zum Beispiel Sparfuchs (weniger Diesel), Pünktlich (zufriedenere Kunden), Bleifuß (schneller, aber riskanter), Frohnatur (zufriedener), Eiserne Gesundheit (selten krank) oder Plaudertasche (Kunden mögen es, Laden dauert länger). Die Wirkung steht im Tooltip und in der Personalakte. Dazu kommen kleine Geschichten als Entscheidungskarten, etwa Geburtstage, Bitten um freie Tage oder ein Blitzerfoto.',
       'Täglich kommen neue Bewerbungen. Erfahrung macht Fahrer schneller und sicherer, Sparsamkeit senkt den Verbrauch.',
       '• Zufriedenheit hängt von Gehalt, Urlaub, Wochenlenkzeit, Firmenruf und Betriebszugehörigkeit ab. Liegt sie 7 Tage unter 25, kündigt der Fahrer.',
       '• Personalgespräche (alle 14 Tage), Gehaltserhöhungen und Urlaub helfen.',
@@ -154,7 +155,55 @@ export const HELP: HelpArticle[] = [
       'Manche Ereignisse fragen nach deiner Wahl: Eilaufträge, Gehaltswünsche, Beschwerden, Messen, Übernahmeangebote und private Anfragen. Die Karte erscheint unten rechts.',
       '• Jede Möglichkeit zeigt ihre Folge. Entscheidest du nicht, gilt nach Ablauf die Vorgabe (meist „ablehnen“).',
       '• „Später“ klappt die Karte ein; der Hinweis unten rechts zeigt, wie viele Entscheidungen offen sind.',
+      '• Erscheint eine Karte, hält das Spiel an und läuft nach deiner Wahl weiter (abschaltbar unter Einstellungen; im Multiplayer standardmäßig aus).',
       '• Mit „Fokus Firma“ entscheidet das Spiel private Karten selbst.',
+    ],
+  },
+  {
+    id: 'premium',
+    title: 'Premium-Aufträge',
+    keywords: 'premium schwertransport genehmigung tieflader messe termin bonus',
+    body: [
+      'Ab dem dritten Spieltag erscheinen hin und wieder besonders lukrative Einzelaufträge. Sie stehen in der Auftragsbörse in einer eigenen Karte über der Liste und werden nur von Hand disponiert; die KI-Disposition fasst sie nicht an.',
+      '• Schwertransport (etwa das 1,9-Fache der üblichen Fracht): Du brauchst einen Tieflader, einen Fahrer mit Schwertransport-Schein und eine Genehmigung. Der Antrag kostet rund 4,5 % der Vergütung, dauert 30 bis 60 Stunden und nimmt den Auftrag zugleich an.',
+      '• Messe-Termin (etwa das 1,7-Fache): Abholung in einem Fenster von drei Stunden, kaum Puffer bis zur Messe. Zwei Stunden Verspätung kosten die halbe Vergütung und Ansehen.',
+      '• Pünktlich erledigt bringen beide Arten Ansehen +3. Premium-Aufträge fahren nur als eigene Tour, nicht als Beiladung.',
+    ],
+  },
+  {
+    id: 'goals',
+    title: 'Quartalsziele und Bonität',
+    page: 'dashboard',
+    keywords: 'quartal ziel bank bonität rating zins kreditrahmen',
+    body: [
+      'Alle 13 Wochen stellt die Hausbank drei Ziele, passend zur Größe der Firma: immer einen Umsatz und zwei weitere, etwa Lieferungen, Pünktlichkeit, Leerkilometer, Ansehen, Kontostand oder Fuhrpark. Der Stand steht im Dashboard.',
+      '• Alle Ziele erreicht: Die Bonität steigt um eine Stufe, Ansehen +3.',
+      '• Ein Ziel verfehlt: Die Bonität bleibt, Ansehen +1.',
+      '• Mehr verfehlt: Die Bonität sinkt, Ansehen −2.',
+      '• Bonität A bis E: A senkt den Kreditzins um 1 Prozentpunkt und hebt den Kreditrahmen um 20 %, E wirkt umgekehrt. Neue Firmen starten mit C.',
+    ],
+  },
+  {
+    id: 'scenarios',
+    title: 'Szenarien',
+    keywords: 'szenario ziel frist neustart familienbetrieb kühlspezialist großes ziel',
+    body: [
+      'Beim Spielstart wählst du unter „Spielart“ das freie Spiel oder ein Szenario mit eigener Ausgangslage, einem Ziel und einer Frist. Der Fortschritt steht im Dashboard.',
+      '• Neustart mit Altlasten: 60.000 € Altkredit, 8.000 € Startgeld, Bonität D. Ziel: in 24 Monaten schuldenfrei mit 50.000 € auf dem Konto.',
+      '• Familienbetrieb übernehmen: drei ältere Sattelzüge und Fahrer, wenig Rücklagen. Ziel: in 18 Monaten 8 Fahrzeuge und mindestens 90 % pünktlich (ab 100 Lieferungen).',
+      '• Kühlspezialist: Start mit Kühlauflieger. Ziel: 120 Kühltransporte in 12 Monaten.',
+      '• Großes Ziel: Unternehmensstufe 5 in 36 Monaten.',
+      'Ob geschafft oder nicht: Nach Ablauf geht das Spiel als freies Spiel weiter.',
+    ],
+  },
+  {
+    id: 'achievements',
+    title: 'Erfolge und Rekorde',
+    page: 'stats',
+    keywords: 'erfolg rekord meilenstein trophäe serie pünktlich',
+    body: [
+      'Erfolge sind Meilensteine wie die erste Auslandstour, 25 pünktliche Lieferungen in Folge, der erste Schwertransport oder zehn Fahrzeuge. Sie stehen unter Statistiken, die nächsten offenen im Dashboard.',
+      '• Rekorde halten Bestwerte fest: längste Tour, bestbezahlter Auftrag, bester Monat, längste Pünktlichkeitsserie, größter Fuhrpark und höchster Kontostand.',
     ],
   },
   {

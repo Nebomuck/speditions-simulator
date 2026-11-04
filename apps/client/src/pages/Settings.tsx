@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Save, Download, LogOut, Sun, Moon, Volume2, VolumeX, Music, Building, Phone, Copy, Trash2, Bug } from 'lucide-react';
-import { DIFFICULTY_LABEL } from '@spedsim/core';
-import { getUi, localStorageSet, resetGameUi, setUi, toast, useGame, useUi } from '../game/store.ts';
+import { DIFFICULTY_LABEL, pausesOnDecision } from '@spedsim/core';
+import { getUi, localStorageSet, resetGameUi, sendCommand, setUi, toast, useGame, useUi } from '../game/store.ts';
 import { Card, PageHeader } from '../ui/components.tsx';
 import { applyVolumes, playPhone } from '../ui/sound.ts';
 import { askConfirm } from '../ui/confirm.tsx';
@@ -95,6 +95,13 @@ export function SettingsPage() {
             <dt>Speicherformat</dt><dd>Version {s.version}</dd>
             <dt>Programmversion</dt><dd>{__APP_VERSION__}</dd>
           </dl>
+          <label className="switch-row mt">
+            <input type="checkbox" checked={pausesOnDecision(s)} onChange={(e) => sendCommand({ type: 'setPauseOnDecision', on: e.target.checked })} />
+            <span>Bei Entscheidungen anhalten</span>
+          </label>
+          <p className="dim" style={{ fontSize: 12.5, marginBottom: 0 }}>
+            Erscheint eine Entscheidungskarte, hält das Spiel an und läuft nach deiner Wahl weiter. Im Multiplayer standardmäßig aus, weil es alle Mitspieler anhält.
+          </p>
         </Card>
         <ErrorLog />
         <Card title="Lizenzen & Datenquellen">

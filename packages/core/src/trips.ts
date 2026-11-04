@@ -11,6 +11,9 @@ import { onContractDelivery } from './contracts.ts';
 import { addLog, adjustSatisfaction, book, createInvoice, formatMoney } from './finance.ts';
 import { HOS_RULES, drivableNow, hosDrive, hosRest, hosWork, pickupWaitMin } from './hos.ts';
 import { rand } from './rng.ts';
+import { effectiveEco, traitAccident, traitCustomerBonus, traitHandlingMin, traitSpeed, traitWear } from './traits.ts';
+import { onPremiumDelivery } from './premium.ts';
+import { onDelivery } from './progress.ts';
 import { formatDateTime, formatDuration, hourOfDay } from './time.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
 import { WEATHER, edgeCountry, edgeWeather, isCustomsBorder, rollBorderWait, tripBan, weatherIn } from './world.ts';
@@ -147,14 +150,14 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   // Fahren
   const ecoFactor = 0.97 + driver.experience / 1000;
   const wx = edgeWeather(state, loc.edge, loc.reverse);
-  const speed = Math.min(loc.edge.truckKmh * speedFactor(vehicle.modelId), 120) * trafficFactor(state, loc.edge.a, loc.edge.b) * ecoFactor * (dis?.speedFactor ?? 1) * wx.speed;
+  const speed = Math.min(loc.edge.truckKmh * speedFactor(vehicle.modelId), 120) * trafficFactor(state, loc.edge.a, loc.edge.b) * ecoFactor * (dis?.speedFactor ?? 1) * wx.speed * traitSpeed(driver);
   const km = Math.min(speed / 60, leg.km - trip.progressKm);
   trip.speedKmh = Math.round(speed);
   trip.progressKm += km;
   hosDrive(driver.hos, 1);
 
   const loadFrac = leg.loaded ? tripLoadFraction(state, trip) : 0;
-  vehicle.fuelL = Math.max(0, vehicle.fuelL - km * consumptionPerKm(vehicle.modelId, loadFrac, driver.ecoDriving));
+  vehicle.fuelL = Math.max(0, vehicle.fuelL - km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver)));
   vehicle.odometerKm += km;
   driver.kmDriven += km;
   if (leg.loaded) trip.kmLoaded += km;
@@ -165,7 +168,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   trip.costs.toll += toll;
 
   // Verschleiß – abhängig von Haltbarkeit, Beladung und Fahrweise
-  const wear = (0.0006 / model.durability) * (1 + loadFrac * 0.3) * (1.1 - driver.ecoDriving / 500) * km * fleetWearFactor(state);
+  const wear = (0.0006 / model.durability) * (1 + loadFrac * 0.3) * (1.1 - driver.ecoDriving / 500) * km * fleetWearFactor(state) * traitWear(driver);
   vehicle.condition = Math.max(0, vehicle.condition - wear);
   if (trip.trailerId) {
     const tr = state.trailers[trip.trailerId];
@@ -183,7 +186,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
 
   // Unfall (Wetter, Erfahrung) und Reifenpanne – selten; ein Zufallswurf für beide
   const ef = state.difficulty.eventFactor;
-  const pAccident = km * ACCIDENT_PER_KM * wx.risk * (1.4 - driver.experience / 100) * ef;
+  const pAccident = km * ACCIDENT_PER_KM * wx.risk * (1.4 - driver.experience / 100) * ef * traitAccident(driver);
   const pTire = km * TIRE_PER_KM * ef;
   if (rand.chance(state, pAccident + pTire)) {
     if (rand.chance(state, pAccident / (pAccident + pTire))) accident(state, trip, weatherIn(state, here));
@@ -306,7 +309,7 @@ function startLoading(state: GameState, trip: Trip) {
   const delay = rand.chance(state, 0.15 * state.difficulty.eventFactor) ? rand.int(state, 30, 150) : 0;
   trip.phase = 'loading';
   trip.activity = 'loading';
-  trip.activityLeft = cargo.loadMin + delay;
+  trip.activityLeft = cargo.loadMin + delay + traitHandlingMin(state.drivers[trip.driverId]);
   tlog(state, trip, delay ? `Beladung (verzögert um ${delay} min)` : 'Beladung');
   if (delay >= 90)
     addLog(state, { level: 'warning', category: 'trip', text: `Verzögerte Beladung in ${CITY_BY_ID[order.fromCityId].name} (+${delay} min).`, ref: { kind: 'trip', id: trip.id } });
@@ -337,7 +340,7 @@ function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
   const ef = state.difficulty.eventFactor;
   const problem = rand.chance(state, 0.025 * ef);
   const delay = problem ? rand.int(state, 120, 300) : rand.chance(state, 0.1 * ef) ? rand.int(state, 20, 90) : 0;
-  trip.activityLeft = Math.round(CARGO_BY_ID[order.cargoId].loadMin * UNLOAD_MIN_FACTOR) + delay;
+  trip.activityLeft = Math.round(CARGO_BY_ID[order.cargoId].loadMin * UNLOAD_MIN_FACTOR) + delay + traitHandlingMin(state.drivers[trip.driverId]);
   tlog(state, trip, `Ankunft Empfänger ${CITY_BY_ID[order.toCityId].name} – Entladung${delay ? ` (${problem ? 'Problem an der Lieferstelle' : 'verzögert'}, +${formatDuration(delay)})` : ''}`);
   if (delay >= 60)
     addLog(state, {
@@ -371,11 +374,14 @@ function completeDelivery(state: GameState, trip: Trip, order: Order) {
       ref: { kind: 'order', id: order.id },
     });
   } else {
-    adjustSatisfaction(customer, order.express ? 4 : 3);
+    adjustSatisfaction(customer, (order.express ? 4 : 3) + traitCustomerBonus(driver, true));
     c.reputation = Math.min(100, c.reputation + 0.4);
   }
+  if (lateMin > 0 && traitCustomerBonus(driver, false)) adjustSatisfaction(customer, traitCustomerBonus(driver, false));
   createInvoice(state, order, order.payment - penalty);
   onContractDelivery(state, order, lateMin);
+  onPremiumDelivery(state, order, lateMin);
+  onDelivery(state, order, lateMin);
   addLog(state, {
     level: lateMin > 0 ? 'warning' : 'success',
     category: 'order',

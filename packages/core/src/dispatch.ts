@@ -1,5 +1,7 @@
 // DispatchSystem: Planung, Kalkulation und Konfliktprüfung von Fahrten.
 
+import { effectiveEco } from './traits.ts';
+import { premiumBlock } from './premium.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, loadSpace } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
@@ -159,7 +161,7 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   const border2 = routeBorderMin(ctx, loadedRaw.nodes);
   const model = TRUCK_BY_ID[vehicle.modelId];
   const loadFrac = loadFraction(state, vehicle, input.trailerId || undefined, order);
-  const fuelL = toPickup.km * consumptionPerKm(vehicle.modelId, 0, driver.ecoDriving) + loaded.km * consumptionPerKm(vehicle.modelId, loadFrac, driver.ecoDriving);
+  const fuelL = toPickup.km * consumptionPerKm(vehicle.modelId, 0, effectiveEco(driver)) + loaded.km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver));
   const usable = model.tankL * (1 - FUEL_RESERVE);
   const tankNow = from ? model.tankL * 0.6 : vehicle.fuelL; // Vorausplanung: Tankstand unbekannt → Annahme
   const fuelStops = Math.max(0, Math.ceil((fuelL - (tankNow - model.tankL * FUEL_RESERVE)) / usable));
@@ -218,6 +220,8 @@ export function validateDispatch(state: GameState, ctx: SimContext, input: Dispa
 
   if (order.status !== 'offered' && order.status !== 'accepted') err('order_status', 'Auftrag ist nicht mehr disponierbar.');
   if (order.status === 'offered' && state.time >= order.offerExpires) err('order_expired', 'Angebot ist abgelaufen.');
+  const block = premiumBlock(order);
+  if (block) err('permit', block);
   if (solo && trailer) err('solo_trailer', `${model!.name} hat einen festen Aufbau und zieht keinen Auflieger.`);
   if (!opts.queued) {
     if (driver.status !== 'idle') err('driver_busy', `${driver.name} ist nicht verfügbar (bereits verplant oder abwesend).`);
@@ -594,6 +598,10 @@ export function planCoLoad(state: GameState, ctx: SimContext, vehicleId: Id, ord
     err('missing', 'Fahrzeug oder Auftrag existiert nicht.');
     return { issues, plan: null };
   }
+  if (order.premium) {
+    err('premium', 'Premium-Aufträge fahren nur als eigene Tour, nicht als Beiladung.');
+    return { issues, plan: null };
+  }
   if (!trip || trip.phase === 'done' || !trip.stops) {
     err('no_trip', `LKW ${vehicle.plate} hat keine laufende Auftragsfahrt für eine Beiladung.`);
     return { issues, plan: null };
@@ -664,7 +672,7 @@ export function planCoLoad(state: GameState, ctx: SimContext, vehicleId: Id, ord
       if (before === 0) delayed.push({ orderId: id, lateMin: m });
     }
   }
-  const fuelCost = Math.round(Math.max(0, extraKm) * consumptionPerKm(vehicle.modelId, 0.5, driver.ecoDriving) * state.market.diesel);
+  const fuelCost = Math.round(Math.max(0, extraKm) * consumptionPerKm(vehicle.modelId, 0.5, effectiveEco(driver)) * state.market.diesel);
   const toll = Math.round(Math.max(0, sim.toll - base.toll) * tollFactor(vehicle.modelId));
   const driverCost = Math.round(((driver.salary * EMPLOYER_COST_FACTOR) / (30 * MIN_PER_DAY)) * Math.max(0, extraMin));
   const extraCost = fuelCost + toll + driverCost + Math.round(Math.max(0, extraKm) * 6) + extraPenalty;

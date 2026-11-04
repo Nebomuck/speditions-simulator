@@ -1,6 +1,7 @@
 // FinanceSystem: Buchungen, Rechnungen, Zahlungseingänge, Monatsabrechnung.
 // Firmenkonto und Privatkonten der Spieler sind strikt getrennt (LedgerAccount).
 
+import { ratingLimitFactor, ratingRateDelta } from './goals.ts';
 import { WORK_STYLES, monthlyLife } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { DEPARTMENTS } from './data/catalog.ts';
@@ -175,10 +176,10 @@ export function loanInterest(l: Loan): Money {
   return Math.round((l.remaining * l.ratePa) / 12);
 }
 
-/** Zinssatz: 6,5 % Basis, Aufschlag bei hoher Verschuldung oder Minus auf dem Konto. */
+/** Zinssatz: 6,5 % Basis, Aufschlag bei langer Laufzeit oder Minus auf dem Konto, Bonität ±1 %. */
 export function loanRate(state: GameState, months: number): number {
   const minus = state.company.account.balance < 0 ? 0.02 : 0;
-  return 0.065 + (months > 36 ? 0.01 : 0) + minus;
+  return Math.max(0.03, 0.065 + (months > 36 ? 0.01 : 0) + minus + ratingRateDelta(state));
 }
 
 /** Kreditrahmen der Bank: Sockel + Beleihung von Fahrzeugen und Forderungen, abzüglich bestehender Kredite. */
@@ -189,7 +190,7 @@ export function loanLimit(state: GameState, vehicleValue: (id: Id) => Money): Mo
   collateral += receivables(state) * 0.3;
   const base = 20_000_00 + Object.keys(state.vehicles).length * 5_000_00;
   const debt = state.company.loans.reduce((s, l) => s + l.remaining, 0);
-  return Math.max(0, Math.round(Math.min(300_000_00, base + collateral - debt) / 1000_00) * 1000_00);
+  return Math.max(0, Math.round(Math.min(300_000_00, (base + collateral) * ratingLimitFactor(state) - debt) / 1000_00) * 1000_00);
 }
 
 /** Fahrzeugfinanzierung: Zins mit Fahrzeug als Sicherheit, Laufzeiten 24–60 Monate. */

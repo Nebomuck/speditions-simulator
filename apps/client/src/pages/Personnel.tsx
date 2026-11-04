@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { UserPlus, UserMinus, FolderOpen, Palmtree, GraduationCap, MessageCircle, Euro, Briefcase, TrainFront } from 'lucide-react';
 import {
-  COURSES, DEPARTMENTS, MIN_PER_DAY, PROMOTION_MIN_EXPERIENCE, TALK_COOLDOWN_DAYS, formatDate, formatDateTime, formatDuration, drivableNow, marketSalary, satisfactionFactors, staffSeats, driverTravel,
+  COURSES, DEPARTMENTS, TRAITS, MIN_PER_DAY, PROMOTION_MIN_EXPERIENCE, TALK_COOLDOWN_DAYS, formatDate, formatDateTime, formatDuration, drivableNow, marketSalary, satisfactionFactors, staffSeats, driverTravel,
   type Department, type Driver, type GameState, type TrainingCourse,
 } from '@spedsim/core';
 import { sendCommand, useGame, world } from '../game/store.ts';
-import { Avatar, Badge, Bar, Card, Empty, Modal, Money, PageHeader } from '../ui/components.tsx';
+import { Avatar, Badge, Bar, Card, Empty, Modal, Money, PageHeader, TraitBadge } from '../ui/components.tsx';
 import { cityName, km, QUAL_LABEL, tripLabel, activityLabel } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
 import { openMenu, type MenuItem } from '../ui/ContextMenu.tsx';
@@ -87,7 +87,7 @@ export function PersonnelPage() {
                     <td><div className="row"><Bar value={d.ecoDriving} />{d.ecoDriving}</div></td>
                     <td><div className="row"><Bar value={d.reliability} />{d.reliability}</div></td>
                     <td><div className="row"><Bar value={d.satisfaction} />{Math.round(d.satisfaction)}</div></td>
-                    <td><div className="row wrap">{['CE', ...d.qualifications.map((q) => QUAL_LABEL[q])].map((q) => <Badge key={q}>{q}</Badge>)}</div></td>
+                    <td><div className="row wrap"><TraitBadge trait={d.trait} />{['CE', ...d.qualifications.map((q) => QUAL_LABEL[q])].map((q) => <Badge key={q}>{q}</Badge>)}</div></td>
                     <td className="num"><Money value={d.salary} /></td>
                     <td className="num">{km(d.kmDriven)}</td>
                     <td className="num" style={{ whiteSpace: 'nowrap' }}>
@@ -125,6 +125,7 @@ export function PersonnelPage() {
                 <dt>Zuverlässigkeit</dt><dd><div className="row"><Bar value={a.reliability} />{a.reliability}</div></dd>
                 <dt>Belastbarkeit</dt><dd><div className="row"><Bar value={a.stressResistance} />{a.stressResistance}</div></dd>
                 <dt>Qualifikationen</dt><dd>{a.qualifications.length ? a.qualifications.map((q) => QUAL_LABEL[q]).join(', ') : '–'}</dd>
+                <dt>Eigenschaft</dt><dd>{a.trait ? <><TraitBadge trait={a.trait} /> <small className="dim">{TRAITS[a.trait].effect}</small></> : <span className="dim">keine besondere</span>}</dd>
                 <dt>Verfügbar bis</dt><dd>{formatDateTime(a.expires)}</dd>
               </dl>
               <button className="btn primary mt" style={{ width: '100%', justifyContent: 'center' }} onClick={() => sendCommand({ type: 'hireDriver', applicantId: a.id })}>
@@ -152,7 +153,8 @@ function DriverFile({ driver: d, onClose }: { driver: Driver; onClose: () => voi
   const talkReady = d.lastTalk === undefined || s.time - d.lastTalk >= TALK_COOLDOWN_DAYS * MIN_PER_DAY;
   const left = d.vacationLeft ?? 30;
   return (
-    <Modal title={<>Personalakte {d.name}</>} onClose={onClose} width={860}>
+    <Modal title={<>Personalakte {d.name} <TraitBadge trait={d.trait} /></>} onClose={onClose} width={860}>
+      {d.trait && <p className="dim trait-note"><b>{TRAITS[d.trait].name}:</b> {TRAITS[d.trait].effect}</p>}
       <div className="grid grid-2">
         <div>
           <div className="card-title"><MessageCircle size={15} /> Zufriedenheit</div>

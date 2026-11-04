@@ -1,4 +1,5 @@
 import { useGame } from '../game/store.ts';
+import { AchievementsCard } from '../ui/Goals.tsx';
 import { Card, LineChart, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { km } from '../ui/format.ts';
 
@@ -29,6 +30,7 @@ export function StatsPage() {
           <LineChart series={[{ label: 'Kontostand', color: 'var(--accent)', values: s.stats.map((d) => d.balance / 100) }]} format={(v) => `${Math.round(v).toLocaleString('de-DE')} €`} />
         </Card>
       </div>
+      <AchievementsCard s={s} />
     </div>
   );
 }

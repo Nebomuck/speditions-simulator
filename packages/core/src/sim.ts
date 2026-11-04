@@ -4,6 +4,10 @@
 import { dailyLife, hourlyLife } from './life.ts';
 import { dailyDecisions, hourlyDecisions } from './decisions.ts';
 import { dailyTenders, hourlyTenders } from './tenders.ts';
+import { dailyPremium, hourlyPremium } from './premium.ts';
+import { dailyGoals } from './goals.ts';
+import { dailyScenario } from './scenarios.ts';
+import { dailyProgress } from './progress.ts';
 import { hourlyTeam } from './team.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney, processInvoices, processMonthEnd } from './finance.ts';
@@ -57,6 +61,7 @@ function hourly(state: GameState, ctx: SimContext) {
   hourlyEvents(state, ctx);
   hourlyDecisions(state, ctx);
   hourlyTenders(state, ctx);
+  hourlyPremium(state);
   hourlyLife(state, ctx);
   hourlyPersonnel(state);
   hourlyContracts(state);
@@ -100,6 +105,7 @@ function daily(state: GameState, ctx: SimContext) {
   dailyPersonnel(state);
   dailyContracts(state, ctx);
   dailyTenders(state, ctx);
+  dailyPremium(state, ctx);
   // Unternehmensstufe, Lagerauslastung
   dailyCompany(state);
   // Lebenssimulation der Spielercharaktere
@@ -119,5 +125,9 @@ function daily(state: GameState, ctx: SimContext) {
   if (state.company.account.balance < -25_000_00) {
     addLog(state, { level: 'danger', category: 'finance', text: `Liquidität kritisch: Kontostand ${formatMoney(state.company.account.balance)}. Ausgaben reduzieren oder Forderungen eintreiben!` });
   }
+  // Quartalsziele, Szenario, Erfolge (nach Monatsabrechnung und Tagesstatistik)
+  dailyGoals(state);
+  dailyScenario(state);
+  dailyProgress(state);
   pruneTrips(state);
 }

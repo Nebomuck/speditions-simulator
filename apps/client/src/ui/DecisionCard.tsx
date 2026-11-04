@@ -2,7 +2,7 @@
 // Die Karte lässt sich einklappen („Später“); dann bleibt ein kleiner Hinweis mit der Anzahl.
 
 import { useState } from 'react';
-import { Briefcase, ChevronUp, Clock, Heart, TrendingUp, Users } from 'lucide-react';
+import { Briefcase, ChevronUp, Clock, Heart, Pause, TrendingUp, Users } from 'lucide-react';
 import { formatDuration, mayDecide, type Decision } from '@spedsim/core';
 import { sendCommand, useGame, useUi } from '../game/store.ts';
 
@@ -34,6 +34,7 @@ export function DecisionCard() {
         <span className="dim" title="Danach gilt die Vorgabe"><Clock size={12} /> {formatDuration(Math.max(0, left))}</span>
       </div>
       <p className="decision-text">{d.text}</p>
+      {s.pausedForDecision && <p className="decision-paused"><Pause size={12} /> Spiel angehalten – es läuft nach deiner Wahl weiter.</p>}
       <div className="decision-options">
         {d.options.map((o) => (
           <button key={o.id} className={`decision-option ${o.id === d.defaultOption ? 'default' : ''}`} onClick={() => sendCommand({ type: 'decide', decisionId: d.id, optionId: o.id })}>
@@ -45,7 +46,17 @@ export function DecisionCard() {
       <div className="row decision-foot">
         <span className="dim">Ohne Entscheidung: „{d.options.find((o) => o.id === d.defaultOption)?.label}“{mine.length > 1 ? ` · ${mine.length - 1} weitere` : ''}</span>
         <span className="spacer" />
-        <button className="btn small ghost" onClick={() => setHidden(d.id)}>Später</button>
+        <button
+          className="btn small ghost"
+          title={s.pausedForDecision ? 'Karte einklappen und weiterspielen' : 'Karte einklappen'}
+          onClick={() => {
+            setHidden(d.id);
+            // eingeklappt läuft das Spiel weiter (sonst stünde es ohne sichtbaren Grund)
+            if (s.pausedForDecision) sendCommand({ type: 'setPaused', paused: false }, { quiet: true });
+          }}
+        >
+          {s.pausedForDecision ? 'Später, weiterspielen' : 'Später'}
+        </button>
       </div>
     </div>
   );

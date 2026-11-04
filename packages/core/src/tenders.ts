@@ -167,6 +167,7 @@ function award(state: GameState, ctx: SimContext, t: Tender) {
   state.contracts[k.id] = k;
   // die Kapazität wurde beim Gebot geprüft; das Gebot selbst zählt nicht mehr mit
   t.status = 'won';
+  if (state.progress) state.progress.counts.tendersWon++;
   const r = acceptContract(state, ctx, k.id);
   if (!r.ok) {
     delete state.contracts[k.id];

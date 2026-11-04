@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LOAN_TERMS, annuity, factoringPayout, formatDate, formatDateTime, formatMoney, loanLimit, loanRate, monthlyFixedCosts, receivables, companyValue, vehicleMarketValue, type LedgerCategory } from '@spedsim/core';
+import { LOAN_TERMS, annuity, factoringPayout, formatDate, formatDateTime, formatMoney, loanLimit, loanRate, monthlyFixedCosts, ratingLabel, receivables, companyValue, vehicleMarketValue, type LedgerCategory } from '@spedsim/core';
 import { Landmark, HandCoins } from 'lucide-react';
 import { sendCommand, useGame } from '../game/store.ts';
 import { Badge, Card, Empty, LineChart, Money, PageHeader, Stat } from '../ui/components.tsx';
@@ -99,7 +99,7 @@ export function FinancePage() {
       )}
       {tab === 'credit' && (
         <div className="grid grid-2">
-          <Card title={<><Landmark size={16} /> Bankkredit</>} sub={`Kreditrahmen ${formatMoney(limit)}`}>
+          <Card title={<><Landmark size={16} /> Bankkredit</>} sub={`Kreditrahmen ${formatMoney(limit)} · Bonität ${ratingLabel(s)}`}>
             <div className="field">
               <label>Betrag (€)</label>
               <input className="input" type="number" min={5000} step={1000} value={loanAmount} onChange={(e) => setLoanAmount(Number(e.target.value))} />

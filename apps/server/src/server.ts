@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { WebSocketServer, type WebSocket } from 'ws';
 import roadnet from '@spedsim/core/roadnet.json' with { type: 'json' };
 import {
-  GameSession, addPlayer, sanitizeAvatar, applyPatch, createNewGame, createSimContext, deserializeSave, diffState, playerView, serializeSave, sanitizeDifficulty, CITY_BY_ID, LIFE_GOALS,
+  GameSession, addPlayer, sanitizeAvatar, applyPatch, createNewGame, createSimContext, deserializeSave, diffState, playerView, serializeSave, sanitizeDifficulty, isScenarioId, CITY_BY_ID, LIFE_GOALS,
   type Character, type Command, type Difficulty, type DifficultyId, type RoadNetData,
 } from '@spedsim/core';
 
@@ -220,6 +220,7 @@ export function startServer(opts: ServerOptions) {
       difficulty: diff,
       customDifficulty: diff === 'custom' ? sanitizeDifficulty(m.customDifficulty as Partial<Difficulty>) : undefined,
       founder: { id: playerId, name, character: sanitizeCharacter(m.character, name) },
+      scenario: isScenarioId(m.scenario) ? m.scenario : undefined,
     });
     const id = `g${randomBytes(6).toString('hex')}`;
     let invite = inviteCode();

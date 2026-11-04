@@ -25,6 +25,7 @@ import { acceptSuggestion, dismissSuggestion, setAutoDispatch } from './autodisp
 import { winBackCustomer } from './competition.ts';
 import { mayDecide, resolveDecision } from './decisions.ts';
 import { placeBid, withdrawBid } from './tenders.ts';
+import { applyPermit } from './premium.ts';
 import {
   cancelJoint, castVote, closeVote, createTask, createVote, deleteTask, mayManageLocation, proposeJoint, readMessage, respondJoint, sendMessage, setPlayerLimits, setRole, updateTask,
 } from './team.ts';
@@ -91,7 +92,9 @@ export type Command =
   | { type: 'winBackCustomer'; customerId: Id }
   | { type: 'decide'; decisionId: Id; optionId: string }
   | { type: 'bidTender'; tenderId: Id; price: number; guarantee?: boolean }
-  | { type: 'withdrawBid'; tenderId: Id };
+  | { type: 'withdrawBid'; tenderId: Id }
+  | { type: 'applyPermit'; orderId: Id }
+  | { type: 'setPauseOnDecision'; on: boolean };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -158,7 +161,9 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   // Berechtigung je Karte (Firmenkarten nach Bereich, private nur der eigene Spieler)
   decide: null,
   bidTender: 'dispatch',
+  applyPermit: 'dispatch',
   withdrawBid: 'dispatch',
+  setPauseOnDecision: 'admin',
 };
 
 /** Befehle, die Geld vom Firmenkonto ausgeben können (unterliegen dem Ausgabenlimit eines Spielers) */
@@ -250,6 +255,8 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     }
     case 'setPaused': {
       state.paused = !!cmd.paused;
+      // wer selbst fortsetzt oder anhält, übernimmt: keine automatische Fortsetzung mehr
+      state.pausedForDecision = false;
       return { ok: true };
     }
     case 'acceptOrder': {
@@ -473,7 +480,7 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
         id, name: a.name, age: a.age, homeCityId: a.homeCityId, cityId: state.company.locations.some((l) => l.cityId === a.cityId) ? a.cityId : state.company.hqCityId, experience: a.experience,
         licenses: a.licenses, qualifications: a.qualifications, salary: a.salary, reliability: a.reliability,
         ecoDriving: a.ecoDriving, stressResistance: a.stressResistance, satisfaction: 65, hired: state.time,
-        status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: state.time,
+        status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: state.time, trait: a.trait,
       };
       delete state.applicants[a.id];
       book(state, 'company', -fee, 'hiring', `Einstellung ${a.name}`);
@@ -650,8 +657,16 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       const r = placeBid(state, actorId, cmd.tenderId, Number(cmd.price), !!cmd.guarantee);
       return r.ok ? { ok: true } : fail(r.error);
     }
+    case 'setPauseOnDecision': {
+      state.pauseOnDecision = !!cmd.on;
+      return { ok: true };
+    }
     case 'withdrawBid': {
       const r = withdrawBid(state, cmd.tenderId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'applyPermit': {
+      const r = applyPermit(state, cmd.orderId);
       return r.ok ? { ok: true } : fail(r.error);
     }
   }

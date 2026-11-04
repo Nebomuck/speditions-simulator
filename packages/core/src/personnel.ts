@@ -1,5 +1,6 @@
 // Personalmanagement: Urlaub, Krankheit, Schulungen, Gehalt, Personalgespräche, Zufriedenheit und Kündigungen.
 
+import { traitSatisfaction, traitSickness } from './traits.ts';
 import { leadershipBonus } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { addLog, book, formatMoney } from './finance.ts';
@@ -59,6 +60,7 @@ export function satisfactionFactors(state: GameState, d: Driver): { target: numb
   if (lead > 0) reasons.push({ text: 'gute Mitarbeiterführung', delta: lead });
   const short = dispatchShortfall(state);
   if (short > 0) reasons.push({ text: 'überlastete Disposition', delta: -Math.min(12, 2 + short) });
+  if (traitSatisfaction(d)) reasons.push({ text: 'Frohnatur', delta: traitSatisfaction(d) });
   if (d.hired <= state.company.founded) reasons.push({ text: 'Fahrer der ersten Stunde', delta: 8 });
   else {
     const months = (state.time - d.hired) / (30 * MIN_PER_DAY);
@@ -216,7 +218,7 @@ export function dailyPersonnel(state: GameState): void {
     if (newYear) d.vacationLeft = VACATION_DAYS_PER_YEAR;
 
     // Krankheit: nur zwischen den Fahrten (unterwegs wird die Tour zu Ende gefahren)
-    if (d.status === 'idle' && rand.chance(state, 0.004 * (1.3 - d.stressResistance / 100) * state.difficulty.eventFactor)) {
+    if (d.status === 'idle' && rand.chance(state, 0.004 * (1.3 - d.stressResistance / 100) * state.difficulty.eventFactor * traitSickness(d))) {
       const days = rand.int(state, 1, 6);
       d.status = 'sick';
       d.absentUntil = state.time + days * MIN_PER_DAY;

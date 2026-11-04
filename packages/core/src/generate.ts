@@ -4,6 +4,7 @@ import { CITIES, CITY_BY_ID, type CityDef, type Industry } from './data/cities.t
 import { TRUCK_MODELS, TRUCK_BY_ID } from './data/catalog.ts';
 import { COMPANY_CORE, COMPANY_PREFIX, FIRST_NAMES, LAST_NAMES, LEGAL_FORM } from './data/names.ts';
 import { haversineKm } from './geo.ts';
+import { rollTrait } from './traits.ts';
 import { rand, newId } from './rng.ts';
 import { MIN_PER_DAY, toDate } from './time.ts';
 import type { Applicant, Customer, CustomerSize, GameState, Money, Qualification, VehicleOffer } from './types.ts';
@@ -57,6 +58,7 @@ export function makeApplicant(state: GameState, nearCityId: string): Applicant {
     ecoDriving: Math.round(Math.max(5, Math.min(99, rand.normal(state, 40 + experience * 0.4, 15)))),
     stressResistance: Math.round(Math.max(5, Math.min(99, rand.normal(state, 50, 18)))),
     expires: state.time + rand.int(state, 3, 10) * MIN_PER_DAY,
+    trait: rollTrait(state),
   };
 }
 

@@ -15,11 +15,14 @@ import { updateWeather } from './world.ts';
 import { defaultEconomy } from './economy.ts';
 import { seedCompetitors } from './competition.ts';
 import { defaultEvents } from './events.ts';
+import { startQuarter } from './goals.ts';
+import { defaultProgress } from './progress.ts';
+import { applyScenario, isScenarioId } from './scenarios.ts';
 import { newId } from './rng.ts';
 import { toDate } from './time.ts';
-import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, TeamRole } from './types.ts';
+import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, ScenarioId, TeamRole } from './types.ts';
 
-export const STATE_VERSION = 10;
+export const STATE_VERSION = 11;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.08, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -57,6 +60,8 @@ export interface NewGameOptions {
   difficulty: DifficultyId;
   customDifficulty?: Partial<Difficulty>;
   founder: { id?: Id; name: string; character?: Partial<Character> };
+  /** Szenario mit eigenem Ziel (fehlt: freies Spiel) */
+  scenario?: ScenarioId;
 }
 
 export function makeCharacter(name: string, partial: Partial<Character> = {}): Character {
@@ -137,6 +142,8 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     events: defaultEvents(),
     decisions: [],
     tenders: {},
+    quarterHistory: [],
+    progress: defaultProgress(),
   };
 
   const founderId = opts.founder.id ?? newId(state, 'pl');
@@ -169,7 +176,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
   state.drivers[drvId] = {
     id: drvId, name: app.name, age: app.age, homeCityId: app.homeCityId, cityId: hq.id, experience: Math.max(35, app.experience),
     licenses: ['C', 'CE'], qualifications: app.qualifications, salary: Math.min(app.salary, 3_300_00), reliability: Math.max(55, app.reliability),
-    ecoDriving: app.ecoDriving, stressResistance: app.stressResistance, satisfaction: 70, hired: startTime, status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: startTime,
+    ecoDriving: app.ecoDriving, stressResistance: app.stressResistance, satisfaction: 70, hired: startTime, status: 'idle', hos: freshHos(), kmDriven: 0, vacationLeft: 30, lastVacation: startTime, trait: app.trait,
   };
 
   for (let i = 0; i < 6; i++) {
@@ -180,6 +187,9 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     const o = makeVehicleOffer(state, hq.id);
     state.vehicleOffers[o.id] = o;
   }
+  // Szenario vor dem Markt anwenden: Fuhrpark und Auflieger bestimmen die passenden Angebote
+  if (isScenarioId(opts.scenario)) applyScenario(state, opts.scenario);
+  startQuarter(state);
   updateWeather(state, ctx);
   seedCompetitors(state);
   updateOrderMarket(state, ctx, true);
@@ -187,7 +197,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
   addLog(state, {
     level: 'success',
     category: 'company',
-    text: `${state.company.name} wurde in ${hq.name} gegründet. Startkapital: ${formatMoney(difficulty.startCapital)}. Viel Erfolg!`,
+    text: `${state.company.name} wurde in ${hq.name} gegründet. Startkapital: ${formatMoney(state.company.account.balance)}. Viel Erfolg!`,
   });
   return state;
 }

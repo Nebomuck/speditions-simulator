@@ -1,7 +1,7 @@
 // Auftragsbörse: dynamische Transportangebote mit Wirtschaftlichkeitsabschätzung.
 
 import { useMemo, useState } from 'react';
-import { MapPin, Check, Send, Share2, X } from 'lucide-react';
+import { ArrowRight, MapPin, Check, FileCheck, Send, Share2, Star, X } from 'lucide-react';
 import { CARGOS, CITY_BY_ID, TRAILERS, TRUCK_BY_ID, estimateTrip, loadSpace, formatDateTime, formatMoney, haversineKm, type Customer, type Order, type TrailerType } from '@spedsim/core';
 import { sendCommand, setUi, toast, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
@@ -16,10 +16,80 @@ const cancelOrder = async (o: Order) =>
 /** Rechtsklick auf einen Auftrag */
 function orderMenu(o: Order): MenuItem[] {
   const items: MenuItem[] = [{ label: 'Disponieren …', icon: <Send size={14} />, disabled: o.status !== 'offered' && o.status !== 'accepted', onClick: () => setUi({ dispatchDraft: { orderId: o.id } }) }];
+  if (o.premium?.kind === 'heavy' && o.premium.permit === 'none')
+    items.push({ label: 'Genehmigung beantragen', icon: <FileCheck size={14} />, onClick: () => sendCommand({ type: 'applyPermit', orderId: o.id }) });
   if (o.status === 'offered') items.push({ label: 'Annehmen (später disponieren)', icon: <Check size={14} />, onClick: () => sendCommand({ type: 'acceptOrder', orderId: o.id }) });
   items.push({ label: 'Route auf der Karte', icon: <MapPin size={14} />, onClick: () => setUi({ focusOrderId: o.id }) });
   if (o.status === 'accepted') items.push({ label: 'Stornieren …', icon: <X size={14} />, danger: true, sep: true, onClick: () => cancelOrder(o) });
   return items;
+}
+
+/** Premium-Aufträge: eigene Karte mit Bedingungen und Genehmigung (nicht in der normalen Liste) */
+function PremiumCard({ orders }: { orders: Order[] }) {
+  const s = useGame();
+  if (!orders.length) return null;
+  const hasLowbed = Object.values(s.trailers).some((t) => t.type === 'lowbed');
+  const hasHeavyDriver = Object.values(s.drivers).some((d) => d.qualifications.includes('heavy'));
+  return (
+    <Card title={<><Star size={15} /> Premium-Aufträge</>} sub="nur von Hand disponierbar · die KI-Disposition fasst sie nicht an" className="mb premium-card">
+      <div className="premium-list">
+        {orders.map((o) => {
+          const p = o.premium!;
+          const heavy = p.kind === 'heavy';
+          const open = o.status === 'offered';
+          const ready = !heavy || p.permit === 'granted';
+          return (
+            <div key={o.id} className={`premium-item ${p.kind}`}>
+              <div className="row wrap" style={{ gap: 6 }}>
+                <Badge kind={heavy ? 'danger' : 'violet'}>{heavy ? 'Schwertransport' : 'Messe-Termin'}</Badge>
+                <b>{p.title}</b>
+                <span className="spacer" />
+                <Money value={o.payment} />
+              </div>
+              <div className="route">{cityName(o.fromCityId)} <ArrowRight size={13} /> {cityName(o.toCityId)} <span className="dim">· {km(o.distanceKm)} · {cargoName(o.cargoId)} {tons(o.weightT)}</span></div>
+              <div className="dim premium-meta">
+                Abholung {formatDateTime(o.pickupStart)} – {formatDateTime(o.pickupEnd).slice(-5)} · Lieferung bis {formatDateTime(o.deliveryEnd)}
+              </div>
+              <ul className="premium-req">
+                {heavy ? (
+                  <>
+                    <li className={hasLowbed ? 'ok' : 'missing'}>Tieflader {hasLowbed ? 'vorhanden' : 'fehlt (Fuhrpark → Auflieger)'}</li>
+                    <li className={hasHeavyDriver ? 'ok' : 'missing'}>Fahrer mit Schwertransport-Schein {hasHeavyDriver ? 'vorhanden' : 'fehlt (Schulung unter Fahrer & Personal)'}</li>
+                    <li className={p.permit === 'granted' ? 'ok' : ''}>
+                      Genehmigung: {p.permit === 'granted' ? 'erteilt' : p.permit === 'pending' ? `beantragt, erteilt am ${formatDateTime(p.permitReady ?? 0)}` : `${formatMoney(p.permitCost ?? 0)}, Bearbeitung ca. ${p.permitHours} Std.`}
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li>Knappes Lieferfenster: Der Messeaufbau beginnt pünktlich.</li>
+                    <li className="missing">Verspätung: {formatMoney(o.penaltyPerHour)} je Stunde, nach zwei Stunden die halbe Vergütung, Ansehen −4</li>
+                  </>
+                )}
+                <li className="ok">Pünktlich: Ansehen +{p.reputation}</li>
+              </ul>
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                <span className="dim" style={{ marginRight: 'auto', fontSize: 12 }}>
+                  {open ? `Angebot gültig bis ${formatDateTime(o.offerExpires)}` : ORDER_STATUS_LABEL[o.status]}
+                </span>
+                <button className="btn small" onClick={() => setUi({ focusOrderId: o.id })}><MapPin size={13} />Karte</button>
+                {heavy && p.permit === 'none' && (
+                  <button className="btn small" onClick={() => sendCommand({ type: 'applyPermit', orderId: o.id })}>
+                    <FileCheck size={13} />Genehmigung beantragen{open ? ' & annehmen' : ''}
+                  </button>
+                )}
+                {open && !heavy && <button className="btn small" onClick={() => sendCommand({ type: 'acceptOrder', orderId: o.id })}><Check size={13} />Annehmen</button>}
+                {(o.status === 'accepted' || (open && !heavy)) && (
+                  <button className="btn small primary" disabled={!ready} title={ready ? undefined : 'Erst nach erteilter Genehmigung'} onClick={() => setUi({ dispatchDraft: { orderId: o.id } })}>
+                    <Send size={13} />Disponieren
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
 }
 
 type SortKey = 'payment' | 'perKm' | 'distance' | 'pickup' | 'origin' | 'profit';
@@ -58,7 +128,7 @@ export function OrdersPage() {
 
   const rows = useMemo(() => {
     const list = Object.values(s.orders).filter((o) => {
-      if (o.status !== 'offered') return false;
+      if (o.status !== 'offered' || o.premium) return false;
       if (trailer === 'fleet' && !fitsFleet(o)) return false;
       if (size === 'partial' && !o.partial) return false;
       if (size === 'full' && o.partial) return false;
@@ -85,7 +155,10 @@ export function OrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s, originRadius, anchor, trailer, cargo, intl, size, key, dir]);
 
-  const mine = Object.values(s.orders).filter((o) => o.status === 'accepted' || o.status === 'planned' || o.status === 'in_transit');
+  const mine = Object.values(s.orders).filter((o) => !o.premium && (o.status === 'accepted' || o.status === 'planned' || o.status === 'in_transit'));
+  const premiums = Object.values(s.orders)
+    .filter((o) => o.premium && ((o.status === 'offered' && s.time < o.offerExpires) || o.status === 'accepted' || o.status === 'planned' || o.status === 'in_transit'))
+    .sort((a, b) => a.pickupStart - b.pickupStart);
   const focused = focus ? s.orders[focus] : undefined;
 
   return (
@@ -137,6 +210,8 @@ export function OrdersPage() {
           </div>
         </div>
       </Card>
+
+      <PremiumCard orders={premiums} />
 
       {mine.length > 0 && (
         <Card title="Eigene Aufträge" className="mb">
