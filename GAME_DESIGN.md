@@ -163,15 +163,17 @@ Jeder Spieler hat einen Charakter mit 2D-Avatar (im Charakter-Editor gestaltet: 
 
 | | Einfach | Normal | Realistisch |
 |---|---|---|---|
-| Startkapital | 60.000 € | 25.000 € | 12.000 € |
-| Frachtraten | +8 % | ±0 | −4 % |
-| Pannen/Verzögerungen | ×0,5 | ×1 | ×1,4 |
-| Zahlungsrisiko | ×0,5 | ×1 | ×1,4 |
+| Startkapital | 60.000 € | 25.000 € | 18.000 € |
+| Frachtraten | +8 % | ±0 | ±0 |
+| Pannen/Verzögerungen | ×0,5 | ×1 | ×1,1 |
+| Zahlungsrisiko | ×0,5 | ×1 | ×1,1 |
 | Start-LKW | gekauft | geleast | geleast |
 
 **Benutzerdefiniert:** Startkapital 5.000–250.000 €, Frachtraten 80–130 %, Ereignisse 0–200 %, Zahlungsrisiko 0–200 %, Start-LKW gekauft oder geleast.
 
 **Balancing (0.11):** Das allgemeine Ratenniveau liegt bei etwa 1,85–2,00 € je Last-km. Ein gut disponierter LKW erwirtschaftet so rund 2.000–3.000 € Deckungsbeitrag im Monat; ein einzelner LKW trägt Büro und Geschäftsführergehalt nur knapp, ab dem zweiten wird die Firma profitabel. Gemessen mit einem Spieler-Bot über 18 Monate (`packages/core/test/measure-balance.ts`): Auf „Normal“ wächst die Firma über Leasing auf 5–8 LKW, auf „Realistisch“ bleibt sie mit zwei LKW lange um die Gewinnschwelle, auf „Einfach“ wächst sie schnell.
+
+**Balancing (0.15.3):** „Realistisch“ war zu hart: Mit einem LKW blieb die Firma dauerhaft im Minus, an Wachstum war nicht zu denken. Realistisch unterscheidet sich jetzt vor allem durch das knappere Startkapital und etwas mehr Risiko, nicht mehr durch schlechtere Frachtraten. Ein einzelner LKW verdient auf Realistisch etwa so viel wie auf Normal (Bot, 6 Monate, drei Seeds). Das Polster für den zweiten LKW muss man sich aber erst erarbeiten. Wer gleich am ersten Tag einen zweiten LKW least, rutscht weiterhin tief in den Dispo. Laufende Spielstände auf „Realistisch“ übernehmen die neuen Faktoren per Migration (Version 12).
 
 ## 15. Multiplayer (kooperativ)
 

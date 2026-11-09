@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.3 – 09.11.2026
+
+- **Schwierigkeitsgrad „Realistisch“ entschärft.** Er war so hart, dass man mit einem LKW nach Monaten noch im Minus stand und nie zu einem zweiten Fahrzeug oder Fahrer kam.
+  - Startkapital 18.000 € statt 12.000 €.
+  - Frachtraten wie auf „Normal“ statt 4 % niedriger.
+  - Pannen, Verzögerungen und Zahlungsrisiko nur noch ×1,1 statt ×1,4. Dadurch gibt es weniger Reparaturen und weniger säumige Zahler.
+  - Ein gut ausgelasteter LKW trägt die Firma jetzt. Das Polster für den zweiten LKW muss man sich aber weiterhin erarbeiten.
+  - Laufende Spiele auf „Realistisch“ bekommen beim Laden die neuen Raten- und Risikowerte. Das Startkapital bleibt dort, wie es war.
+
 ## 0.15.2 – 09.11.2026
 
 - **Neuer Startbildschirm:** Statt mit „Neue Firma“ beginnt das Spiel mit einer Übersicht **Meine Speditionen**. Rechts stehen alle eigenen und beigetretenen Firmen als Karten, die zuletzt gespielte zuerst. Links stehen Gründen, Hosten, Beitreten und Importieren.

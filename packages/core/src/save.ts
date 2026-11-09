@@ -124,6 +124,12 @@ export const MIGRATIONS: Record<number, Migration> = {
     s.quarterHistory ??= [];
     return s;
   },
+  // 0.15.3: „Realistisch“ entschärft. Laufende Spiele bekommen die neuen Faktoren, das Startkapital bleibt Geschichte.
+  11: (s) => {
+    const d = s.difficulty as Record<string, unknown> | undefined;
+    if (d?.id === 'realistic') Object.assign(d, { rateFactor: 1.0, eventFactor: 1.1, paymentRiskFactor: 1.1 });
+    return s;
+  },
 };
 
 export function deserializeSave(text: string): GameState {

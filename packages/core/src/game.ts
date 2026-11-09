@@ -22,12 +22,12 @@ import { newId } from './rng.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, ScenarioId, TeamRole } from './types.ts';
 
-export const STATE_VERSION = 11;
+export const STATE_VERSION = 12;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.08, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
   normal: { id: 'normal', startCapital: 25_000_00, rateFactor: 1.0, eventFactor: 1.0, paymentRiskFactor: 1.0, startTruckOwned: false },
-  realistic: { id: 'realistic', startCapital: 12_000_00, rateFactor: 0.96, eventFactor: 1.4, paymentRiskFactor: 1.4, startTruckOwned: false },
+  realistic: { id: 'realistic', startCapital: 18_000_00, rateFactor: 1.0, eventFactor: 1.1, paymentRiskFactor: 1.1, startTruckOwned: false },
 };
 
 /** Grenzen des benutzerdefinierten Schwierigkeitsgrads */
