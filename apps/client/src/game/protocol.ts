@@ -9,6 +9,13 @@ export interface SaveMeta {
   time: number;
   balance: number;
   auto: boolean;
+  /** Kennung des Spiels (Startwert des Zufallsgenerators) – fasst Spielstände einer Firma zusammen; fehlt bei alten Spielständen */
+  seed?: number;
+  vehicles?: number;
+  level?: number;
+  scenario?: string;
+  difficulty?: string;
+  founder?: string;
 }
 
 export type HostRequest =

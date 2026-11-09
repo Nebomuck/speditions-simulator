@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.2 – 09.11.2026
+
+- **Neuer Startbildschirm:** Statt mit „Neue Firma“ beginnt das Spiel mit einer Übersicht **Meine Speditionen**. Rechts stehen alle eigenen und beigetretenen Firmen als Karten, die zuletzt gespielte zuerst. Links stehen Gründen, Hosten, Beitreten und Importieren.
+  - Jede Karte ist als **Einzelspieler** oder **Multiplayer** gekennzeichnet. Sie zeigt Spielzeit, Konto, Fahrzeuge, Unternehmensstufe, Szenario und wann zuletzt gespielt wurde. Ein Filter zeigt nur Einzel- oder nur Mehrspieler-Firmen.
+  - **Online-Status bei Multiplayer-Firmen:** „Host online“ oder „Host offline“ bei beigetretenen Firmen, „Server läuft“ bei selbst gehosteten. Der Status wird jede Minute neu geprüft. Ist der Host offline, ist „Verbinden“ gesperrt.
+  - Einzelspieler-Spielstände werden je Firma zusammengefasst. „Weiterspielen“ lädt den neuesten, die übrigen lassen sich aufklappen, laden und löschen.
+  - Gründen, Hosten und Beitreten öffnen eine eigene, zweispaltige Ansicht mit Zurück-Knopf.
+
 ## 0.15.1 – 04.11.2026
 
 - **Behoben: Fahrer hing zwischen Pause und Fahren fest.** Das passierte, wenn ein Fahrer mit erschöpfter Tageslenkzeit an der Ladestelle wartete, dann geladen wurde und den Rest der Ruhe danach nahm. Die Ruhepflicht galt dann als erledigt, die Lenkzeit blieb aber erschöpft. Eine abgeleistete Pflichtruhe zählt jetzt immer. Ein Sicherheitsnetz trägt eine fehlende Ruhe nach, deshalb fahren bereits hängende Fahrer nach einer Ruhezeit weiter.

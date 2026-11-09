@@ -6,7 +6,7 @@
 
 Ein Speditions- und Unternehmenssimulator für Windows: Du gründest eine kleine Spedition mit einem gebrauchten LKW, einem Fahrer und wenig Kapital, nimmst Aufträge an, disponierst Fahrten über **echte europäische Straßen**, verfolgst deine LKW **live auf der Europakarte** und baust Schritt für Schritt ein internationales Logistikunternehmen auf – allein oder im **kooperativen Multiplayer**.
 
-> Entwicklungsstand: **Version 0.15.1 – Phasen 1–12 abgeschlossen, Spielspaß-Pakete 1 und 2**.
+> Entwicklungsstand: **Version 0.15.2 – Phasen 1–12 abgeschlossen, Spielspaß-Pakete 1 und 2**.
 >
 > Der Installer ist nicht mit einem Code-Signing-Zertifikat signiert. Windows SmartScreen kann deshalb beim ersten Start warnen: „Weitere Informationen“ → „Trotzdem ausführen“. Updates aus dem Spiel heraus sind signiert und werden geprüft.
 > Was genau funktioniert und getestet ist, steht in [FEATURE_CHECKLIST.md](FEATURE_CHECKLIST.md).
@@ -33,7 +33,7 @@ npm run server
 
 Startet den serverautoritativen Spielserver auf `ws://localhost:8787`. Nur für die Browser-Version und für dedizierte Server nötig – **die Desktop-App startet ihren mitgelieferten Server automatisch**, sobald du eine Multiplayer-Firma hostest oder fortsetzt, und beendet ihn beim Schließen (vorher wird gespeichert).
 
-Im Spiel unter **Multiplayer → Neue Firma hosten** gründen. Die Desktop-App öffnet automatisch einen Internet-Zugang (Cloudflare Quick Tunnel, keine Portfreigabe nötig); unter „Team & Kommunikation“ steht die **Internet-Einladung** zum Kopieren. Freunde wählen **Einer Firma beitreten** und fügen sie ein. Im Heimnetz reichen Heimnetz-Adresse und Einladungscode. Alternativ: dedizierter Server mit Portfreigabe oder Reverse Proxy (siehe [ARCHITECTURE.md](ARCHITECTURE.md#multiplayer)).
+Im Startbildschirm **Multiplayer-Firma hosten** wählen. Die Desktop-App öffnet automatisch einen Internet-Zugang (Cloudflare Quick Tunnel, keine Portfreigabe nötig); unter „Team & Kommunikation“ steht die **Internet-Einladung** zum Kopieren. Freunde wählen **Firma beitreten** und fügen sie ein; danach steht die Firma in ihrer Übersicht „Meine Speditionen“ mit Online-Status des Hosts. Im Heimnetz reichen Heimnetz-Adresse und Einladungscode. Alternativ: dedizierter Server mit Portfreigabe oder Reverse Proxy (siehe [ARCHITECTURE.md](ARCHITECTURE.md#multiplayer)).
 
 Dedizierter Server mit TLS, z. B. auf einem VPS hinter [Caddy](https://caddyserver.com) (holt das Zertifikat automatisch):
 

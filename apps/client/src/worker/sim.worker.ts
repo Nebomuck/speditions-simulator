@@ -37,7 +37,11 @@ function founderId() {
 async function save(name: string, auto: boolean) {
   if (!session) throw new Error('Kein Spiel aktiv.');
   const s = session.state;
-  const meta: SaveMeta = { name, savedAt: new Date().toISOString(), company: s.company.name, time: s.time, balance: s.company.account.balance, auto };
+  const meta: SaveMeta = {
+    name, savedAt: new Date().toISOString(), company: s.company.name, time: s.time, balance: s.company.account.balance, auto,
+    seed: s.seed, vehicles: Object.keys(s.vehicles).length, level: s.company.level, scenario: s.scenario?.id, difficulty: s.difficulty.id,
+    founder: Object.values(s.players).find((p) => p.isFounder)?.name,
+  };
   await writeSave(meta, serializeSave(s, name));
 }
 

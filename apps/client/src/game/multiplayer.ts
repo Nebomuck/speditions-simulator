@@ -5,6 +5,7 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { RemoteHost } from './host.ts';
 import { DEFAULT_PORT, normalizeServerUrl } from './invite.ts';
+import type { GameState } from '@spedsim/core';
 import { getUi, localStorageSet, receiveSnapshot, setUi, toast } from './store.ts';
 
 export { DEFAULT_PORT, inviteLine, normalizeServerUrl, parseInvite } from './invite.ts';
@@ -21,6 +22,8 @@ export interface MpSession {
   /** auf diesem PC gehostet (Server wird automatisch gestartet) */
   hosted: boolean;
   lastPlayed: string;
+  /** zuletzt gesehener Stand der Firma (für die Übersicht im Startbildschirm) */
+  summary?: { time: number; balance: number; vehicles: number; level: number; players: number };
 }
 
 export const isDesktop = () => isTauri();
@@ -91,10 +94,16 @@ async function waitForDns(hostname: string) {
 }
 
 /** Prüft, ob der Server über die öffentliche Adresse wirklich per WebSocket erreichbar ist. */
-function probe(url: string) {
+function probe(url: string, timeoutMs = 8000) {
   return new Promise<boolean>((resolve) => {
-    const ws = new WebSocket(url);
-    const timer = setTimeout(() => (ws.close(), resolve(false)), 8000);
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url);
+    } catch {
+      resolve(false);
+      return;
+    }
+    const timer = setTimeout(() => (ws.close(), resolve(false)), timeoutMs);
     ws.onopen = () => (clearTimeout(timer), ws.close(), resolve(true));
     ws.onerror = () => (clearTimeout(timer), resolve(false));
   });
@@ -178,12 +187,36 @@ export async function stopTunnel() {
   setUi({ tunnel: { status: 'off' } });
 }
 
+let lastSummary = 0;
+/** Stand der Firma für die Übersicht merken (höchstens alle 30 s) */
+function rememberSummary(gameId: string | undefined, st: GameState) {
+  const now = Date.now();
+  if (!gameId || now - lastSummary < 30_000) return;
+  const s = loadSessions().find((x) => x.gameId === gameId);
+  if (!s) return;
+  lastSummary = now;
+  saveSession({
+    ...s,
+    company: st.company.name,
+    lastPlayed: new Date().toISOString(),
+    summary: { time: st.time, balance: st.company.account.balance, vehicles: Object.keys(st.vehicles).length, level: st.company.level, players: Object.keys(st.players).length },
+  });
+}
+
+/** Ist die Firma gerade erreichbar? Eigene Firmen: läuft der Server auf diesem PC? Beigetretene: ist der Host online? */
+export async function checkOnline(s: MpSession): Promise<boolean> {
+  if (s.hosted) return probe(s.url, 2500);
+  const url = (await lookupAddress(s.gameId, s.inviteCode)) ?? s.url;
+  return probe(url);
+}
+
 /** Verbindung zu einer Firma aufbauen. `hello` ist create- oder join-Nachricht. */
 export function connect(url: string, hello: Record<string, unknown>, hosted: boolean) {
   let started = false;
   const host: RemoteHost = new RemoteHost(url, hello, {
     onSnapshot: (s) => {
       receiveSnapshot(s.state, s.at, s.playerId);
+      rememberSummary(host.gameId, s.state);
       if (!started) {
         started = true;
         setUi({ host, page: 'dashboard', hosting: hosted, connection: 'verbunden' });

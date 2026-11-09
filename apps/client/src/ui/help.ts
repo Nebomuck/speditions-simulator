@@ -263,6 +263,7 @@ export const HELP: HelpArticle[] = [
       'Mehrere Spieler führen gemeinsam eine Firma. Der Server simuliert, jeder Client zeigt nur an.',
       '• Rollen setzen Rechte; ein Ausgabenlimit und Niederlassungen lassen sich je Spieler begrenzen.',
       '• Firmenchat, interne Nachrichten, Aufgaben, gemeinsame Aktivitäten und Abstimmungen.',
+      '• Im Startbildschirm stehen deine Multiplayer-Firmen unter „Meine Speditionen“: „Host online“ heißt, der Host hat das Spiel geöffnet und du kannst verbinden; bei selbst gehosteten Firmen startet der Server beim Fortsetzen.',
     ],
   },
   {
