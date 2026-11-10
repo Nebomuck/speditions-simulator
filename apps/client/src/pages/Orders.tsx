@@ -1,13 +1,13 @@
 // Auftragsbörse: dynamische Transportangebote mit Wirtschaftlichkeitsabschätzung.
 
 import { useMemo, useState } from 'react';
-import { ArrowRight, MapPin, Check, FileCheck, Send, Share2, Star, X } from 'lucide-react';
+import { ArrowRight, MapPin, Check, FileCheck, Handshake, Send, Share2, Star, X } from 'lucide-react';
 import {
-  CARGOS, CITY_BY_ID, TRAILERS, TRUCK_BY_ID, estimateTrip, loadSpace, formatDateTime, formatMoney, haversineKm, nearestCity, planCoLoad, planEnd, vehicleMarker,
+  CARGOS, CITY_BY_ID, TRAILERS, TRUCK_BY_ID, estimateTrip, subcontractBlock, subcontractQuotes, loadSpace, formatDateTime, formatMoney, haversineKm, nearestCity, planCoLoad, planEnd, vehicleMarker,
   type Customer, type GameState, type LonLat, type Order, type PlanStart, type TrailerType, type Vehicle,
 } from '@spedsim/core';
 import { sendCommand, setUi, toast, useGame, useUi, world } from '../game/store.ts';
-import { Badge, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
+import { Badge, Card, Empty, Modal, Money, PageHeader, useSort } from '../ui/components.tsx';
 import { MapView } from '../ui/MapView.tsx';
 import { cargoName, cityName, km, tons, ORDER_STATUS_LABEL, QUAL_LABEL, trailerName } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
@@ -16,6 +16,46 @@ import { openMenu, type MenuItem } from '../ui/ContextMenu.tsx';
 const cancelOrder = async (o: Order) =>
   (await askConfirm('Auftrag stornieren? Es fällt eine Stornogebühr von 15 % an.', { title: 'Auftrag stornieren?', confirmLabel: 'Stornieren', danger: true })) && sendCommand({ type: 'cancelOrder', orderId: o.id });
 
+/** Auftrag an einen Subunternehmer abgeben: Angebote der Partner zur Auswahl */
+function SubcontractDialog({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+  const s = useGame();
+  const o = s.orders[orderId];
+  const [pick, setPick] = useState<string>('');
+  if (!o) return null;
+  const block = subcontractBlock(s, o);
+  const quotes = block ? [] : subcontractQuotes(s, o);
+  const chosen = quotes.find((q) => q.partnerId === pick) ?? quotes[0];
+  const submit = async () => {
+    if (!chosen) return;
+    const r = await sendCommand({ type: 'subcontractOrder', orderId: o.id, partnerId: chosen.partnerId });
+    if (r.ok) {
+      toast('success', `Auftrag an ${chosen.name} vergeben`);
+      onClose();
+    }
+  };
+  return (
+    <Modal title={<><Handshake size={17} /> An Subunternehmer abgeben</>} onClose={onClose} width={560}
+      footer={<><button className="btn" onClick={onClose}>Abbrechen</button><button className="btn primary" disabled={!chosen} onClick={submit}><Handshake size={14} />Vergeben</button></>}>
+      <p className="dim" style={{ marginTop: 0 }}>
+        {cityName(o.fromCityId)} → {cityName(o.toCityId)} · {km(o.distanceKm)} · <Money value={o.payment} />. Der Partner holt ab und liefert, du stellst die Rechnung und
+        behältst die Differenz. Kein eigener LKW nötig. Zustellungen durch Partner machen Kunden aber weniger zufrieden als deine eigenen, und eine Verspätung schadet deinem Ruf.
+        Die Vertragsstrafe trägt der Partner.
+      </p>
+      {block ? <Empty>{block}</Empty> : (
+        <div className="sub-quotes">
+          {quotes.map((q) => (
+            <label key={q.partnerId} className={`sub-quote${chosen?.partnerId === q.partnerId ? ' active' : ''}`}>
+              <input type="radio" name="partner" checked={chosen?.partnerId === q.partnerId} onChange={() => setPick(q.partnerId)} />
+              <span className="sub-quote-main"><b>{q.name}</b><small className="dim">{q.note} · Verspätungsrisiko {Math.round(q.lateChance * 100)} %</small></span>
+              <span className="num"><small className="dim">Partner <Money value={q.price} /></small><b className="pos">+<Money value={q.margin} /></b></span>
+            </label>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 /** Rechtsklick auf einen Auftrag */
 function orderMenu(o: Order): MenuItem[] {
   const items: MenuItem[] = [{ label: 'Disponieren …', icon: <Send size={14} />, disabled: o.status !== 'offered' && o.status !== 'accepted', onClick: () => setUi({ dispatchDraft: { orderId: o.id } }) }];
@@ -23,6 +63,7 @@ function orderMenu(o: Order): MenuItem[] {
     items.push({ label: 'Genehmigung beantragen', icon: <FileCheck size={14} />, onClick: () => sendCommand({ type: 'applyPermit', orderId: o.id }) });
   if (o.status === 'offered') items.push({ label: 'Annehmen (später disponieren)', icon: <Check size={14} />, onClick: () => sendCommand({ type: 'acceptOrder', orderId: o.id }) });
   items.push({ label: 'Route auf der Karte', icon: <MapPin size={14} />, onClick: () => setUi({ focusOrderId: o.id }) });
+  if (o.status === 'accepted' && !o.premium) items.push({ label: 'An Subunternehmer abgeben …', icon: <Handshake size={14} />, onClick: () => setUi({ subcontractOrderId: o.id }) });
   if (o.status === 'accepted') items.push({ label: 'Stornieren …', icon: <X size={14} />, danger: true, sep: true, onClick: () => cancelOrder(o) });
   return items;
 }
@@ -136,6 +177,7 @@ export function OrdersPage() {
   const s = useGame();
   const focus = useUi((u) => u.focusOrderId);
   const remote = useUi((u) => u.host?.mode === 'remote');
+  const subOrder = useUi((u) => u.subcontractOrderId);
   const [originRadius, setOriginRadius] = useState(300);
   const [anchor, setAnchor] = useState<string>(''); // Fahrzeug-ID oder '' = alle Standorte
   const [trailer, setTrailer] = useState<'' | 'fleet' | TrailerType>('fleet');
@@ -243,6 +285,7 @@ export function OrdersPage() {
 
   return (
     <div className="page">
+      {subOrder && <SubcontractDialog orderId={subOrder} onClose={() => setUi({ subcontractOrderId: null })} />}
       <PageHeader title="Auftragsbörse" subtitle={`${Object.values(s.orders).filter((o) => o.status === 'offered').length} offene Transportangebote in Europa`} />
       <Card className="mb">
         <div className="row wrap" style={{ gap: 12 }}>
@@ -301,7 +344,10 @@ export function OrdersPage() {
                 {mine.map((o) => (
                   <tr key={o.id} onContextMenu={(e) => openMenu(e, orderMenu(o), `${cityName(o.fromCityId)} → ${cityName(o.toCityId)}`)}>
                     <td><b>{cityName(o.fromCityId)} → {cityName(o.toCityId)}</b><div className="dim">{cargoName(o.cargoId)}</div></td>
-                    <td><Badge kind={o.status === 'accepted' ? 'warning' : 'info'}>{ORDER_STATUS_LABEL[o.status]}</Badge></td>
+                    <td>
+                      <Badge kind={o.status === 'accepted' ? 'warning' : 'info'}>{o.subcontract ? 'beim Partner' : ORDER_STATUS_LABEL[o.status]}</Badge>
+                      {o.subcontract && <div className="dim small">{o.subcontract.name} · +<Money value={o.payment - o.subcontract.price} /></div>}
+                    </td>
                     <td className="nowrap">Abholung bis {formatDateTime(o.pickupEnd)}</td>
                     <td className="nowrap">Lieferung bis {formatDateTime(o.deliveryEnd)}</td>
                     <td className="num"><Money value={o.payment} /></td>
@@ -309,6 +355,7 @@ export function OrdersPage() {
                       {o.status === 'accepted' && (
                         <div className="row" style={{ justifyContent: 'flex-end' }}>
                           <button className="btn small primary" data-tour="order-dispatch" onClick={() => setUi({ dispatchDraft: { orderId: o.id } })}><Send size={13} />Disponieren</button>
+                          <button className="btn small" title="An Subunternehmer abgeben" onClick={() => setUi({ subcontractOrderId: o.id })}><Handshake size={13} />Abgeben</button>
                           <button className="btn small danger" title="Stornieren (Gebühr 15 %)" onClick={() => cancelOrder(o)}><X size={13} /></button>
                         </div>
                       )}

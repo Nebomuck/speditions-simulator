@@ -9,6 +9,8 @@ import { dailyGoals } from './goals.ts';
 import { dailyScenario } from './scenarios.ts';
 import { dailyProgress } from './progress.ts';
 import { hourlyTeam } from './team.ts';
+import { hourlyPartners } from './partners.ts';
+import { dailyNews } from './news.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney, processInvoices, processMonthEnd } from './finance.ts';
 import { makeApplicant, makeVehicleOffer } from './generate.ts';
@@ -30,6 +32,8 @@ import type { GameState } from './types.ts';
 
 /** Simuliert genau eine Spielminute. */
 export function tickMinute(state: GameState, ctx: SimContext): void {
+  // Firma verkauft: die Zeit steht still
+  if (state.exit) return;
   state.time += 1;
 
   for (const trip of Object.values(state.trips)) if (trip.phase !== 'done') tickTrip(state, ctx, trip);
@@ -67,6 +71,7 @@ function hourly(state: GameState, ctx: SimContext) {
   hourlyContracts(state);
   hourlyCompany(state);
   hourlyTeam(state);
+  hourlyPartners(state);
   runAutoDispatch(state, ctx);
 }
 
@@ -129,5 +134,6 @@ function daily(state: GameState, ctx: SimContext) {
   dailyGoals(state);
   dailyScenario(state);
   dailyProgress(state);
+  dailyNews(state);
   pruneTrips(state);
 }

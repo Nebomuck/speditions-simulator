@@ -26,6 +26,8 @@ import { winBackCustomer } from './competition.ts';
 import { mayDecide, resolveDecision } from './decisions.ts';
 import { placeBid, withdrawBid } from './tenders.ts';
 import { applyPermit } from './premium.ts';
+import { acquireCompetitor, subcontractOrder } from './partners.ts';
+import { sellCompany } from './exit.ts';
 import {
   cancelJoint, castVote, closeVote, createTask, createVote, deleteTask, mayManageLocation, proposeJoint, readMessage, respondJoint, sendMessage, setPlayerLimits, setRole, updateTask,
 } from './team.ts';
@@ -94,7 +96,10 @@ export type Command =
   | { type: 'bidTender'; tenderId: Id; price: number; guarantee?: boolean }
   | { type: 'withdrawBid'; tenderId: Id }
   | { type: 'applyPermit'; orderId: Id }
-  | { type: 'setPauseOnDecision'; on: boolean };
+  | { type: 'setPauseOnDecision'; on: boolean }
+  | { type: 'subcontractOrder'; orderId: Id; partnerId?: Id }
+  | { type: 'acquireCompetitor'; competitorId: Id }
+  | { type: 'sellCompany' };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -164,11 +169,14 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   applyPermit: 'dispatch',
   withdrawBid: 'dispatch',
   setPauseOnDecision: 'admin',
+  subcontractOrder: 'dispatch',
+  acquireCompetitor: 'expansion',
+  sellCompany: 'admin',
 };
 
 /** Befehle, die Geld vom Firmenkonto ausgeben können (unterliegen dem Ausgabenlimit eines Spielers) */
 const SPENDING: ReadonlySet<Command['type']> = new Set<Command['type']>([
-  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'winBackCustomer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff',
+  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'winBackCustomer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff', 'acquireCompetitor',
 ]);
 
 /** Standort, den ein Befehl verwaltet (für die Beschränkung auf zugewiesene Niederlassungen); null = neuer Standort */
@@ -227,6 +235,7 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
   const perm = COMMAND_PERMISSION[cmd.type];
   if (perm === undefined) return fail('Unbekannter Befehl.');
   if (perm && !actor.permissions.includes(perm)) return fail(`Keine Berechtigung: ${PERMISSION_LABEL[perm]}.`);
+  if (state.exit && cmd.type !== 'chat' && cmd.type !== 'setAvatar') return fail('Die Firma ist verkauft – hier gibt es nichts mehr zu tun.');
   const loc = commandLocation(state, cmd);
   if (loc === null && actor.locationIds?.length) return fail('Keine Berechtigung: Du verwaltest nur zugewiesene Niederlassungen.');
   if (loc && !mayManageLocation(actor, loc)) return fail('Keine Berechtigung: Dieser Standort ist dir nicht zugewiesen.');
@@ -667,6 +676,18 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     }
     case 'applyPermit': {
       const r = applyPermit(state, cmd.orderId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'subcontractOrder': {
+      const r = subcontractOrder(state, cmd.orderId, cmd.partnerId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'acquireCompetitor': {
+      const r = acquireCompetitor(state, cmd.competitorId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'sellCompany': {
+      const r = sellCompany(state);
       return r.ok ? { ok: true } : fail(r.error);
     }
   }

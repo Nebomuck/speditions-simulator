@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 09.11.2026 · Version 0.15.3
+Stand: 10.11.2026 · Version 0.16.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -187,6 +187,8 @@ Stand: 09.11.2026 · Version 0.15.3
 |---|---|
 | Abstraktes Warenflussmodell (Häfen, Industrie, Landwirtschaft, Städte) | Getestet |
 | Regionale Nachfrageänderung durch Ereignisse/Entwicklung | Getestet |
+| Subunternehmer | Getestet (Aufträge an Konkurrenz oder Börsenpartner abgeben, Marge, Verspätungsrisiko, Strafe trägt der Partner) |
+| Übernahme von Konkurrenten | Getestet (angeschlagen günstig, klein teurer; LKW, Auflieger, Betriebshof, Fahrer, Kunden) |
 
 ## 20 · Oberfläche
 | Anforderung | Status |
@@ -198,7 +200,8 @@ Stand: 09.11.2026 · Version 0.15.3
 | Kontextmenüs | Implementiert (Rechtsklick auf Fahrzeuge, Aufträge und Fahrer) |
 | Anpassbare Panelgrößen | Implementiert (Seitenleiste, Dispositionsliste, Fahrzeugfenster; gespeichert, Doppelklick setzt zurück) |
 | Tutorial „Erste Schritte“ | Implementiert (9 Schritte, erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor) |
-| Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 17 Artikel) |
+| Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 24 Artikel) |
+| Branchenblatt | Getestet (wöchentliche Ausgabe montags, Dashboard-Karte, Archiv mit 12 Ausgaben) |
 | Dezente Animationen | Implementiert (Seitenwechsel, Meldungen, Dialoge; respektiert „Bewegung reduzieren“) |
 
 ## 21–22 · Fortschritt & Schwierigkeit
@@ -207,6 +210,7 @@ Stand: 09.11.2026 · Version 0.15.3
 | Unternehmensstufen 1–6 | Getestet (Einzelunternehmen bis Europäischer Logistikkonzern; Fahrzeuge, Lieferungen, Reputation, Standorte, Länder) |
 | Schwierigkeitsgrade Einfach/Normal/Realistisch | Implementiert |
 | Benutzerdefiniert | Implementiert (Startkapital, Frachtraten, Ereignisse, Zahlungsrisiko, Start-LKW; Grenzen in `sanitizeDifficulty`, auch im Multiplayer) |
+| Firmenverkauf und Neustart-Bonus | Getestet (ab Tag 90 im Einzelspiel, Bewertung aus Substanz und Kundenstamm, Bonus bei der nächsten Gründung) |
 | Balancing | Getestet (Langzeit-Bot `measure-balance.ts`: Normal wächst mit Leasing auf 5–8 LKW in 18 Monaten, Realistisch bleibt knapp) |
 
 ## 23 · Persistenz

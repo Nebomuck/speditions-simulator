@@ -57,7 +57,7 @@ function brandName(state: GameState): string {
 
 /** Neue KI-Spedition gründen (Firmensitz gewichtet nach Größe, nicht direkt am Spieler) */
 export function foundCompetitor(state: GameState, opts: { near?: string; strategy?: CompetitorStrategy; trucks?: number } = {}): Competitor {
-  const taken = new Set(Object.values(state.competitors).filter((c) => c.status !== 'bankrupt').map((c) => c.hqCityId));
+  const taken = new Set(Object.values(state.competitors).filter((c) => c.status !== 'bankrupt' && c.status !== 'acquired').map((c) => c.hqCityId));
   let pool = CITIES.filter((c) => c.pop > 300 && !taken.has(c.id) && c.id !== state.company.hqCityId);
   if (opts.near) {
     const n = CITY_BY_ID[opts.near];
@@ -96,7 +96,7 @@ export function seedCompetitors(state: GameState): void {
   for (let i = 0; i < 4; i++) foundCompetitor(state);
 }
 
-export const activeCompetitors = (state: GameState) => Object.values(state.competitors ?? {}).filter((c) => c.status !== 'bankrupt');
+export const activeCompetitors = (state: GameState) => Object.values(state.competitors ?? {}).filter((c) => c.status !== 'bankrupt' && c.status !== 'acquired');
 
 export function nearCompetitor(c: Competitor, city: CityDef): boolean {
   return c.cityIds.some((id) => haversineKm(ll(CITY_BY_ID[id]), ll(city)) <= COMPETITOR_RADIUS_KM);
@@ -130,7 +130,7 @@ function addRevenue(c: Competitor, payment: Money, km: number) {
 /** Auftrag eines abgeworbenen Kunden geht direkt an den Konkurrenten (statt in die Börse). */
 export function competitorTakesCustomerOrder(state: GameState, customer: Customer, payment: Money, km: number): boolean {
   const c = customer.lostTo ? state.competitors[customer.lostTo] : undefined;
-  if (!c || c.status === 'bankrupt') return false;
+  if (!c || c.status === 'bankrupt' || c.status === 'acquired') return false;
   addRevenue(c, payment, km);
   return true;
 }
@@ -185,7 +185,7 @@ export function dailyCompetition(state: GameState): void {
     if (cu.lostTo) {
       const c = state.competitors[cu.lostTo];
       // Konkurrent pleite → Kunde sucht wieder; sonst langsame Rückkehr bei gutem eigenem Ruf
-      if (!c || c.status === 'bankrupt' || (state.company.reputation > c.reputation + 10 && rand.chance(state, 0.005))) {
+      if (!c || c.status === 'bankrupt' || c.status === 'acquired' || (state.company.reputation > c.reputation + 10 && rand.chance(state, 0.005))) {
         delete cu.lostTo;
         delete cu.lostAt;
         cu.satisfaction = Math.max(cu.satisfaction, 50);

@@ -1,16 +1,18 @@
 // Markt & Wettbewerb: Konjunktur, regionale Nachfrage, Wetter und Fahrverbote je Land, KI-Konkurrenz, Ereignisse.
 
 import { useState } from 'react';
-import { TrendingUp, Map as MapIcon, Swords, Zap, Sun, CloudRain, CloudFog, Snowflake, ThermometerSnowflake, Wind, ThermometerSun, Ban } from 'lucide-react';
+import { Building2, Newspaper, TrendingUp, Map as MapIcon, Swords, Zap, Sun, CloudRain, CloudFog, Snowflake, ThermometerSnowflake, Wind, ThermometerSun, Ban } from 'lucide-react';
 import {
-  BAN_RULES, CITY_BY_ID, COUNTRIES, PHASE_LABEL, STRATEGY_LABEL, WEATHER, activeCompetitors, banUntil, competitionPressure, competitorShare, formatDateTime,
+  BAN_RULES, CITY_BY_ID, COUNTRIES, PHASE_LABEL, STRATEGY_LABEL, WEATHER, acquisitionOffer, activeCompetitors, type Competitor, banUntil, competitionPressure, competitorShare, formatDateTime,
   regionFactor, weatherIn, type GameState, type WeatherKind, type WorldEvent,
 } from '@spedsim/core';
-import { useGame } from '../game/store.ts';
+import { sendCommand, setUi, toast, useGame, useUi } from '../game/store.ts';
+import { askConfirm } from '../ui/confirm.tsx';
+import { NewsArchive } from '../ui/News.tsx';
 import { Badge, Bar, Card, Empty, LineChart, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { cityName, countryName } from '../ui/format.ts';
 
-type Tab = 'overview' | 'regions' | 'competition' | 'events';
+type Tab = 'overview' | 'news' | 'regions' | 'competition' | 'events';
 
 export const WEATHER_ICON: Record<WeatherKind, typeof Sun> = { clear: Sun, rain: CloudRain, fog: CloudFog, snow: Snowflake, ice: ThermometerSnowflake, storm: Wind, heat: ThermometerSun };
 
@@ -19,9 +21,11 @@ const CAT: Record<WorldEvent['category'], string> = { transport: 'Transport', co
 
 export function MarketPage() {
   const s = useGame();
-  const [tab, setTab] = useState<Tab>('overview');
+  const tab: Tab = useUi((u) => u.marketTab) ?? 'overview';
+  const setTab = (t: Tab) => setUi({ marketTab: t });
   const tabs: { id: Tab; label: string; icon: typeof Sun }[] = [
     { id: 'overview', label: 'Überblick', icon: TrendingUp },
+    { id: 'news', label: 'Branchenblatt', icon: Newspaper },
     { id: 'regions', label: 'Regionen & Wetter', icon: MapIcon },
     { id: 'competition', label: 'Konkurrenz', icon: Swords },
     { id: 'events', label: 'Ereignisse', icon: Zap },
@@ -35,6 +39,7 @@ export function MarketPage() {
         ))}
       </div>
       {tab === 'overview' && <Overview />}
+      {tab === 'news' && <NewsArchive />}
       {tab === 'regions' && <Regions />}
       {tab === 'competition' && <Competition />}
       {tab === 'events' && <Events />}
@@ -145,14 +150,15 @@ function Regions() {
 
 function Competition() {
   const s = useGame();
-  const comps = Object.values(s.competitors).sort((a, b) => Number(a.status === 'bankrupt') - Number(b.status === 'bankrupt') || b.trucks - a.trucks);
+  const gone = (c: Competitor) => c.status === 'bankrupt' || c.status === 'acquired';
+  const comps = Object.values(s.competitors).sort((a, b) => Number(gone(a)) - Number(gone(b)) || b.trucks - a.trucks);
   const lostBy = (id: string) => Object.values(s.customers).filter((c) => c.lostTo === id).length;
   return (
     <Card title="KI-Speditionen" sub="Sie übernehmen Aufträge aus der Börse im Umkreis ihrer Standorte, wachsen mit Gewinn und können in Konkurs gehen.">
       <div className="table-wrap" style={{ border: 'none' }}>
         <table className="table">
           <thead>
-            <tr><th>Spedition</th><th>Strategie</th><th>Standorte</th><th className="num">LKW</th><th>Ruf</th><th>Preise</th><th className="num">Aufträge (lfd. Monat)</th><th className="num">Anteil</th><th className="num">Ergebnis (Vormonat)</th><th>Status</th></tr>
+            <tr><th>Spedition</th><th>Strategie</th><th>Standorte</th><th className="num">LKW</th><th>Ruf</th><th>Preise</th><th className="num">Aufträge (lfd. Monat)</th><th className="num">Anteil</th><th className="num">Ergebnis (Vormonat)</th><th>Status</th><th /></tr>
           </thead>
           <tbody>
             <tr style={{ background: 'var(--accent-soft)' }}>
@@ -166,9 +172,10 @@ function Competition() {
               <td className="num">–</td>
               <td className="num">–</td>
               <td>–</td>
+              <td />
             </tr>
             {comps.map((c) => (
-              <tr key={c.id} style={c.status === 'bankrupt' ? { opacity: 0.5 } : undefined}>
+              <tr key={c.id} style={gone(c) ? { opacity: 0.5 } : undefined}>
                 <td><b>{c.name}</b>{lostBy(c.id) > 0 && <div className="dim" style={{ fontSize: 11.5 }}>{lostBy(c.id)} deiner Kunden</div>}</td>
                 <td>{STRATEGY_LABEL[c.strategy]}</td>
                 <td>{c.cityIds.map(cityName).join(', ')}</td>
@@ -176,9 +183,10 @@ function Competition() {
                 <td><div className="row"><Bar value={c.reputation} />{Math.round(c.reputation)}</div></td>
                 <td>{c.priceLevel === 1 ? 'Markt' : pct(c.priceLevel)}</td>
                 <td className="num" title={`Vormonat: ${c.lastMonth.orders}`}>{c.month.orders}</td>
-                <td className="num">{c.status === 'bankrupt' ? '–' : `${Math.round(competitorShare(s, c) * 100)} %`}</td>
+                <td className="num">{gone(c) ? '–' : `${Math.round(competitorShare(s, c) * 100)} %`}</td>
                 <td className="num">{c.lastMonth.revenue || c.lastMonth.costs ? <Money value={c.lastMonth.revenue - c.lastMonth.costs} colored /> : '–'}</td>
-                <td><Badge kind={c.status === 'bankrupt' ? 'danger' : c.status === 'trouble' ? 'warning' : 'success'}>{c.status === 'bankrupt' ? 'Konkurs' : c.status === 'trouble' ? 'Schwierigkeiten' : 'aktiv'}</Badge></td>
+                <td><Badge kind={c.status === 'bankrupt' ? 'danger' : c.status === 'acquired' ? 'info' : c.status === 'trouble' ? 'warning' : 'success'}>{c.status === 'bankrupt' ? 'Konkurs' : c.status === 'acquired' ? 'von dir übernommen' : c.status === 'trouble' ? 'Schwierigkeiten' : 'aktiv'}</Badge></td>
+                <td className="num"><AcquireButton c={c} /></td>
               </tr>
             ))}
           </tbody>
@@ -187,9 +195,37 @@ function Competition() {
       <p className="dim" style={{ fontSize: 12.5, marginBottom: 0 }}>
         Angebote stehen zuerst 90 Minuten nur dir zur Verfügung; ein eigener Vertrieb hält sie länger zurück. Unzufriedene Kunden (unter 40 %) können zur Konkurrenz wechseln –
         unter „Kunden &amp; Verträge“ lassen sie sich mit einem Vertriebsbesuch zurückgewinnen.
+        Speditionen in Schwierigkeiten und kleine Betriebe bis 5 LKW kannst du <b>übernehmen</b>: mit LKW, Aufliegern, Betriebshof, Fahrern und den Kunden, die zu ihnen gewechselt sind.
       </p>
     </Card>
   );
+}
+
+/** Übernahme eines Konkurrenten: Angebot zeigen, bestätigen, kaufen */
+function AcquireButton({ c }: { c: Competitor }) {
+  const s = useGame();
+  const offer = acquisitionOffer(s, c);
+  if (!offer) return null;
+  const buy = async () => {
+    const ok = await askConfirm(
+      <div>
+        <p style={{ marginTop: 0 }}>{offer.reason}</p>
+        <ul className="plain-list">
+          <li><b>{offer.trucks - offer.parkingShort} LKW</b> mit Planenaufliegern (gebraucht, 3–8 Jahre alt)</li>
+          {offer.newLocation && <li>Betriebshof in {cityName(c.hqCityId)} (8 Stellplätze, Miete 2.400 €/Monat)</li>}
+          <li>{offer.drivers} erfahrene Fahrer bewerben sich für zwei Wochen bei dir</li>
+          {offer.customers > 0 && <li>{offer.customers} abgewanderte Kunden kommen zurück</li>}
+          {offer.parkingShort > 0 && <li className="neg">{offer.parkingShort} LKW passen nicht auf deine Stellplätze. Sie werden anderweitig verkauft und nicht berechnet</li>}
+        </ul>
+        <p style={{ marginBottom: 0 }}>Kaufpreis <b><Money value={offer.price} /></b> · Kontostand danach <Money value={s.company.account.balance - offer.price} colored /></p>
+      </div>,
+      { title: `${c.name} übernehmen?`, confirmLabel: 'Übernehmen' },
+    );
+    if (!ok) return;
+    const r = await sendCommand({ type: 'acquireCompetitor', competitorId: c.id });
+    if (r.ok) toast('success', `${c.name} übernommen`);
+  };
+  return <button className="btn small" title={`Übernahme für ${Math.round(offer.price / 100).toLocaleString('de-DE')} €`} onClick={buy}><Building2 size={13} />Übernehmen</button>;
 }
 
 function Events() {

@@ -567,3 +567,47 @@ body:has(.decision-card) .toasts { bottom: auto; top: 72px; }
   .start-main, .start-form-body { grid-template-columns: 1fr; }
   .start-actions { position: static; }
 }
+
+/* ---------- Branchenblatt ---------- */
+.news-card { margin-bottom: 0; }
+.news-masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--text); padding-bottom: 6px; font-size: 12px; }
+.news-name { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 18px; letter-spacing: .02em; }
+.news-headline { font-family: Georgia, 'Times New Roman', serif; font-size: 21px; line-height: 1.2; margin: 10px 0 12px; }
+.news-items { columns: 2 280px; column-gap: 22px; }
+.news-items.compact { columns: 4 220px; }
+.news-item { break-inside: avoid; margin: 0 0 12px; padding-left: 10px; border-left: 3px solid var(--border-strong); }
+.news-item.good { border-left-color: var(--success); }
+.news-item.bad { border-left-color: var(--danger); }
+.news-item h4 { margin: 0 0 3px; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.news-item h4 svg { color: var(--text-3); flex-shrink: 0; }
+.news-item p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.news-pick { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; width: 100%; text-align: left; background: none; border: none; font: inherit; color: inherit; cursor: pointer; border-radius: 6px; }
+.news-pick .ellipsis { grid-column: 1 / -1; font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.news-pick.active, .news-pick:hover { background: var(--panel-hover); }
+@media (max-width: 900px) { .news-archive { grid-template-columns: 1fr !important; } }
+
+/* ---------- Subunternehmer und Übernahmen ---------- */
+.sub-quotes { display: flex; flex-direction: column; gap: 6px; }
+.sub-quote { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.sub-quote.active { border-color: var(--accent); background: var(--accent-soft); }
+.sub-quote-main { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.sub-quote .num { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.plain-list { margin: 6px 0 10px; padding-left: 18px; line-height: 1.7; }
+.dim.small { font-size: 11.5px; }
+
+/* ---------- Firmenverkauf ---------- */
+.exit-screen { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px; background: radial-gradient(900px 500px at 20% 0%, rgba(56, 189, 248, .14), transparent), rgba(6, 12, 22, .82); backdrop-filter: blur(4px); }
+.exit-card { width: min(620px, 100%); padding: 26px 28px; }
+.exit-card h2 { margin: 6px 0 4px; font-size: 24px; }
+.exit-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 18px 0; }
+.exit-figures > div { padding: 10px 12px; border-radius: 8px; background: var(--panel-2); display: flex; flex-direction: column; gap: 2px; }
+.exit-figures small { color: var(--text-2); font-size: 11.5px; }
+.exit-figures b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.exit-bonus { padding: 12px 14px; border-radius: 8px; border: 1px dashed var(--accent); background: var(--accent-soft); font-size: 13px; line-height: 1.5; }
+.legacy-note { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--text); font-size: 12.5px; line-height: 1.45; margin-top: 10px; }
+.legacy-note svg { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+.exit-kv { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; font-size: 13px; margin-bottom: 8px; }
+.exit-kv span { color: var(--text-2); }
+.exit-kv b { text-align: right; font-variant-numeric: tabular-nums; }
+.exit-kv span:nth-last-child(2), .exit-kv b:last-child { border-top: 1px solid var(--border); padding-top: 5px; color: var(--text); font-weight: 700; }
+.news-headline + .news-lead { margin: -6px 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--text); }

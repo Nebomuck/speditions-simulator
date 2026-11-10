@@ -43,6 +43,10 @@ interface UiState {
   music: number;
   ambience: number;
   dispatchDraft: { orderId?: string; vehicleId?: string } | null;
+  /** Auftrag, für den der Subunternehmer-Dialog offen ist */
+  subcontractOrderId?: string | null;
+  /** offener Reiter unter Markt & Wettbewerb */
+  marketTab?: 'overview' | 'news' | 'regions' | 'competition' | 'events';
   /** geöffneter Hilfeartikel (F1) oder null */
   help: string | null;
   /** Erste-Schritte-Liste eingeblendet */

@@ -397,7 +397,7 @@ export const DECISION_RULES: DecisionRule[] = [
     resolve(state, _ctx, dec, o) {
       const c = state.competitors[str(dec, 'competitorId')];
       if (o !== 'buy') return 'Du wartest ab.';
-      if (!c || c.status === 'bankrupt') return 'Zu spät – der Konkurrent hat schon aufgegeben.';
+      if (!c || c.status === 'bankrupt' || c.status === 'acquired') return 'Zu spät – der Konkurrent hat schon aufgegeben.';
       const price = num(dec, 'price');
       if (state.company.account.balance - price < -10_000_00) return 'Für die Übernahme fehlt das Geld.';
       book(state, 'company', -price, 'other', `Übernahme Kundenstamm ${c.name}`);

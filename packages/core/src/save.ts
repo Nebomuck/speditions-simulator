@@ -1,5 +1,6 @@
 // PersistenceSystem: versioniertes Speicherformat mit Prüfsumme und Migrationskette.
 
+import { defaultNews } from './news.ts';
 import { defaultProgress } from './progress.ts';
 import { STATE_VERSION } from './game.ts';
 import { defaultAutoDispatch } from './autodispatch.ts';
@@ -128,6 +129,11 @@ export const MIGRATIONS: Record<number, Migration> = {
   11: (s) => {
     const d = s.difficulty as Record<string, unknown> | undefined;
     if (d?.id === 'realistic') Object.assign(d, { rateFactor: 1.0, eventFactor: 1.1, paymentRiskFactor: 1.1 });
+    return s;
+  },
+  // 0.16.0: Branchenblatt (erste Ausgabe am nächsten Montag)
+  12: (s) => {
+    s.news ??= defaultNews();
     return s;
   },
 };

@@ -275,6 +275,27 @@ Ab Spieltag 3 entsteht täglich mit 40 % ein Premium-Angebot (höchstens zwei of
 ### Fahrereigenschaften
 65 % der Bewerber haben eine Eigenschaft: **Sparfuchs** (Verbrauch wie +25 Sparsamkeit), **Pünktlich** (+2 Kundenzufriedenheit bei pünktlicher Lieferung), **Bleifuß** (+4 % Tempo, ×1,6 Unfallrisiko, +10 % Verschleiß, Blitzer-Karten), **Frohnatur** (+8 Zielzufriedenheit), **Eiserne Gesundheit** (Krankheit × 0,35), **Plaudertasche** (+1 Kundenzufriedenheit, +15 min je Be- und Entladung). Geschichten als Entscheidungskarten: Geburtstag, freie Tage, Blitzerfoto, Ersthelfer; Betriebsjubiläum +3 Zufriedenheit.
 
+### Subunternehmer
+Angenommene, noch nicht disponierte Aufträge lassen sich an einen Partner abgeben. Das kann eine KI-Spedition im Umkreis der Ladestelle sein, die 88 % des Frachtpreises mal ihr Preisniveau verlangt. Der Partner aus der Frachtenbörse ist immer verfügbar und verlangt 93 %. Du stellst die Rechnung und behältst die Differenz. Das Verspätungsrisiko liegt bei Preisbrechern bei 16 %, regional bei 8 %, bei Premium-Speditionen bei 3 % und beim Börsenpartner bei 10 %. Speditionen in Schwierigkeiten haben 15 % mehr Risiko. Die Vertragsstrafe trägt der Partner. Ruf und Kundenzufriedenheit leiden aber bei dir, und eine pünktliche Partnerlieferung bringt nur +1 Zufriedenheit statt +3. Premium-Aufträge sind ausgenommen.
+
+### Übernahmen
+KI-Speditionen in Schwierigkeiten verkaufen für 75 % des üblichen Preises, kleine gesunde Betriebe mit bis zu 5 LKW für 130 %. Der übliche Preis sind 26.000 € je LKW plus 2.500 € je zu ihnen abgewandertem Kunden. Je Übernahme kommen höchstens 8 LKW mit, und zwar nur so viele, wie Stellplätze frei sind. Bezahlt werden nur die übernommenen LKW. Fehlt in der Stadt ein Standort und erlaubt die Unternehmensstufe noch einen, kommt ein Betriebshof mit. Zur Übernahme gehören:
+- gebrauchte Zugmaschinen mit Planenaufliegern, 3–8 Jahre alt, 52–80 % Zustand,
+- je LKW ein erfahrener Fahrer, der sich zwei Wochen lang bewirbt,
+- die abgewanderten Kunden, die zurückkommen.
+
+Die Spedition verschwindet danach vom Markt. Der eigene Ruf steigt um 2.
+
+### Branchenblatt
+Jeden Montag erscheint eine Ausgabe mit Schlagzeile und Rubriken: Konjunktur, die stärkste Region, Dieselpreis zur Vorwoche, Konkurrenz (Konkurs, Neugründung, Wachstum, Schwierigkeiten mit Übernahmepreis), Wetterwarnungen, Saisonausblick, Feiertage, die eigene Woche in Zahlen und ein Fahrer der Woche. Eine Schlagzeile wiederholt sich nicht zwei Wochen in Folge. Das Archiv hält 12 Ausgaben.
+
+### Firmenverkauf und Neustart-Bonus
+Im Einzelspiel lässt sich die Firma ab dem 90. Tag verkaufen, wenn keine Fahrt läuft. Der Preis setzt sich aus zwei Teilen zusammen:
+- **Substanz:** Konto, Forderungen, eigene Fahrzeuge, Auflieger und Anlagen.
+- **Kundenstamm:** Ø Monatsgewinn der letzten 90 Tage × 12 × (0,5 + Ruf/200), plus 1.500 € je treuem Kunden (mindestens 3 Lieferungen, Zufriedenheit ab 60 %).
+
+Kredite werden abgelöst, der Erlös geht aufs Privatkonto, und das Spiel endet. Verkäufe merkt sich der PC. Die nächste Gründung bekommt 10 % aller Erlöse als zusätzliches Startkapital (höchstens 100.000 €) und +3 Ruf je Verkauf (höchstens +9). Der Bonus lässt sich abwählen.
+
 ## 18. Bedienung, Hilfe und Atmosphäre
 
 - **Erste Schritte:** In neuen Spielen führt eine Liste durch neun Schritte (Börse, erste Disposition, Zeit, Karte, Lieferung, Finanzen, Fuhrpark, zweites Fahrzeug, Hilfe). Sie erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor und lässt sich ausblenden bzw. über die Hilfe wieder einblenden.

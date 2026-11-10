@@ -73,6 +73,8 @@ export type LedgerCategory =
   | 'loan'
   | 'interest'
   | 'tax'
+  | 'subcontract'
+  | 'acquisition'
   | 'other';
 
 export interface LedgerEntry {
@@ -178,7 +180,7 @@ export interface Company {
   /** 0–100, beeinflusst Auftragsangebot. */
   reputation: number;
   /** Kumulierte Kennzahlen für Statistiken. */
-  totals: { deliveries: number; lateDeliveries: number; revenue: Money; kmLoaded: number; kmEmpty: number };
+  totals: { deliveries: number; lateDeliveries: number; revenue: Money; kmLoaded: number; kmEmpty: number; subcontracted?: number; acquisitions?: number };
   /** laufende Bankkredite */
   loans: Loan[];
   /** Abteilungen: Büro- und Fachpersonal */
@@ -470,6 +472,8 @@ export interface Order {
   tender?: boolean;
   /** Premium-Auftrag: nur von Hand disponierbar */
   premium?: PremiumInfo;
+  /** an einen Subunternehmer vergeben (Status „in_transit“ bis zur Zustellung) */
+  subcontract?: { partnerId: Id; name: string; price: Money; since: GameTime; deliverAt: GameTime };
   offerExpires: GameTime;
   created: GameTime;
   tripId?: Id;
@@ -726,7 +730,9 @@ export interface Competitor {
   priceLevel: number;
   strategy: CompetitorStrategy;
   founded: GameTime;
-  status: 'active' | 'trouble' | 'bankrupt';
+  status: 'active' | 'trouble' | 'bankrupt' | 'acquired';
+  /** von dir übernommen */
+  acquiredAt?: GameTime;
   troubleSince?: GameTime;
   bankruptAt?: GameTime;
   /** angefangene Auftragskapazität (Bruchteil) */
@@ -964,4 +970,25 @@ export interface GameState {
   quarterHistory: QuarterResult[];
   /** Erfolge und Rekorde */
   progress: ProgressState;
+  /** Branchenblatt (wöchentliche Ausgaben) */
+  news?: import('./news.ts').NewsState;
+  /** Firma verkauft: Spiel beendet */
+  exit?: CompanyExit;
+}
+
+/** Verkauf der Firma (Ende des Spiels, Grundlage für den Neustart-Bonus) */
+export interface CompanyExit {
+  t: GameTime;
+  price: Money;
+  /** Substanzwert ohne Kundenstamm */
+  assets: Money;
+  goodwill: Money;
+  debts: Money;
+  /** Erlös nach Ablösung der Kredite */
+  proceeds: Money;
+  /** Monate seit Gründung */
+  months: number;
+  vehicles: number;
+  deliveries: number;
+  level: number;
 }

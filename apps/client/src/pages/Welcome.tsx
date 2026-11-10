@@ -10,6 +10,7 @@ import {
   type AvatarLook, type CharacterBackground, type Difficulty, type DifficultyId, type ScenarioId,
 } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
+import { currentLegacy } from '../game/legacy.ts';
 import { appVersion, checkForUpdate, installUpdate, type Update } from '../game/updater.ts';
 import { checkOnline, connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
 import type { SaveMeta } from '../game/protocol.ts';
@@ -185,6 +186,8 @@ export function Welcome() {
   const [hq, setHq] = useState('leipzig');
   const [difficulty, setDifficulty] = useState<DifficultyId>('normal');
   const [scenario, setScenario] = useState<ScenarioId>('free');
+  const legacy = useMemo(() => currentLegacy(), []);
+  const [useLegacy, setUseLegacy] = useState(true);
   const [custom, setCustom] = useState<Partial<Difficulty>>({ ...DIFFICULTIES.normal });
   const [avatar, setAvatar] = useState<AvatarLook>(DEFAULT_LOOK);
   const [editLook, setEditLook] = useState(false);
@@ -268,7 +271,7 @@ export function Welcome() {
     setBusy(true);
     try {
       const host = getLocalHost();
-      await host.newGame({ companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario, founder: { name: player, character: { name: player, age, avatar, background } } });
+      await host.newGame({ companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario, legacy: useLegacy && legacy.exits.length ? { capital: legacy.capital, reputation: legacy.reputation, exits: legacy.exits.length } : undefined, founder: { name: player, character: { name: player, age, avatar, background } } });
       setUi({ host, page: 'dashboard' });
     } catch (e) {
       toast('danger', (e as Error).message);
@@ -580,6 +583,15 @@ export function Welcome() {
                       {scenario !== 'free' && <><br /><b>Ziel:</b> {SCENARIOS[scenario].goal}</>}
                     </p>
                   </div>
+                  {view === 'new' && legacy.exits.length > 0 && (
+                    <label className="legacy-note">
+                      <input type="checkbox" checked={useLegacy} onChange={(e) => setUseLegacy(e.target.checked)} />
+                      <span>
+                        <b>Neustart-Bonus als Serienunternehmer:</b> Du hast schon {legacy.exits.length === 1 ? 'eine Firma' : `${legacy.exits.length} Firmen`} verkauft
+                        ({legacy.exits.map((x) => x.company).slice(-3).join(', ')}). Die neue Spedition startet mit {formatMoney(legacy.capital)} mehr Kapital und +{legacy.reputation} Ruf.
+                      </span>
+                    </label>
+                  )}
                   {view === 'host' && (
                     <details className="mb">
                       <summary className="dim" style={{ cursor: 'pointer', fontSize: 12.5 }}>Erweitert: auf einem externen Server gründen</summary>

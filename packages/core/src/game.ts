@@ -19,10 +19,11 @@ import { startQuarter } from './goals.ts';
 import { defaultProgress } from './progress.ts';
 import { applyScenario, isScenarioId } from './scenarios.ts';
 import { newId } from './rng.ts';
+import { defaultNews } from './news.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, ScenarioId, TeamRole } from './types.ts';
 
-export const STATE_VERSION = 12;
+export const STATE_VERSION = 13;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.08, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
@@ -62,6 +63,8 @@ export interface NewGameOptions {
   founder: { id?: Id; name: string; character?: Partial<Character> };
   /** Szenario mit eigenem Ziel (fehlt: freies Spiel) */
   scenario?: ScenarioId;
+  /** Neustart-Bonus aus früheren Firmenverkäufen (siehe legacyBonus) */
+  legacy?: { capital: number; reputation: number; exits: number };
 }
 
 export function makeCharacter(name: string, partial: Partial<Character> = {}): Character {
@@ -107,13 +110,13 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     company: {
       name: opts.companyName.trim() || 'Meine Spedition',
       hqCityId: hq.id,
-      account: { balance: difficulty.startCapital },
+      account: { balance: difficulty.startCapital + Math.max(0, Math.min(100_000_00, Math.round(opts.legacy?.capital ?? 0))) },
       loans: [],
       founded: startTime,
       locations: [],
       staff: [],
       level: 1,
-      reputation: 30,
+      reputation: 30 + Math.max(0, Math.min(9, Math.round(opts.legacy?.reputation ?? 0))),
       totals: { deliveries: 0, lateDeliveries: 0, revenue: 0, kmLoaded: 0, kmEmpty: 0 },
     },
     players: {},
@@ -144,6 +147,7 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     tenders: {},
     quarterHistory: [],
     progress: defaultProgress(),
+    news: defaultNews(),
   };
 
   const founderId = opts.founder.id ?? newId(state, 'pl');

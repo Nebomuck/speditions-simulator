@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.16.0 – 10.11.2026
+
+- **Subunternehmer:** Angenommene Aufträge lassen sich mit „Abgeben“ an einen Partner vergeben, auch wenn kein eigener LKW frei ist. Der Partner holt ab und liefert, du stellst die Rechnung und behältst die Differenz.
+  - Zur Wahl stehen Konkurrenten im Umkreis der Ladestelle und der Partner aus der Frachtenbörse, der immer verfügbar ist. Der Dialog zeigt Marge und Verspätungsrisiko.
+  - Die Vertragsstrafe trägt der Partner. Verspätungen kosten dich trotzdem Ruf und Kundenzufriedenheit.
+- **Übernahmen:** Konkurrenten in Schwierigkeiten (günstig) und kleine Betriebe bis 5 LKW (teurer) kannst du unter Markt & Wettbewerb kaufen. Zur Übernahme gehören:
+  - gebrauchte LKW mit Aufliegern,
+  - ein Betriebshof in ihrer Stadt,
+  - erfahrene Fahrer, die sich bei dir bewerben,
+  - alle Kunden, die zu dieser Spedition gewechselt waren.
+  - Bezahlt werden nur die LKW, für die du Stellplätze hast.
+- **Branchenblatt:** Jeden Montag eine Ausgabe mit Schlagzeile, Konjunktur, Dieselpreis, Konkurrenz (auch: Wer würde verkaufen?), Wetter, Saisonausblick, deiner Woche in Zahlen und einem Fahrer der Woche. Die neueste steht im Dashboard, ältere unter Markt & Wettbewerb.
+- **Firmenverkauf mit Neustart-Bonus:** Im Einzelspiel kannst du deine Firma ab dem 90. Tag verkaufen.
+  - Der Preis besteht aus der Substanz und dem Kundenstamm, Kredite werden abgelöst.
+  - Ein Abschlussbildschirm zeigt die Bilanz.
+  - Die nächste Gründung startet als Serienunternehmer mit 10 % der Erlöse als Startkapital (höchstens 100.000 €) und mehr Ruf.
+- Neue Hilfeartikel zu Subunternehmern und Übernahmen, zum Branchenblatt und zum Firmenverkauf.
+
 ## 0.15.3 – 09.11.2026
 
 - **Schwierigkeitsgrad „Realistisch“ entschärft.** Er war so hart, dass man mit einem LKW nach Monaten noch im Minus stand und nie zu einem zweiten Fahrzeug oder Fahrer kam.

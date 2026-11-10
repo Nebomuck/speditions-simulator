@@ -219,6 +219,42 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'partners',
+    title: 'Subunternehmer und Übernahmen',
+    page: 'market',
+    keywords: 'subunternehmer partner abgeben weitergeben übernahme übernehmen kaufen konkurrent frachtenbörse',
+    body: [
+      'Kein LKW frei? Einen angenommenen Auftrag kannst du unter „Eigene Aufträge“ mit „Abgeben“ an einen Partner vergeben. Er holt ab und liefert. Du stellst die Rechnung und behältst die Differenz.',
+      '• Konkurrenten im Umkreis der Ladestelle sind meist günstiger, der Partner aus der Frachtenbörse ist immer verfügbar. Angezeigt werden Marge und Verspätungsrisiko.',
+      '• Die Vertragsstrafe trägt der Partner. Eine Verspätung kostet dich aber Ruf und Kundenzufriedenheit, und pünktliche Partnerlieferungen freuen Kunden weniger als deine eigenen.',
+      'Unter Markt & Wettbewerb → Konkurrenz kannst du Speditionen in Schwierigkeiten günstig und kleine Betriebe bis 5 LKW teurer übernehmen. Dazu gehören:',
+      '• LKW mit Planenaufliegern (so viele, wie Stellplätze frei sind, bezahlt werden nur diese) und ein Betriebshof in ihrer Stadt, wenn deine Stufe noch einen Standort erlaubt,',
+      '• erfahrene Fahrer, die sich zwei Wochen lang bewerben,',
+      '• alle Kunden, die zu dieser Spedition gewechselt waren.',
+    ],
+  },
+  {
+    id: 'news',
+    title: 'Branchenblatt',
+    page: 'market',
+    keywords: 'branchenblatt zeitung news nachrichten woche schlagzeile',
+    body: [
+      'Jeden Montag erscheint das Branchenblatt mit Konjunktur, Dieselpreis, Konkurrenz, Wetter, Saisonausblick und deiner Woche in Zahlen. Die neueste Ausgabe steht im Dashboard, ältere unter Markt & Wettbewerb → Branchenblatt.',
+      '• Achte auf Meldungen über Konkurrenten in Schwierigkeiten: Dort steht, ob der Inhaber verkaufen würde und zu welchem Preis.',
+    ],
+  },
+  {
+    id: 'exit',
+    title: 'Firma verkaufen',
+    page: 'finance',
+    keywords: 'verkaufen exit firmenverkauf neustart bonus serienunternehmer unternehmenswert',
+    body: [
+      'Unter Finanzen → Kredite & Factoring kannst du deine Firma im Einzelspiel ab dem 90. Tag verkaufen. Der Preis besteht aus der Substanz (Konto, Forderungen, eigene Fahrzeuge und Anlagen) und dem Kundenstamm (Gewinn der letzten Monate, Ruf, treue Kunden). Kredite werden abgelöst.',
+      '• Der Verkauf beendet das Spiel. Der Spielstand bleibt erhalten, die Zeit läuft aber nicht weiter.',
+      '• Neustart-Bonus: Bei der nächsten Gründung gibt es 10 % aller bisherigen Erlöse als zusätzliches Startkapital (höchstens 100.000 €) und +3 Ruf je Verkauf (höchstens +9).',
+    ],
+  },
+  {
     id: 'locations',
     title: 'Standorte und Unternehmensausbau',
     page: 'locations',

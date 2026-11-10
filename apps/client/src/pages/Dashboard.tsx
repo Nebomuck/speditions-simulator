@@ -4,6 +4,7 @@ import { navigate, useGame } from '../game/store.ts';
 import { Badge, Card, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { MapView } from '../ui/MapView.tsx';
 import { NextAchievements, QuarterCard, ScenarioCard } from '../ui/Goals.tsx';
+import { NewsCard } from '../ui/News.tsx';
 
 export function Dashboard() {
   const s = useGame();
@@ -56,6 +57,7 @@ export function Dashboard() {
           </div>
         </Card>
       </div>
+      <div className="mt"><NewsCard /></div>
       {s.company.totals.deliveries === 0 && (
         <Card title="Erste Schritte" className="mt">
           <ol style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8, color: 'var(--text-2)' }}>

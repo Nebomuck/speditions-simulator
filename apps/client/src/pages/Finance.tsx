@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { LOAN_TERMS, annuity, factoringPayout, formatDate, formatDateTime, formatMoney, loanLimit, loanRate, monthlyFixedCosts, ratingLabel, receivables, companyValue, vehicleMarketValue, type LedgerCategory } from '@spedsim/core';
-import { Landmark, HandCoins } from 'lucide-react';
+import { LOAN_TERMS, annuity, factoringPayout, formatDate, formatDateTime, formatMoney, loanLimit, loanRate, monthlyFixedCosts, ratingLabel, receivables, companyValue, vehicleMarketValue, exitBlock, exitValuation, EXIT_MIN_DAYS, type LedgerCategory } from '@spedsim/core';
+import { Landmark, HandCoins, Handshake } from 'lucide-react';
+import { askConfirm } from '../ui/confirm.tsx';
 import { sendCommand, useGame } from '../game/store.ts';
 import { Badge, Card, Empty, LineChart, Money, PageHeader, Stat } from '../ui/components.tsx';
 
 const CAT_LABEL: Record<LedgerCategory, string> = {
   revenue: 'Erlöse', fuel: 'Diesel', toll: 'Maut', wages: 'Löhne', rent: 'Miete', insurance: 'Versicherung', leasing: 'Leasing',
   maintenance: 'Wartung', repair: 'Reparatur', vehicle_purchase: 'Fahrzeugkauf', vehicle_sale: 'Fahrzeugverkauf', storage: 'Lagerlogistik', penalty: 'Strafen',
-  hiring: 'Personalgewinnung', salary: 'GF-Gehalt', living: 'Lebenshaltung', loan: 'Kredit', interest: 'Zinsen', tax: 'Steuern', other: 'Sonstiges',
+  hiring: 'Personalgewinnung', salary: 'GF-Gehalt', living: 'Lebenshaltung', loan: 'Kredit', interest: 'Zinsen', tax: 'Steuern', subcontract: 'Subunternehmer', acquisition: 'Übernahmen', other: 'Sonstiges',
 };
 
 export function FinancePage() {
@@ -146,6 +147,7 @@ export function FinancePage() {
             </div>
             <p className="dim" style={{ fontSize: 12.5 }}>Einzelne Rechnungen verkaufst du im Reiter „Rechnungen“.</p>
           </Card>
+          <ExitCard />
         </div>
       )}
       {tab === 'ledger' && (
@@ -167,5 +169,40 @@ export function FinancePage() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Firma verkaufen: Bewertung, Bedingungen und Verkauf (beendet das Spiel) */
+function ExitCard() {
+  const s = useGame();
+  const v = exitValuation(s);
+  const block = exitBlock(s);
+  const sell = async () => {
+    const ok = await askConfirm(
+      <div>
+        <p style={{ marginTop: 0 }}>Ein Käufer übernimmt {s.company.name} für <b><Money value={v.price} /></b>. Nach Ablösung der Kredite bleiben <b><Money value={v.proceeds} /></b> für dich.</p>
+        <p style={{ marginBottom: 0 }}>Damit endet dieses Spiel. Der Spielstand bleibt erhalten, die Zeit läuft aber nicht weiter. Bei deiner nächsten Gründung bekommst du einen Neustart-Bonus.</p>
+      </div>,
+      { title: 'Firma wirklich verkaufen?', confirmLabel: 'Verkaufen', danger: true },
+    );
+    if (ok) await sendCommand({ type: 'sellCompany' });
+  };
+  return (
+    <Card title={<><Handshake size={16} /> Firma verkaufen</>} sub="Exit zum Unternehmenswert">
+      <div className="exit-kv">
+        <span>Substanz (Konto, Forderungen, eigene Fahrzeuge und Anlagen)</span><b><Money value={v.assets} /></b>
+        <span>Kundenstamm ({v.loyalCustomers} treue Kunden, Ø Monatsgewinn <Money value={v.monthlyProfit} />)</span><b><Money value={v.goodwill} /></b>
+        <span>Kaufpreis</span><b><Money value={v.price} /></b>
+        <span>Kredite ablösen</span><b><Money value={v.debts ? -v.debts : 0} colored /></b>
+        <span>Erlös für dich</span><b><Money value={v.proceeds} /></b>
+      </div>
+      <p className="dim" style={{ fontSize: 12.5 }}>
+        Nur im Einzelspiel und frühestens nach {EXIT_MIN_DAYS} Tagen. Der Erlös geht aufs Privatkonto. Bei der nächsten Gründung gibt es 10 % davon als zusätzliches Startkapital (höchstens 100.000 €) und mehr Ruf.
+      </p>
+      <div className="row" style={{ alignItems: 'center' }}>
+        <span className="dim" style={{ flex: 1, fontSize: 12.5 }}>{block ?? 'Ein Käufer ist interessiert.'}</span>
+        <button className="btn danger" disabled={!!block} onClick={sell}><Handshake size={15} />Verkaufen</button>
+      </div>
+    </Card>
   );
 }
