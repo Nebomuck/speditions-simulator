@@ -25,7 +25,7 @@ export function vehicleMarker(state: GameState, ctx: SimContext, vehicleId: Id, 
   const trip = v.tripId ? state.trips[v.tripId] : undefined;
   if (trip && trip.phase !== 'done') {
     const leg = trip.legs[trip.legIndex];
-    const moving = trip.activity === 'driving' || trip.activity === 'ferry';
+    const moving = trip.activity === 'driving' || trip.activity === 'ferry' || trip.activity === 'rail';
     const km = Math.min(leg.km, trip.progressKm + (moving ? extraKm : 0));
     const p = ctx.net.positionAlong(leg.nodes, km);
     return { vehicleId, tripId: trip.id, pos: p.pos, bearing: p.bearing, activity: trip.activity, late: isTripLate(state, trip), loaded: leg.loaded };
@@ -64,7 +64,7 @@ export function tripStopEtas(state: GameState, ctx: SimContext, trip: Trip): { e
   const vehicle = state.vehicles[trip.vehicleId];
   const sf = speedFactor(vehicle?.modelId ?? '');
   let t = state.time;
-  const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry';
+  const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry' && trip.activity !== 'rail';
   if (stationary) {
     t += trip.activityLeft;
     if (['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked', 'ban'].includes(trip.activity)) {

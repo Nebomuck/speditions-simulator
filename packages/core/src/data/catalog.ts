@@ -12,7 +12,9 @@ export interface TruckModel {
   /** Basisverbrauch leer l/100 km; beladen + bis zu 35 % */
   consumption: number;
   tankL: number;
-  emission: 'Euro V' | 'Euro VI';
+  emission: 'Euro V' | 'Euro VI' | 'LNG' | 'Elektro';
+  /** Antrieb (fehlt: Diesel). Bei LNG sind Tank und Verbrauch in kg, bei Elektro in kWh. */
+  drive?: 'diesel' | 'lng' | 'electric';
   /** Neupreis in Cent */
   price: Money;
   /** Leasingrate neu pro Monat in Cent */
@@ -40,10 +42,15 @@ export const TRUCK_MODELS: TruckModel[] = [
   { id: 'velkor-s540', maker: 'Velkor', name: 'S 540 Highline', hp: 540, consumption: 27.9, tankL: 900, emission: 'Euro VI', price: 134_000_00, leaseRate: 2_650_00, insurance: 450_00, durability: 0.95 },
   { id: 'brennkraft-k410', maker: 'Brennkraft', name: 'K 410 Eco', hp: 410, consumption: 25.9, tankL: 600, emission: 'Euro VI', price: 99_000_00, leaseRate: 1_980_00, insurance: 380_00, durability: 0.88 },
   { id: 'trasko-m380', maker: 'Trasko', name: 'M 380', hp: 380, consumption: 29.5, tankL: 500, emission: 'Euro V', price: 74_000_00, leaseRate: 1_500_00, insurance: 360_00, durability: 0.75 },
+  // Alternative Antriebe: LNG (kg) und Elektro (kWh)
+  { id: 'brennkraft-g460', maker: 'Brennkraft', name: 'K 460 LNG', hp: 460, consumption: 24.5, tankL: 270, emission: 'LNG', drive: 'lng', price: 126_000_00, leaseRate: 2_480_00, insurance: 400_00, durability: 0.88 },
+  { id: 'nordwal-etx400', maker: 'Nordwal', name: 'TX-e 400 Regional', hp: 540, consumption: 112, tankL: 420, emission: 'Elektro', drive: 'electric', price: 225_000_00, leaseRate: 4_150_00, insurance: 450_00, durability: 0.94 },
+  { id: 'velkor-es600', maker: 'Velkor', name: 'eS 600 Fernverkehr', hp: 650, consumption: 118, tankL: 600, emission: 'Elektro', drive: 'electric', price: 278_000_00, leaseRate: 5_050_00, insurance: 490_00, durability: 0.96 },
   // Verteilerverkehr: Solo-LKW und Transporter mit festem Aufbau (für Teilladungen und Regionaltouren)
   { id: 'trasko-v35', maker: 'Trasko', name: 'Kastenwagen 3,5 t', hp: 170, consumption: 10.5, tankL: 80, emission: 'Euro VI', price: 48_000_00, leaseRate: 850_00, insurance: 120_00, durability: 0.8, kind: 'van', body: 'box', payloadT: 1.2, tollFactor: 0, speedFactor: 1.12 },
   { id: 'nordwal-r75', maker: 'Nordwal', name: 'R 7,5 t Koffer', hp: 220, consumption: 17, tankL: 150, emission: 'Euro VI', price: 72_000_00, leaseRate: 1_250_00, insurance: 190_00, durability: 0.86, kind: 'rigid', body: 'box', payloadT: 3.2, tollFactor: 0.55, speedFactor: 1.04 },
   { id: 'velkor-r12k', maker: 'Velkor', name: 'R 12 t Kühlkoffer', hp: 290, consumption: 20, tankL: 200, emission: 'Euro VI', price: 98_000_00, leaseRate: 1_700_00, insurance: 240_00, durability: 0.9, kind: 'rigid', body: 'reefer', payloadT: 5.5, tollFactor: 0.65, speedFactor: 1.02 },
+  { id: 'trasko-e19', maker: 'Trasko', name: 'eVerteiler 19 t Koffer', hp: 400, consumption: 92, tankL: 300, emission: 'Elektro', drive: 'electric', price: 182_000_00, leaseRate: 3_300_00, insurance: 300_00, durability: 0.9, kind: 'rigid', body: 'box', payloadT: 8, tollFactor: 0.8, speedFactor: 1 },
   { id: 'brennkraft-r18', maker: 'Brennkraft', name: 'Verteiler 18 t Plane', hp: 320, consumption: 23, tankL: 300, emission: 'Euro VI', price: 105_000_00, leaseRate: 1_850_00, insurance: 280_00, durability: 0.88, kind: 'rigid', body: 'curtain', payloadT: 9, tollFactor: 0.8, speedFactor: 1 },
 ];
 
@@ -185,6 +192,10 @@ export const FACILITY_DEFS: Record<FacilityKind, FacilityDef> = {
   fuel: {
     kind: 'fuel', name: 'Betriebstankstelle', cost: 42_000_00, monthly: 520_00, minLevel: 2, minKind: 'office_yard',
     text: 'Fahrzeuge tanken bei Abfahrt am Standort voll – Diesel aus Großabnahme 9 % unter Tankstellenpreis.',
+  },
+  charger: {
+    kind: 'charger', name: 'Ladepark (4 Schnelllader)', cost: 120_000_00, monthly: 900_00, minLevel: 2, minKind: 'office_yard',
+    text: 'E-LKW laden bei Abfahrt am Standort voll – Strom aus eigenem Vertrag für 24 ct/kWh statt 44 ct am öffentlichen Schnelllader.',
   },
   warehouse: {
     kind: 'warehouse', name: 'Lagerhalle (2.000 Palettenplätze)', cost: 140_000_00, monthly: 3_900_00, minLevel: 3, minKind: 'office_yard',

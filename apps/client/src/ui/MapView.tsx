@@ -29,6 +29,8 @@ const FALLBACK_STYLE = (theme: 'dark' | 'light'): StyleSpecification => ({
 const ACTIVITY_COLOR: [string, string][] = [
   ['driving', '#38bdf8'],
   ['ferry', '#38bdf8'],
+  ['rail', '#38bdf8'],
+  ['charging', '#f59e0b'],
   ['break', '#fbbf24'],
   ['rest_daily', '#a78bfa'],
   ['rest_weekly', '#a78bfa'],
@@ -47,7 +49,7 @@ function roadsGeoJSON(): GeoJSON.FeatureCollection {
     type: 'FeatureCollection',
     features: world.net.edges.map((e) => ({
       type: 'Feature',
-      properties: { ferry: e.ferry, fast: e.truckKmh > 70 },
+      properties: { ferry: e.ferry, rail: !!e.rail, fast: e.truckKmh > 70 },
       geometry: { type: 'LineString', coordinates: e.coords },
     })),
   };
@@ -291,7 +293,7 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
         const extraKm = trip ? (trip.speedKmh / 60) * gameMin : 0;
         const m = vehicleMarker(st, world, id, extraKm);
         if (id === u.selectedVehicleId) followPos = m.pos;
-        const moving = m.activity === 'driving' || m.activity === 'ferry';
+        const moving = m.activity === 'driving' || m.activity === 'ferry' || m.activity === 'rail';
         if (moving) facing.set(id, m.bearing > 180 && m.bearing < 360 ? 'l' : 'r');
         const art = profileKey(v.modelId, trip?.trailerId ? st.trailers[trip.trailerId]?.type : null);
         features.push({
@@ -426,10 +428,10 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     type: 'line',
     source: 'roads',
     paint: {
-      'line-color': dark ? '#3b4f6e' : '#94a3b8',
-      'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.8, 8, 2],
-      'line-opacity': 0.7,
-      'line-dasharray': ['case', ['get', 'ferry'], ['literal', [2, 2]], ['literal', [1, 0]]],
+      'line-color': ['case', ['get', 'rail'], '#a78bfa', dark ? '#3b4f6e' : '#94a3b8'],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 4, ['case', ['get', 'rail'], 1.4, 0.8], 8, ['case', ['get', 'rail'], 3, 2]],
+      'line-opacity': ['case', ['get', 'rail'], 0.85, 0.7],
+      'line-dasharray': ['case', ['get', 'rail'], ['literal', [1, 1.2]], ['get', 'ferry'], ['literal', [2, 2]], ['literal', [1, 0]]],
     },
   });
   map.addLayer({

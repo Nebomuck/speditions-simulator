@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 20.11.2026 · Version 0.18.0
+Stand: 20.11.2026 · Version 0.19.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -193,6 +193,9 @@ Stand: 20.11.2026 · Version 0.18.0
 | Fahrzeugausstattung | Getestet (Einbau in der Werkstatt, Kosten, Marktwert, Verbrauch in der Vorkalkulation, Komfort und Zufriedenheit) |
 | Firmenlackierung | Getestet (Standard aus dem Spielstart, Prüfung von Farben, Form und Kürzel); im Browser geprüft: Kopfleiste, Fuhrpark, Karte |
 | Marketing und Messen | Getestet (Kampagne mit Ablauf, Herkunftsgewicht und Volumen, Messe mit Neukunden, Ruf und Sperrfrist, Online-Auftritt in den Fixkosten) |
+| Alternative Antriebe | Getestet (CO₂-Maut, Energiepreise je Antrieb, Ladestopps unterwegs, Ladepark am Standort) |
+| Grüne Kunden | Getestet (feste Zuordnung, Anteil, Dispositionsprüfung mit Fahrzeug und Fuhrparkanteil) |
+| Kombinierter Verkehr | Getestet (Bahnkanten nur auf Wunsch, Fahrpreis, Ruhe auf dem Zug, kein Diesel); im Browser geprüft: Angebot im Dialog, Karte |
 | Subunternehmer | Getestet (Aufträge an Konkurrenz oder Börsenpartner abgeben, Marge, Verspätungsrisiko, Strafe trägt der Partner) |
 | Übernahme von Konkurrenten | Getestet (angeschlagen günstig, klein teurer; LKW, Auflieger, Betriebshof, Fahrer, Kunden) |
 

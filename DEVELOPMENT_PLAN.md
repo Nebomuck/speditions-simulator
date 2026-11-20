@@ -25,7 +25,7 @@ Spielspaß-Paket 2 (unveröffentlicht) ist umgesetzt: Premium-Aufträge (Schwert
 
 Spielspaß-Paket 3 (0.16.x) ist umgesetzt: Subunternehmer, Übernahmen, Branchenblatt (als Zeitungs-Popup), Firmenverkauf mit Neustart-Bonus.
 
-Ausbau-Paket A (0.17.0) ist veröffentlicht, Paket B (0.18.0) ist veröffentlicht. Als Nächstes folgt Paket C.
+Ausbau-Paket A (0.17.0) ist veröffentlicht, Paket B (0.18.0) ist veröffentlicht, Paket C (0.19.0) ist veröffentlicht. Als Nächstes folgt das Konzept für Paket D.
 
 ### Ausbau-Plan (beschlossen am 20.11.2026)
 
@@ -58,7 +58,7 @@ Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nu
    - Messestand: neue Großkunden und ein Vertragsangebot.
    - Online-Auftritt: dauerhaft etwas mehr Ruf, monatliche Kosten.
 
-**Paket C – Zukunft des Transports (0.19.0)**
+**Paket C – Zukunft des Transports (0.19.0)** – ✅ umgesetzt (Tests in `packageC.test.ts`)
 7. **Alternative Antriebe:** Elektro-LKW (Reichweite, Ladestopps, Ladesäule als Einrichtung) und LNG-LKW.
    - Die Maut richtet sich nach CO₂-Klasse. Strom- und LNG-Preis laufen mit.
    - „Grüne“ Kunden zahlen Aufschläge und verlangen einen Anteil emissionsarmer Fahrzeuge.
@@ -81,6 +81,6 @@ Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nu
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 164/164 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
+1. `npm install`, dann `npm test` (erwartet: 172/172 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
 3. Alle Phasen sind abgeschlossen. Städte ergänzen in `data/cities.ts`, danach `npm run roadnet` (behält alle bisherigen Kanten, K=5 Nachbarn, OSRM-Antworten werden zwischengespeichert). Balancing prüfen mit `node packages/core/test/measure-balance.ts [Tage] [easy|normal|realistic] [Seed]` (Spieler-Bot aus `test/bot.ts`), Welt mit `measure-world.ts`, Störungen mit `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

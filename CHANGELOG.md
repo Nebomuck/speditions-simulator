@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.19.0 – 20.11.2026
+
+Paket C „Zukunft des Transports“:
+
+- **Alternative Antriebe:** Vier neue Modelle bei den Neufahrzeugen:
+  - Brennkraft K 460 LNG (Flüssigerdgas, etwa 1.100 km Reichweite).
+  - Elektro-Sattelzüge Nordwal TX-e 400 Regional (etwa 375 km) und Velkor eS 600 Fernverkehr (etwa 500 km).
+  - Elektro-Verteiler Trasko eVerteiler 19 t.
+- **Maut nach CO₂-Klasse:** Euro V zahlt 12 % mehr, LNG 20 % weniger, Elektro 75 % weniger.
+- **Energiepreise:** LNG kostet je kg etwa 80 % des Dieselpreises, die Tankkarte gilt auch hier. Strom am Schnelllader kostet etwa 44 ct/kWh.
+  - Vorkalkulation, Kartenfenster und Fuhrpark rechnen in l, kg oder kWh.
+- **Ladestopps:** E-LKW laden unterwegs 50 Minuten. Die Zeit zählt als Fahrtunterbrechung.
+- **Ladepark:** neue Einrichtung am Standort für 120.000 €. Dort laden E-LKW bei Abfahrt für 24 ct/kWh voll.
+- **Grüne Kunden:** Etwa jeder vierte Kunde aus Handel, Lebensmittel, Elektronik, Pharma, Automobil und Logistik hat Klimaziele.
+  - Ihre Aufträge zahlen 10 % mehr und tragen in der Auftragsbörse das Abzeichen „Grün“.
+  - Gefahren werden sie nur mit einem LNG- oder E-LKW oder wenn mindestens 25 % des Fuhrparks emissionsarm sind.
+- **Kombinierter Verkehr:** Sechs begleitete Bahnverbindungen, auf denen der ganze Lastzug mitfährt:
+  - Rollende Landstraße Brenner (Innsbruck–Verona) und Freiburg–Mailand.
+  - Gotthard-Verlad Basel–Lugano und Alpentransit Köln–Verona.
+  - Tauernbahn Salzburg–Ljubljana und Schienenautobahn Metz–Perpignan.
+- **Bahn im Dispositionsdialog:** Liegt eine Verbindung auf dem Weg, bietet der Dialog die Bahn an und vergleicht Ankunft und Ergebnis mit der Straße.
+  - Auf dem Zug ruhen die Fahrer, es fallen weder Diesel noch Maut an. Bezahlt wird ein Fahrpreis je Lastzug.
+  - Auf der Karte sind die Bahnlinien violett gestrichelt.
+
 ## 0.18.0 – 20.11.2026
 
 Paket B „Identität und Ausstattung“:

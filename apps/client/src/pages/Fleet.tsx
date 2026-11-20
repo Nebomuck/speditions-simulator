@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Wrench, ShoppingCart, Tag, Truck, Container, Gauge, MapPin, Send, Fuel, Sparkles, Check } from 'lucide-react';
 import {
-  COUNTRY_DIESEL, COUNTRY_NAMES, EQUIPMENT, liveryOf, EQUIPMENT_IDS, hasEquipment, FUEL_CARDS, FUEL_POLICY_LABEL, dieselPriceIn, fuelCard, fuelPolicy, type FuelCard as FuelCardId, type FuelPolicy,
+  COUNTRY_DIESEL, COUNTRY_NAMES, EQUIPMENT, liveryOf, CO2_CLASS_LABEL, CO2_TOLL_FACTOR, co2Class, LNG_FACTOR, POWER_DEPOT, GREEN_FLEET_SHARE, energyPriceIn, lowEmissionShare, driveOf, energyUnit, isLowEmission, rangeKm, EQUIPMENT_IDS, hasEquipment, FUEL_CARDS, FUEL_POLICY_LABEL, dieselPriceIn, fuelCard, fuelPolicy, type FuelCard as FuelCardId, type FuelPolicy,
   TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, annuity, capacity, deptCount, formatDateTime, hasFacility, openVehicleLoan, serviceCost, toDate, tradeInValue,
   vehicleLoanRate, vehicleMarketValue, vehicleRentPerDay, type TrailerType, type TruckModel, type Vehicle,
 } from '@spedsim/core';
@@ -111,7 +111,7 @@ export function FleetPage() {
                     <td>
                       <div className="row">
                         <VehiclePhoto modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={60} seed={artSeed(v.id)} livery={livery} />
-                        <div>{m.maker} {m.name}<div className="dim">{kindText(v.modelId)} · {v.year} · {m.hp} PS · {m.emission} · Ø {dec(m.consumption)} l/100 km</div>{!!v.equipment?.length && <div className="equip-tags">{v.equipment.map((id) => <span key={id} className="equip-tag" title={EQUIPMENT[id].effect}>{EQUIPMENT[id].name}</span>)}</div>}</div>
+                        <div>{m.maker} {m.name}<div className="dim">{kindText(v.modelId)} · {v.year} · {m.hp} PS · {m.emission} · Ø {dec(m.consumption)} {energyUnit(v.modelId)}/100 km{isLowEmission(v.modelId) && <> · <span className={`drive-badge ${driveOf(v.modelId)}`}>{CO2_CLASS_LABEL[co2Class(m)]}</span></>}</div>{!!v.equipment?.length && <div className="equip-tags">{v.equipment.map((id) => <span key={id} className="equip-tag" title={EQUIPMENT[id].effect}>{EQUIPMENT[id].name}</span>)}</div>}</div>
                       </div>
                     </td>
                     <td><Badge kind={trip ? 'info' : v.status === 'workshop' ? 'warning' : 'success'}>{activityLabel(trip, v.status)}</Badge>{v.busyUntil && <div className="dim" style={{ fontSize: 12 }}>bis {formatDateTime(v.busyUntil)}</div>}</td>
@@ -323,10 +323,10 @@ function NewMarket({ onClose }: { onClose: () => void }) {
           <tbody>
             {TRUCK_MODELS.map((m) => (
               <tr key={m.id}>
-                <td><div className="row"><VehiclePhoto modelId={m.id} width={64} /><div><b>{m.maker} {m.name}</b><div className="dim">{kindText(m.id)} · {m.emission}</div></div></div></td>
+                <td><div className="row"><VehiclePhoto modelId={m.id} width={64} /><div><b>{m.maker} {m.name}</b><div className="dim">{kindText(m.id)} · {m.emission}{m.drive && m.drive !== 'diesel' ? <> · Reichweite ca. {rangeKm(m.id)} km · Maut −{Math.round((1 - CO2_TOLL_FACTOR[co2Class(m)]) * 100)} %</> : ''}</div></div></div></td>
                 <td>{m.hp} PS</td>
-                <td>{dec(m.consumption)} l/100 km</td>
-                <td>{m.tankL} l</td>
+                <td>{dec(m.consumption)} {energyUnit(m.id)}/100 km</td>
+                <td>{m.tankL} {energyUnit(m.id)}</td>
                 <td><Bar value={m.durability * 100} /></td>
                 <td className="num"><Money value={m.price} /></td>
                 <td className="num"><Money value={m.leaseRate} /></td>
@@ -467,6 +467,10 @@ function FuelCard() {
               ))}
             </div>
           </div>
+          <p className="dim" style={{ fontSize: 12.5, margin: 0 }}>
+            Alternative Antriebe: LNG kostet je kg etwa {Math.round(LNG_FACTOR * 100)} % des Dieselpreises (Tankkarte gilt). Strom am öffentlichen Schnelllader ca. {Math.round(energyPriceIn(s, 'nordwal-etx400', 'DE'))} ct/kWh, am eigenen Ladepark {POWER_DEPOT} ct/kWh.
+            {' '}Emissionsarme Fahrzeuge im Fuhrpark: {Math.round(lowEmissionShare(s) * 100)} % (grüne Kunden verlangen {Math.round(GREEN_FLEET_SHARE * 100)} % oder ein LNG-/E-LKW).
+          </p>
         </div>
         <div className="table-wrap" style={{ border: 'none', maxHeight: 320 }}>
           <table className="table">

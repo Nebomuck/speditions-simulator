@@ -1,7 +1,7 @@
 // Kunden & Verträge, Standorte & Ausbau.
 
 import { useMemo, useState } from 'react';
-import { Building2, ArrowUpCircle, FileSignature, ArrowRight, Award, Wrench, Fuel, Warehouse, MapPin, Briefcase, UserPlus, UserMinus, Gavel, Clock } from 'lucide-react';
+import { PlugZap, Building2, ArrowUpCircle, FileSignature, ArrowRight, Award, Wrench, Fuel, Warehouse, MapPin, Briefcase, UserPlus, UserMinus, Gavel, Clock } from 'lucide-react';
 import {
   BRANCH_SETUP_COST, CARGO_BY_ID, TRUCK_BY_ID, CITIES, COMPANY_LEVELS, DEPARTMENTS, STAFF_GRADES, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, VEHICLES_PER_DISPATCHER,
   BID_RANGE, GUARANTEE_BONUS, reputationFactor, MIN_PER_DAY, WIN_BACK_COST, activeCompetitors, formatDateTime, formatDuration, nearCompetitor, tenderCostEstimate, tenderVolume, STRATEGY_LABEL, CITY_BY_ID, capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, warehouseIncome, winBackChance, formatMoney,
@@ -235,7 +235,7 @@ function LocationCard({ loc: l }: { loc: Location }) {
   );
 }
 
-const FACILITY_ICON: Record<FacilityKind, typeof Wrench> = { workshop: Wrench, fuel: Fuel, warehouse: Warehouse };
+const FACILITY_ICON: Record<FacilityKind, typeof Wrench> = { workshop: Wrench, fuel: Fuel, warehouse: Warehouse, charger: PlugZap };
 
 function NewBranch() {
   const s = useGame();

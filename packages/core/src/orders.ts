@@ -18,6 +18,7 @@ import { rand, newId } from './rng.ts';
 import { MIN_PER_DAY, holidayName, month, weekday } from './time.ts';
 import type { GameState, Order } from './types.ts';
 import { marketingOriginFactor, marketingPriceFactor, marketingVolumeFactor } from './branding.ts';
+import { GREEN_PREMIUM, isGreenCustomer } from './energy.ts';
 
 const ll = (c: CityDef): [number, number] => [c.lon, c.lat];
 
@@ -121,6 +122,8 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   if (express) payment *= 1.3;
   // Teilladung: weniger Gesamterlös, aber höherer Preis je Tonne
   if (partial) payment *= 0.5 + 0.5 * Math.min(1, weightT / 24);
+  const green = isGreenCustomer(customer);
+  if (green) payment *= 1 + GREEN_PREMIUM;
   payment = Math.round(payment / 500) * 500;
   // abgeworbener Kunde: der Auftrag geht direkt an den Konkurrenten
   if (customer.lostTo && competitorTakesCustomerOrder(state, customer, payment, route.km)) return null;
@@ -144,6 +147,7 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
     express,
     international: origin.country !== dest.country,
     ...(partial ? { partial: true } : {}),
+    ...(green ? { green: true } : {}),
     status: 'offered',
     offerExpires: Math.min(pickupStart, state.time + Math.round(rand.int(state, 4, 30) * 60 * (marketingOriginFactor(state, origin.country) > 1 ? 1.5 : 1))),
     created: state.time,

@@ -3,6 +3,7 @@
 
 import type { GameState, Money, Vehicle } from './types.ts';
 import { addLog, formatMoney } from './finance.ts';
+import { TRUCK_BY_ID } from './data/catalog.ts';
 
 /** Dieselpreis je Land relativ zum Marktpreis (Deutschland = 1) */
 export const COUNTRY_DIESEL: Record<string, number> = {
@@ -36,6 +37,7 @@ export const dieselPriceIn = (state: GameState, country: string) => state.market
 /** Soll der LKW hier tanken? Reserve immer; bei „Günstig tanken“ auch im billigen Land ab 65 % */
 export function shouldRefuel(state: GameState, v: Vehicle, tankL: number, reserve: number, country: string): boolean {
   if (v.fuelL < tankL * reserve) return true;
+  if (TRUCK_BY_ID[v.modelId]?.drive === 'electric') return false;
   return fuelPolicy(state) === 'cheap' && countryDieselFactor(country) <= CHEAP_COUNTRY_MAX && v.fuelL < tankL * CHEAP_TOPUP_BELOW;
 }
 

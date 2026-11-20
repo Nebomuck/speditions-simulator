@@ -17,6 +17,7 @@ import { BAN_RULES, banApplies, banAppliesTo, banOnRoute, routeBorderMin, routeC
 import { COUNTRY_NAMES } from './data/catalog.ts';
 import { dieselPriceIn } from './fuel.ts';
 import { equipFuelFactor } from './equipment.ts';
+import { GREEN_TEXT, co2TollFactor, energyPriceIn, greenOk, stopMinFor } from './energy.ts';
 
 /** Spesen je angefangenem Tag für die Doppelbesatzung (Übernachtung im Fahrzeug, Verpflegung) */
 export const TEAM_ALLOWANCE_PER_DAY = 32_00;
@@ -29,6 +30,8 @@ export interface DispatchInput {
   trailerId: Id;
   /** Doppelbesatzung: zweiter Fahrer */
   coDriverId?: Id;
+  /** kombinierter Verkehr: Bahnverbindungen nutzen, wo sie sich anbieten */
+  rail?: boolean;
 }
 
 /** Startpunkt einer Planung: jetzt am Standort des Fahrzeugs oder später (Vorausplanung nach laufender Fahrt). */
@@ -39,6 +42,10 @@ export interface PlanStart {
 }
 
 export interface TripEstimate {
+  /** Bahnpreise (kombinierter Verkehr) */
+  railFare: Money;
+  /** genutzte Bahnverbindungen */
+  rail: string[];
   emptyKm: number;
   loadedKm: number;
   driveMin: number;
@@ -87,7 +94,7 @@ export function penaltyFor(order: Order, lateMin: number): Money {
 
 /** Mautanteil und Geschwindigkeit je Fahrzeugklasse (Transporter mautfrei und schneller). */
 export function tollFactor(modelId: string) {
-  return TRUCK_BY_ID[modelId]?.tollFactor ?? 1;
+  return (TRUCK_BY_ID[modelId]?.tollFactor ?? 1) * co2TollFactor(modelId);
 }
 export function speedFactor(modelId: string) {
   return TRUCK_BY_ID[modelId]?.speedFactor ?? 1;
@@ -133,8 +140,8 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   if (!order || !driver || !vehicle) return null;
   const startCity = from?.cityId ?? vehicle.cityId;
   const startTime = from?.time ?? state.time;
-  const toPickupRaw = routeNow(state, ctx, startCity, order.fromCityId);
-  const loadedRaw = routeNow(state, ctx, order.fromCityId, order.toCityId);
+  const toPickupRaw = routeNow(state, ctx, startCity, order.fromCityId, !!input.rail);
+  const loadedRaw = routeNow(state, ctx, order.fromCityId, order.toCityId, !!input.rail);
   if (!toPickupRaw || !loadedRaw) return null;
   const sf = speedFactor(vehicle.modelId);
   const toPickup = { ...toPickupRaw, driveMin: toPickupRaw.driveMin / sf };
@@ -172,24 +179,27 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   const border2 = routeBorderMin(ctx, loadedRaw.nodes);
   const model = TRUCK_BY_ID[vehicle.modelId];
   const loadFrac = loadFraction(state, vehicle, input.trailerId || undefined, order);
-  const fuelL = (toPickup.km * consumptionPerKm(vehicle.modelId, 0, effectiveEco(driver)) + loaded.km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver))) * equipFuelFactor(vehicle);
+  const fuelL = ((toPickup.km - toPickup.railKm) * consumptionPerKm(vehicle.modelId, 0, effectiveEco(driver)) + (loaded.km - loaded.railKm) * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver))) * equipFuelFactor(vehicle);
   const usable = model.tankL * (1 - FUEL_RESERVE);
   const tankNow = from ? model.tankL * 0.6 : vehicle.fuelL; // Vorausplanung: Tankstand unbekannt → Annahme
   const fuelStops = Math.max(0, Math.ceil((fuelL - (tankNow - model.tankL * FUEL_RESERVE)) / usable));
-  t += fuelStops * FUEL_STOP_MIN;
+  t += fuelStops * stopMinFor(vehicle.modelId, FUEL_STOP_MIN);
   const deliveryEta = t + Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);
   hosWork(hos, 0);
   const lateMin = Math.max(0, deliveryEta - order.deliveryEnd);
   const durationMin = deliveryEta - startTime;
   // Preis: Mittel aus Lade- und Entladeland, mit Tankkarte
-  const fuelCost = Math.round(fuelL * (dieselPriceIn(state, CITY_BY_ID[order.fromCityId].country) + dieselPriceIn(state, CITY_BY_ID[order.toCityId].country)) / 2);
+  const fuelCost = Math.round(fuelL * (energyPriceIn(state, vehicle.modelId, CITY_BY_ID[order.fromCityId].country) + energyPriceIn(state, vehicle.modelId, CITY_BY_ID[order.toCityId].country)) / 2);
   const toll = Math.round((toPickup.toll + loaded.toll) * tollFactor(vehicle.modelId));
   const driverCost = Math.round((((driver.salary + (coDriver?.salary ?? 0)) * EMPLOYER_COST_FACTOR) / (30 * MIN_PER_DAY)) * durationMin) + (coDriver ? Math.ceil(durationMin / MIN_PER_DAY) * TEAM_ALLOWANCE_PER_DAY : 0);
   const vehicleDaily = (model.insurance + (vehicle.leaseRate ?? model.price / 72)) / 30;
-  const vehicleCost = Math.round((vehicleDaily * durationMin) / MIN_PER_DAY + (toPickup.km + loaded.km) * 6); // 6 ct/km Verschleiß
-  const totalCost = fuelCost + toll + driverCost + vehicleCost;
+  const vehicleCost = Math.round((vehicleDaily * durationMin) / MIN_PER_DAY + (toPickup.km + loaded.km - toPickup.railKm - loaded.railKm) * 6); // 6 ct/km Verschleiß
+  const railFare = toPickupRaw.fare + loadedRaw.fare;
+  const totalCost = fuelCost + toll + railFare + driverCost + vehicleCost;
   const revenue = order.payment - penaltyFor(order, lateMin);
   return {
+    railFare,
+    rail: [...toPickupRaw.rail, ...loadedRaw.rail],
     emptyKm: toPickup.km,
     loadedKm: loaded.km,
     driveMin: toPickup.driveMin + loaded.driveMin,
@@ -237,6 +247,7 @@ export function validateDispatch(state: GameState, ctx: SimContext, input: Dispa
   if (order.status === 'offered' && state.time >= order.offerExpires) err('order_expired', 'Angebot ist abgelaufen.');
   const block = premiumBlock(order);
   if (block) err('permit', block);
+  if (order.green && !greenOk(state, vehicle)) err('green_vehicle', `${GREEN_TEXT} LKW ${vehicle.plate} fährt mit Diesel.`);
   if (solo && trailer) err('solo_trailer', `${model!.name} hat einen festen Aufbau und zieht keinen Auflieger.`);
   if (!opts.queued) {
     if (driver.status !== 'idle') err('driver_busy', `${driver.name} ist nicht verfügbar (bereits verplant oder abwesend).`);
@@ -284,8 +295,8 @@ export function validateDispatch(state: GameState, ctx: SimContext, input: Dispa
   return { issues, estimate };
 }
 
-function leg(state: GameState, ctx: SimContext, from: string, to: string, loaded: boolean): TripLeg {
-  const r = routeNow(state, ctx, from, to)!;
+function leg(state: GameState, ctx: SimContext, from: string, to: string, loaded: boolean, rail = false): TripLeg {
+  const r = routeNow(state, ctx, from, to, rail)!;
   return { nodes: r.nodes, km: r.km, loaded };
 }
 
@@ -301,13 +312,14 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
     orderId: order.id,
     driverId: driver.id,
     ...(input.coDriverId ? { coDriverId: input.coDriverId } : {}),
+    ...(input.rail && estimate.rail.length ? { rail: true } : {}),
     vehicleId: vehicle.id,
     ...(trailer ? { trailerId: trailer.id } : {}),
     stops: [
       { kind: 'pickup', orderId: order.id, cityId: order.fromCityId },
       { kind: 'delivery', orderId: order.id, cityId: order.toCityId },
     ],
-    legs: [leg(state, ctx, vehicle.cityId, order.fromCityId, false), leg(state, ctx, order.fromCityId, order.toCityId, true)],
+    legs: [leg(state, ctx, vehicle.cityId, order.fromCityId, false, !!input.rail), leg(state, ctx, order.fromCityId, order.toCityId, true, !!input.rail)],
     legIndex: 0,
     progressKm: 0,
     phase: 'to_pickup',
@@ -530,7 +542,7 @@ interface Anchor {
 function anchorOf(state: GameState, ctx: SimContext, trip: Trip): Anchor {
   const driver = state.drivers[trip.driverId];
   const hos = { ...driver.hos };
-  const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry';
+  const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry' && trip.activity !== 'rail';
   let time = state.time + (stationary ? trip.activityLeft : 0);
   if (stationary && ['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked'].includes(trip.activity)) hosRest(hos, trip.activityLeft);
   if (trip.phase === 'loading' || trip.phase === 'unloading') {
@@ -625,6 +637,10 @@ export function planCoLoad(state: GameState, ctx: SimContext, vehicleId: Id, ord
   }
   if (order.premium) {
     err('premium', 'Premium-Aufträge fahren nur als eigene Tour, nicht als Beiladung.');
+    return { issues, plan: null };
+  }
+  if (order.green && !greenOk(state, vehicle)) {
+    err('green_vehicle', `${GREEN_TEXT} LKW ${vehicle.plate} fährt mit Diesel.`);
     return { issues, plan: null };
   }
   if (!trip || trip.phase === 'done' || !trip.stops) {
@@ -731,7 +747,7 @@ function rebuildLegs(state: GameState, ctx: SimContext, trip: Trip, a: Anchor, s
   const legs = trip.legs.slice(0, a.minIndex);
   let from = a.cityId;
   for (let i = a.minIndex; i < stops.length; i++) {
-    const r = routeNow(state, ctx, from, stops[i].cityId)!;
+    const r = routeNow(state, ctx, from, stops[i].cityId, !!trip.rail)!;
     let nodes = r.nodes;
     // aktueller Abschnitt: bereits befahrene Knoten behalten, damit die Position gültig bleibt
     if (i === a.minIndex && a.prefix) nodes = [...a.prefix, ...r.nodes.slice(1)];

@@ -28,8 +28,9 @@ export function trafficOf(state: GameState, ctx: SimContext): Traffic {
 }
 
 /** Schnellste Route nach aktueller Verkehrslage. Ohne Ausweichroute wird die normale Route geliefert (Fahrzeug wartet an der Sperrung). */
-export function routeNow(state: GameState, ctx: SimContext, from: string, to: string): Route | null {
-  return ctx.net.route(from, to, trafficOf(state, ctx)) ?? ctx.net.route(from, to);
+export function routeNow(state: GameState, ctx: SimContext, from: string, to: string, rail = false): Route | null {
+  const opts = rail ? { rail: true } : undefined;
+  return ctx.net.route(from, to, trafficOf(state, ctx), opts) ?? ctx.net.route(from, to, undefined, opts);
 }
 
 export function disruptionOnEdge(state: GameState, edge: RoadEdge): Disruption | undefined {
@@ -64,7 +65,7 @@ export function rerouteTrip(state: GameState, ctx: SimContext, trip: Trip): numb
   const keep = leg.nodes.slice(0, loc.segIndex + 2);
   const next = keep[keep.length - 1];
   const target = leg.nodes[leg.nodes.length - 1];
-  const tail = routeNow(state, ctx, next, target);
+  const tail = routeNow(state, ctx, next, target, !!trip.rail);
   if (!tail) return null;
   const nodes = [...keep, ...tail.nodes.slice(1)];
   if (nodes.join('>') === leg.nodes.join('>')) return null;

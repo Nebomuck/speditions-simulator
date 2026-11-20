@@ -100,7 +100,7 @@ export interface Location {
 
 export type LocationKind = 'office_small' | 'office_yard' | 'depot';
 
-export type FacilityKind = 'workshop' | 'fuel' | 'warehouse';
+export type FacilityKind = 'workshop' | 'fuel' | 'warehouse' | 'charger';
 
 export type Department = 'dispatch' | 'sales' | 'accounting' | 'fleet';
 
@@ -477,6 +477,8 @@ export interface Order {
   international: boolean;
   /** Teilladung (kleine Sendung, passend für Solo-LKW/Transporter) */
   partial?: boolean;
+  /** grüner Kunde: verlangt ein emissionsarmes Fahrzeug oder einen emissionsarmen Fuhrpark, zahlt dafür mehr */
+  green?: boolean;
   /** Tour aus einem Rahmenvertrag */
   contractId?: Id;
   status: OrderStatus;
@@ -507,6 +509,8 @@ export type TripActivity =
   | 'waiting'
   | 'blocked'
   | 'ferry'
+  | 'rail'
+  | 'charging'
   | 'breakdown'
   | 'accident'
   | 'ban'
@@ -585,6 +589,10 @@ export interface Trip {
   driverId: Id;
   /** Doppelbesatzung: zweiter Fahrer (wechselt sich mit `driverId` am Steuer ab) */
   coDriverId?: Id;
+  /** kombinierter Verkehr: Route darf Bahnverbindungen nutzen */
+  rail?: boolean;
+  /** zuletzt bezahlte Bahnkante (Index) */
+  railEdge?: number;
   vehicleId: Id;
   trailerId?: Id;
   legs: TripLeg[];
@@ -599,7 +607,7 @@ export interface Trip {
   speedKmh: number;
   startedAt: GameTime;
   finishedAt?: GameTime;
-  costs: { fuel: Money; toll: Money };
+  costs: { fuel: Money; toll: Money; rail?: Money };
   /** Index der Grenzkante, an der die Kontrolle schon erledigt ist */
   borderEdge?: number;
   kmEmpty: number;

@@ -74,6 +74,31 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'drives',
+    title: 'Alternative Antriebe und grüne Kunden',
+    page: 'fleet',
+    keywords: 'elektro e-lkw lng gas antrieb laden ladestopp ladepark akku reichweite co2 maut grün klima',
+    body: [
+      'Neben Diesel gibt es LNG-LKW (Flüssigerdgas, Tank in kg) und Elektro-LKW (Akku in kWh). Die Neufahrzeugliste zeigt die Reichweite.',
+      '• Maut nach CO₂-Klasse: Elektro zahlt 75 % weniger, LNG 20 % weniger, Euro V 12 % mehr.',
+      '• E-LKW laden unterwegs 50 Minuten am Schnelllader (etwa 44 ct/kWh). Die Zeit zählt als Pause.',
+      '• Ein Ladepark am Standort lädt bei Abfahrt voll, für 24 ct/kWh.',
+      'Grüne Kunden (Abzeichen „Grün“ in der Börse) zahlen 10 % mehr. Sie fahren nur mit LNG- oder E-LKW oder wenn mindestens 25 % des Fuhrparks emissionsarm sind.',
+    ],
+  },
+  {
+    id: 'rail',
+    title: 'Kombinierter Verkehr (Bahn)',
+    page: 'dispatch',
+    keywords: 'bahn zug rollende landstraße rola kombinierter verkehr brenner gotthard verladung',
+    body: [
+      'Auf sechs Bahnverbindungen fährt der ganze Lastzug mit dem Zug, darunter Brenner, Freiburg–Mailand, Basel–Lugano und Köln–Verona.',
+      '• Liegt eine Verbindung auf dem Weg, bietet der Dispositionsdialog „Kombinierter Verkehr“ an und zeigt Ankunft und Ergebnis im Vergleich zur Straße.',
+      '• Auf dem Zug ruhen die Fahrer, auch die Tagesruhe zählt. Diesel und Maut fallen weg, dafür kostet die Verladung einen Fahrpreis je Lastzug.',
+      'Die Bahn lohnt sich vor allem bei langen Strecken, auf denen sonst eine Tagesruhe fällig wäre.',
+    ],
+  },
+  {
     id: 'inspections',
     title: 'Straßenkontrollen und Bußgelder',
     page: 'dispatch',

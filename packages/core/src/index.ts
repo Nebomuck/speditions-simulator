@@ -38,6 +38,7 @@ export * from './fuel.ts';
 export * from './inspections.ts';
 export * from './equipment.ts';
 export * from './branding.ts';
+export * from './energy.ts';
 export * from './trips.ts';
 export * from './sim.ts';
 export * from './commands.ts';

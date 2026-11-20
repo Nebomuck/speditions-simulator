@@ -3,8 +3,8 @@
 // oder als Folgeauftrag vorausgeplant (Start nach der laufenden Fahrt).
 
 import { useMemo, useState } from 'react';
-import { ArrowRight, Truck, User, Container, ListPlus, PackagePlus } from 'lucide-react';
-import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, formatDateTime, formatDuration, loadSpace, planCoLoad, validateDispatch, REST_KIND_LABEL, TEAM_ALLOWANCE_PER_DAY, formatMoney, type DispatchInput } from '@spedsim/core';
+import { ArrowRight, Truck, User, Container, ListPlus, PackagePlus, TrainFront } from 'lucide-react';
+import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, energyUnit, driveOf, formatDateTime, formatDuration, loadSpace, planCoLoad, validateDispatch, REST_KIND_LABEL, TEAM_ALLOWANCE_PER_DAY, formatMoney, type DispatchInput } from '@spedsim/core';
 import { sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
 import { Badge, IssueList, Modal, Money } from './components.tsx';
 import { bodyName, cargoName, cityName, km, tons, modelName, trailerName, QUAL_LABEL } from './format.ts';
@@ -34,6 +34,8 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
   // Doppelbesatzung: optionaler zweiter Fahrer
   const [team, setTeam] = useState(false);
   const [pickedCoDriverId, setCoDriverId] = useState('');
+  // kombinierter Verkehr: Bahn nutzen, wenn die Route eine Verbindung anbietet
+  const [useRail, setUseRail] = useState(false);
 
   // LKW unterwegs → Vorausplanung mit der laufenden Besatzung
   const currentTrip = vehicle?.tripId ? state.trips[vehicle.tripId] : undefined;
@@ -45,11 +47,25 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
 
   const coCandidates = drivers.filter((d) => d.id !== driverId && d.status === 'idle' && d.cityId === vehicle?.cityId);
   const coDriverId = !queued && team ? (coCandidates.some((d) => d.id === pickedCoDriverId) ? pickedCoDriverId : coCandidates[0]?.id ?? '') : '';
-  const input: DispatchInput = { orderId, driverId, vehicleId, trailerId, ...(coDriverId ? { coDriverId } : {}) };
-  const { issues, estimate } = useMemo(
-    () => (orderId && driverId && vehicleId && (trailerId || !needsTrailer) ? validateDispatch(state, world, input, { queued }) : { issues: [], estimate: null }),
+  const complete = !!(orderId && driverId && vehicleId && (trailerId || !needsTrailer));
+  // Variante mit Bahn: nur anbieten, wenn die Route tatsächlich eine Bahnverbindung nutzt
+  const railAlt = useMemo(
+    () => (complete && !queued ? validateDispatch(state, world, { orderId, driverId, vehicleId, trailerId, ...(coDriverId ? { coDriverId } : {}), rail: true }, { queued }).estimate : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, orderId, driverId, vehicleId, trailerId, queued, coDriverId],
+  );
+  const railOffered = !!railAlt?.rail.length;
+  const rail = railOffered && useRail;
+  const input: DispatchInput = { orderId, driverId, vehicleId, trailerId, ...(coDriverId ? { coDriverId } : {}), ...(rail ? { rail: true } : {}) };
+  const { issues, estimate } = useMemo(
+    () => (complete ? validateDispatch(state, world, input, { queued }) : { issues: [], estimate: null }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state, orderId, driverId, vehicleId, trailerId, queued, coDriverId, rail],
+  );
+  const roadEst = useMemo(
+    () => (complete && rail ? validateDispatch(state, world, { ...input, rail: false }, { queued }).estimate : estimate),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state, estimate, rail],
   );
   // Beiladung: Auftrag in die laufende Fahrt aufnehmen (nur bei Auftragsfahrten)
   const co = useMemo(
@@ -249,6 +265,18 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
             )
           ) : estimate ? (
             <div className="card mt" style={{ background: 'var(--panel-2)' }}>
+              {railOffered && railAlt && roadEst && (
+                <label className={`rail-offer ${rail ? 'active' : ''}`}>
+                  <input type="checkbox" checked={rail} onChange={(e) => setUseRail(e.target.checked)} />
+                  <TrainFront size={16} />
+                  <span>
+                    <b>Kombinierter Verkehr</b> über {railAlt.rail.join(' und ')}: Der Lastzug fährt auf der Bahn mit, die Fahrer ruhen.
+                    <small>
+                      Ankunft {formatDateTime(railAlt.deliveryEta)} ({deltaTime(railAlt.deliveryEta - roadEst.deliveryEta)}) · Ergebnis {formatMoney(railAlt.profit)} ({deltaMoney(railAlt.profit - roadEst.profit)}) · Bahn {formatMoney(railAlt.railFare)}
+                    </small>
+                  </span>
+                </label>
+              )}
               <dl className="kv" style={{ gridTemplateColumns: '150px 1fr' }}>
                 {queued && <><dt>Start (geschätzt)</dt><dd>nach laufender Fahrt</dd></>}
                 <dt>Leerfahrt zur Ladestelle</dt><dd>{km(estimate.emptyKm)}</dd>
@@ -257,8 +285,9 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
                 <dt>Pausen & Ruhezeiten</dt><dd>{formatDuration(estimate.restMin)}</dd>
                 <dt>Ankunft Ladestelle</dt><dd>{formatDateTime(estimate.pickupEta)}</dd>
                 <dt>Ankunft Empfänger</dt><dd className={estimate.lateMin > 0 ? 'neg' : 'pos'}>{formatDateTime(estimate.deliveryEta)}</dd>
-                <dt>Diesel ({Math.round(estimate.fuelL)} l)</dt><dd><Money value={-estimate.fuelCost} /></dd>
+                <dt>{vehicle && driveOf(vehicle.modelId) === 'electric' ? 'Strom' : vehicle && driveOf(vehicle.modelId) === 'lng' ? 'LNG' : 'Diesel'} ({Math.round(estimate.fuelL)} {vehicle ? energyUnit(vehicle.modelId) : 'l'})</dt><dd><Money value={-estimate.fuelCost} /></dd>
                 <dt>Maut</dt><dd>{estimate.toll ? <Money value={-estimate.toll} /> : 'mautfrei'}</dd>
+                {estimate.railFare > 0 && <><dt>Bahn</dt><dd><Money value={-estimate.railFare} /></dd></>}
                 <dt>Fahrerkosten</dt><dd><Money value={-estimate.driverCost} /></dd>
                 <dt>Fahrzeugkosten</dt><dd><Money value={-estimate.vehicleCost} /></dd>
                 <dt>Erlös</dt><dd><Money value={estimate.revenue} /></dd>
@@ -282,3 +311,6 @@ function spaceLabel(modelId: string) {
   const sp = loadSpace(modelId);
   return sp ? `Aufbau ${bodyName(sp.type)} ${tons(sp.payloadT)}` : 'Sattelzug';
 }
+
+const deltaTime = (min: number) => (Math.abs(min) < 30 ? 'etwa gleich' : min < 0 ? `${formatDuration(-min)} früher` : `${formatDuration(min)} später`);
+const deltaMoney = (c: number) => (Math.abs(c) < 50_00 ? 'etwa gleich' : c > 0 ? `${formatMoney(c)} besser` : `${formatMoney(-c)} schlechter`);

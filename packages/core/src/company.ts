@@ -9,6 +9,7 @@ import {
 } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney } from './finance.ts';
+import { POWER_DEPOT } from './energy.ts';
 import { personName, wageLevel } from './generate.ts';
 import { newId, rand } from './rng.ts';
 import type { Department, FacilityKind, GameState, Id, Location, LocationKind, Money, StaffGrade, StaffMember, Trip, Vehicle } from './types.ts';
@@ -310,6 +311,20 @@ export function serviceFleet(state: GameState, below: number): Result<{ count: n
 
 /** Betriebstankstelle: bei Abfahrt am Standort volltanken. */
 export function depotRefuel(state: GameState, vehicle: Vehicle, trip: Trip): void {
+  const drive = TRUCK_BY_ID[vehicle.modelId].drive ?? 'diesel';
+  if (drive === 'lng') return;
+  if (drive === 'electric') {
+    if (!hasFacility(state, vehicle.cityId, 'charger')) return;
+    const tank = TRUCK_BY_ID[vehicle.modelId].tankL;
+    const kwh = tank - vehicle.fuelL;
+    if (kwh < tank * 0.05) return;
+    const cost = Math.round(kwh * POWER_DEPOT);
+    vehicle.fuelL = tank;
+    trip.costs.fuel += cost;
+    book(state, 'company', -cost, 'fuel', `Ladepark ${Math.round(kwh)} kWh (${vehicle.plate})`);
+    trip.log.push({ t: state.time, text: `Am eigenen Ladepark voll geladen: ${Math.round(kwh)} kWh für ${formatMoney(cost)}` });
+    return;
+  }
   if (!hasFacility(state, vehicle.cityId, 'fuel')) return;
   const tank = TRUCK_BY_ID[vehicle.modelId].tankL;
   const liters = tank - vehicle.fuelL;

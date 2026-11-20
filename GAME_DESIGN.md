@@ -342,6 +342,42 @@ Grundfarbe, Zweitfarbe, Logoform (Kreis, Wappen, Raute, Quadrat, Pfeil) und ein 
 - **Messestand:** 12.000 €, danach 60 Tage Sperrfrist. Acht erfundene Messen in großen Logistikstädten. Zwei Kunden aus dem Messeland (neue Kunden als Großkunden, Zufriedenheit mindestens 65), ein Rahmenvertragsangebot bevorzugt von einem dieser Kunden, Ruf +3.
 - **Online-Auftritt:** 400 € im Monat in den Fixkosten. Börsenvolumen +5 %, am Monatsersten Ruf +0,5 bis höchstens 70.
 
+### Alternative Antriebe
+| Modell | Antrieb | Akku/Tank | Verbrauch | Reichweite | Preis |
+|---|---|---|---|---|---|
+| Brennkraft K 460 LNG | LNG | 270 kg | 24,5 kg/100 km | ca. 1.100 km | 126.000 € |
+| Nordwal TX-e 400 Regional | Elektro | 420 kWh | 112 kWh/100 km | ca. 375 km | 225.000 € |
+| Velkor eS 600 Fernverkehr | Elektro | 600 kWh | 118 kWh/100 km | ca. 500 km | 278.000 € |
+| Trasko eVerteiler 19 t (Solo) | Elektro | 300 kWh | 92 kWh/100 km | ca. 325 km | 182.000 € |
+
+- **Maut nach CO₂-Klasse** (Faktor auf den Kilometersatz): Klasse 1 (Euro V) ×1,12, Klasse 2 (Euro VI) ×1,0, Klasse 4 (LNG) ×0,8, Klasse 5 (Elektro) ×0,25.
+- **Energiepreise:**
+  - LNG je kg = Dieselpreis × Länderfaktor × 0,8, mit Tankkarte.
+  - Strom am Schnelllader rund 44 ct/kWh, leicht an den Energiemarkt gekoppelt.
+  - Am eigenen Ladepark 24 ct/kWh.
+- **Laden:** Ein E-LKW lädt bei Reserve 50 min. Das zählt wie eine Pause. „Günstig tanken“ gilt nur für Diesel und LNG.
+- **Ladepark:** Einrichtung ab Stufe 2, 120.000 € plus 900 € im Monat. Lädt bei Abfahrt am Standort voll.
+- **Grüne Kunden:** fest aus der Kunden-ID abgeleitet, rund 25 % der Kunden in Handel, Lebensmittel, Elektronik, Pharma, Automobil und Logistik.
+  - Ihre Börsenaufträge zahlen 10 % mehr.
+  - Disposition und Beiladung nur mit LNG- oder E-LKW oder bei mindestens 25 % emissionsarmen Fahrzeugen im Fuhrpark.
+
+### Kombinierter Verkehr
+Begleitete Bahnverbindungen sind eigene Kanten im Netz. Sie werden nur genutzt, wenn die Disposition „Kombinierter Verkehr“ wählt. In der Routensuche zählt die Bahnzeit zu 35 %, weil sie Ruhezeit ist.
+
+| Verbindung | Strecke | Dauer | Preis je Lastzug |
+|---|---|---|---|
+| Rollende Landstraße Brenner | Innsbruck–Verona | 6,5 h | 330 € |
+| Rollende Landstraße Freiburg–Mailand | Freiburg–Mailand | 10,5 h | 520 € |
+| Gotthard-Verlad | Basel–Lugano | 6 h | 360 € |
+| Alpentransit | Köln–Verona | 20 h | 1.150 € |
+| Tauernbahn | Salzburg–Ljubljana | 7 h | 290 € |
+| Schienenautobahn | Metz–Perpignan | 17 h | 920 € |
+
+- **Auf dem Zug:** Die Fahrer ruhen, auch die Tagesruhe wird abgeleistet. Diesel, Maut und Verschleiß fallen nicht an.
+- **Abrechnung:** Der Fahrpreis wird bei der Verladung gebucht.
+- **Vergleich:** Der Dispositionsdialog vergleicht Ankunft und Ergebnis mit der reinen Straßenroute.
+- **Grenzen:** Folgeaufträge und Beiladungen behalten die Wahl der laufenden Fahrt.
+
 ## 18. Bedienung, Hilfe und Atmosphäre
 
 - **Erste Schritte:** In neuen Spielen führt eine Liste durch neun Schritte (Börse, erste Disposition, Zeit, Karte, Lieferung, Finanzen, Fuhrpark, zweites Fahrzeug, Hilfe). Sie erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor und lässt sich ausblenden bzw. über die Hilfe wieder einblenden.

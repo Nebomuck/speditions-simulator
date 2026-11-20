@@ -497,6 +497,8 @@ describe('Solo-LKW, Transporter und Teilladungen', () => {
 describe('Beiladung (mehrere Aufträge auf einem Fahrzeug)', () => {
   function setup() {
     const s = newGame();
+    // Planungsgenauigkeit prüfen: keine zufälligen Verzögerungen (Ladeverzug, Pannen)
+    s.difficulty.eventFactor = 0;
     const v = { ...first(s.vehicles), id: 'veh_r18', modelId: 'brennkraft-r18', fuelL: TRUCK_BY_ID['brennkraft-r18'].tankL, condition: 95, status: 'idle' as const, tripId: undefined };
     s.vehicles[v.id] = v;
     const d = first(s.drivers);

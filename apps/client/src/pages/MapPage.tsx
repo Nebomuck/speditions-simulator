@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Crosshair, X, Navigation, PackagePlus, MapPin, TriangleAlert, Wrench } from 'lucide-react';
 import {
   CARGO_BY_ID, TRUCK_BY_ID, CITY_BY_ID, drivableNow, formatDateTime, formatDuration, formatHours, nearestCity, remainingKm, vehicleSchedule, vehicleMarker, isTripLate, ordersOnBoard,
-  REST_KIND_LABEL, loadSpace, liveryOf, disruptionLabel, WEATHER, BAN_RULES, weatherIn, banUntil, banApplies,
+  REST_KIND_LABEL, loadSpace, liveryOf, energyUnit, disruptionLabel, WEATHER, BAN_RULES, weatherIn, banUntil, banApplies,
 } from '@spedsim/core';
 import { localStorageSet, sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Bar, Money } from '../ui/components.tsx';
@@ -159,12 +159,12 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
             <dt>Voraussichtl. Ankunft</dt><dd className={late ? 'neg' : ''}>{formatDateTime(eta)}</dd>
             {order && <><dt>Liefertermin</dt><dd>{formatDateTime(order.deliveryEnd)}</dd></>}
             {trip.activityLeft > 0 && trip.activity !== 'driving' && <><dt>Restdauer</dt><dd>{formatDuration(trip.activityLeft)}</dd></>}
-            <dt>Kosten bisher</dt><dd>Diesel <Money value={trip.costs.fuel} /> · Maut <Money value={Math.round(trip.costs.toll)} /></dd>
+            <dt>Kosten bisher</dt><dd>{energyUnit(v.modelId) === 'kWh' ? 'Strom' : 'Kraftstoff'} <Money value={trip.costs.fuel} /> · Maut <Money value={Math.round(trip.costs.toll)} />{trip.costs.rail ? <> · Bahn <Money value={trip.costs.rail} /></> : null}</dd>
           </>
         )}
-        <dt>Kraftstoff</dt>
+        <dt>{energyUnit(v.modelId) === 'kWh' ? 'Akku' : 'Kraftstoff'}</dt>
         <dd>
-          <div className="row"><Bar value={(v.fuelL / model.tankL) * 100} /> {Math.round(v.fuelL)} / {model.tankL} l</div>
+          <div className="row"><Bar value={(v.fuelL / model.tankL) * 100} /> {Math.round(v.fuelL)} / {model.tankL} {energyUnit(v.modelId)}</div>
         </dd>
         <dt>Zustand</dt>
         <dd><div className="row"><Bar value={v.condition} /> {Math.round(v.condition)} %</div></dd>

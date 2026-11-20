@@ -3,6 +3,7 @@
 
 import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { TOLL_CENT_PER_KM } from './data/catalog.ts';
+import { RAIL_LINKS, type RailLink } from './data/rail.ts';
 import { cumulativeKm, decodePolyline, pointAlong, type LonLat } from './geo.ts';
 
 export interface RoadNetData {
@@ -23,6 +24,10 @@ export interface RoadEdge {
   ferry: boolean;
   /** Maut in Cent für die gesamte Kante */
   toll: number;
+  /** Bahnverbindung (kombinierter Verkehr): Lastzug fährt auf dem Zug mit, Fahrer ruht */
+  rail?: RailLink;
+  /** Fahrpreis je Lastzug in Cent (nur Bahn) */
+  fare: number;
   coords: LonLat[];
   cum: Float64Array;
 }
@@ -33,6 +38,12 @@ export interface Route {
   /** reine Fahrzeit ohne Pausen in Minuten */
   driveMin: number;
   toll: number;
+  /** Bahnpreise auf der Route (Cent) */
+  fare: number;
+  /** genutzte Bahnverbindungen */
+  rail: string[];
+  /** davon auf der Bahn zurückgelegte km */
+  railKm: number;
 }
 
 /** Aktuelle Verkehrslage für die Routensuche: Faktor auf die Fahrzeit je Kante (Infinity = gesperrt). */
@@ -45,6 +56,13 @@ export interface Traffic {
 export const TRUCK_MAX_KMH = 80;
 /** LKW fahren im Mittel langsamer als der Pkw-Durchschnitt aus OSRM */
 const TRUCK_SPEED_FACTOR = 0.9;
+/** Routensuche mit Bahn: Bahnzeit zählt als Ruhe und wird nur zu diesem Anteil gewichtet */
+const RAIL_WEIGHT = 0.35;
+
+export interface RouteOptions {
+  /** Bahnverbindungen (kombinierter Verkehr) nutzen */
+  rail?: boolean;
+}
 
 export class RoadNetwork {
   readonly edges: RoadEdge[] = [];
@@ -77,6 +95,7 @@ export class RoadNetwork {
         truckKmh,
         ferry: !!e.ferry,
         toll: Math.round(tollRate * e.km),
+        fare: 0,
         coords,
         cum: cumulativeKm(coords),
       };
@@ -85,6 +104,32 @@ export class RoadNetwork {
       this.adj.get(e.b)!.push({ to: e.a, edge });
       this.edgeByPair.set(pairKey(e.a, e.b), edge);
     });
+    // Bahnverbindungen als eigene Kanten (nur bei Routensuche mit Bahn)
+    for (const link of RAIL_LINKS) {
+      const ca = CITY_BY_ID[link.a];
+      const cb = CITY_BY_ID[link.b];
+      if (!ca || !cb || !this.adj.get(link.a)?.length || !this.adj.get(link.b)?.length || this.edgeByPair.has(pairKey(link.a, link.b))) continue;
+      const coords: LonLat[] = [];
+      for (let i = 0; i <= 12; i++) {
+        const f = i / 12;
+        // leichter Bogen, damit sich die Bahnlinie auf der Karte von der Straße abhebt
+        const bend = Math.sin(f * Math.PI) * 0.12;
+        coords.push([ca.lon + (cb.lon - ca.lon) * f - (cb.lat - ca.lat) * bend, ca.lat + (cb.lat - ca.lat) * f + (cb.lon - ca.lon) * bend]);
+      }
+      const edge: RoadEdge = {
+        index: this.edges.length, a: link.a, b: link.b, km: link.km, truckMin: link.hours * 60, truckKmh: link.km / link.hours,
+        ferry: true, rail: link, toll: 0, fare: link.fare, coords, cum: cumulativeKm(coords),
+      };
+      this.edges.push(edge);
+      this.adj.get(link.a)!.push({ to: link.b, edge });
+      this.adj.get(link.b)!.push({ to: link.a, edge });
+      this.edgeByPair.set(pairKey(link.a, link.b), edge);
+    }
+  }
+
+  /** Bahnverbindungen im Netz */
+  get railEdges(): RoadEdge[] {
+    return this.edges.filter((e) => e.rail);
   }
 
   hasCity(id: string) {
@@ -96,9 +141,9 @@ export class RoadNetwork {
   }
 
   /** Schnellste LKW-Route zwischen zwei Städten (Dijkstra nach Fahrzeit), optional unter Umfahrung von Störungen. */
-  route(from: string, to: string, traffic?: Traffic): Route | null {
+  route(from: string, to: string, traffic?: Traffic, opts?: RouteOptions): Route | null {
     if (traffic && traffic.factor.size === 0) traffic = undefined;
-    const key = `${from}>${to}`;
+    const key = `${from}>${to}${opts?.rail ? '|rail' : ''}`;
     const cache = traffic ? this.trafficCache : this.routeCache;
     if (traffic && traffic.key !== this.trafficKey) {
       this.trafficCache.clear();
@@ -106,7 +151,7 @@ export class RoadNetwork {
     }
     if (cache.has(key)) return cache.get(key)!;
     let result: Route | null = null;
-    if (from === to) result = { nodes: [from], km: 0, driveMin: 0, toll: 0 };
+    if (from === to) result = { nodes: [from], km: 0, driveMin: 0, toll: 0, fare: 0, rail: [], railKm: 0 };
     else if (this.adj.has(from) && this.adj.has(to)) {
       const dist = new Map<string, number>([[from, 0]]);
       const prev = new Map<string, string>();
@@ -121,7 +166,8 @@ export class RoadNetwork {
         if (done.has(u)) continue;
         done.add(u);
         for (const { to: v, edge } of this.adj.get(u)!) {
-          const f = traffic?.factor.get(edge.index) ?? 1;
+          if (edge.rail && !opts?.rail) continue;
+          const f = edge.rail ? RAIL_WEIGHT : (traffic?.factor.get(edge.index) ?? 1);
           if (f === Infinity) continue;
           const nd = dist.get(u)! + edge.truckMin * f;
           if (nd < (dist.get(v) ?? Infinity)) {
@@ -145,14 +191,21 @@ export class RoadNetwork {
     let km = 0;
     let driveMin = 0;
     let toll = 0;
+    let fare = 0;
+    let railKm = 0;
+    const rail: string[] = [];
     for (let i = 1; i < nodes.length; i++) {
       const e = this.edgeBetween(nodes[i - 1], nodes[i]);
       if (!e) throw new Error(`Keine Kante ${nodes[i - 1]}–${nodes[i]}`);
       km += e.km;
-      driveMin += e.truckMin;
+      if (e.rail) {
+        fare += e.fare;
+        railKm += e.km;
+        rail.push(e.rail.name);
+      } else driveMin += e.truckMin;
       toll += e.toll;
     }
-    return { nodes, km: Math.round(km * 10) / 10, driveMin, toll };
+    return { nodes, km: Math.round(km * 10) / 10, driveMin, toll, fare, rail, railKm };
   }
 
   /** Kante und Position innerhalb der Kante bei km-Fortschritt entlang einer Knotenfolge. */

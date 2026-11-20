@@ -242,6 +242,8 @@ export interface DriveSegment {
   country: string;
   driveMin: number;
   waitMin: number;
+  /** Bahn: Fahrer ruhen während der Fahrt */
+  restMin?: number;
 }
 
 /**
@@ -259,6 +261,10 @@ export function routeSegments(state: GameState, ctx: SimContext, nodes: string[]
     if (acc <= fromKm) continue;
     const part = (acc - Math.max(start, fromKm)) / e.km;
     const country = CITY_BY_ID[nodes[i - 1]].country;
+    if (e.rail) {
+      out.push({ country, driveMin: 0, waitMin: 0, restMin: e.truckMin * part });
+      continue;
+    }
     const d = disruptionOnEdge(state, e);
     const wx = WEATHER[weatherIn(state, country)].speed;
     const driveMin = (e.truckMin * part) / (d?.kind === 'jam' ? d.speedFactor : 1) / wx / sf;
@@ -281,6 +287,12 @@ export function simulateRoute(hos: HoursOfService, t0: GameTime, segments: Drive
   let restMin = 0;
   let banMin = 0;
   for (const seg of segments) {
+    if (seg.restMin) {
+      hosRest(h, seg.restMin);
+      if (p) hosRest(p, seg.restMin);
+      t += seg.restMin;
+      restMin += seg.restMin;
+    }
     t += seg.waitMin;
     if (p) hosRest(p, seg.waitMin);
     let left = seg.driveMin;

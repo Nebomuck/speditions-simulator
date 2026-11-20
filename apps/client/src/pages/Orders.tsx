@@ -1,9 +1,9 @@
 // Auftragsbörse: dynamische Transportangebote mit Wirtschaftlichkeitsabschätzung.
 
 import { useMemo, useState } from 'react';
-import { ArrowRight, MapPin, Check, FileCheck, Handshake, Send, Share2, Star, X } from 'lucide-react';
+import { ArrowRight, MapPin, Check, FileCheck, Handshake, Send, Share2, Star, X, Leaf } from 'lucide-react';
 import {
-  CARGOS, CITY_BY_ID, TRAILERS, TRUCK_BY_ID, estimateTrip, subcontractBlock, subcontractQuotes, loadSpace, formatDateTime, formatMoney, haversineKm, nearestCity, planCoLoad, planEnd, vehicleMarker,
+  CARGOS, CITY_BY_ID, TRAILERS, TRUCK_BY_ID, GREEN_TEXT, estimateTrip, subcontractBlock, subcontractQuotes, loadSpace, formatDateTime, formatMoney, haversineKm, nearestCity, planCoLoad, planEnd, vehicleMarker,
   type Customer, type GameState, type LonLat, type Order, type PlanStart, type TrailerType, type Vehicle,
 } from '@spedsim/core';
 import { sendCommand, setUi, toast, useGame, useUi, world } from '../game/store.ts';
@@ -406,6 +406,7 @@ export function OrdersPage() {
                     <div className="row wrap" style={{ gap: 4, marginTop: 3 }}>
                       <Badge>{trailerName(o.trailerType)}</Badge>
                       {o.partial && <Badge kind="violet">Teilladung</Badge>}
+                      {o.green && <span className="green-badge" title={GREEN_TEXT}><Leaf size={11} />Grün +10 %</span>}
                       {o.express && <Badge kind="warning">Express</Badge>}
                       {o.tender && <Badge kind="success" title="Ausschreibung: besser bezahlt, nur kurz verfügbar">Ausschreibung</Badge>}
                       {o.qualifications.map((q) => <Badge key={q} kind="danger">{QUAL_LABEL[q]}</Badge>)}

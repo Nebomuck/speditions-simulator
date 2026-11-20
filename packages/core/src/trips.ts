@@ -9,7 +9,8 @@ import { FUEL_RESERVE, FUEL_STOP_MIN, TEAM_ALLOWANCE_PER_DAY, UNLOAD_MIN_FACTOR,
 import { disruptionLabel, disruptionOnEdge, routeNow } from './disruptions.ts';
 import { onContractDelivery } from './contracts.ts';
 import { addLog, adjustSatisfaction, book, createInvoice, formatMoney } from './finance.ts';
-import { dieselPriceIn, shouldRefuel } from './fuel.ts';
+import { shouldRefuel } from './fuel.ts';
+import { DRIVE_UNIT, driveOf, energyPriceIn, stopMinFor } from './energy.ts';
 import { HOS_RULES, canTakeOver, drivableNow, hosDrive, hosRest, hosRide, hosWork, pickupWaitMin, requireRest } from './hos.ts';
 import { rand } from './rng.ts';
 import { effectiveEco, traitAccident, traitCustomerBonus, traitHandlingMin, traitSpeed, traitWear } from './traits.ts';
@@ -22,7 +23,7 @@ import { COUNTRY_NAMES } from './data/catalog.ts';
 import { WEATHER, edgeCountry, edgeWeather, isCustomsBorder, rollBorderWait, tripBan, weatherIn } from './world.ts';
 import type { GameState, Order, Trip, TripActivity } from './types.ts';
 
-export const STATIONARY_REST: TripActivity[] = ['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked', 'ban'];
+export const STATIONARY_REST: TripActivity[] = ['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked', 'ban', 'charging'];
 const BIG_CITY_POP = 1000;
 
 export const ACTIVITY_LABEL: Record<TripActivity, string> = {
@@ -36,6 +37,8 @@ export const ACTIVITY_LABEL: Record<TripActivity, string> = {
   waiting: 'Wartet auf Ladefenster',
   blocked: 'Wartet an Sperrung',
   ferry: 'Fähre',
+  charging: 'Ladestopp',
+  rail: 'Bahnverladung',
   breakdown: 'Defekt',
   accident: 'Unfall',
   ban: 'Fahrverbot',
@@ -64,7 +67,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   const driver = state.drivers[trip.driverId];
   const vehicle = state.vehicles[trip.vehicleId];
 
-  if (trip.activity !== 'driving' && trip.activity !== 'ferry') {
+  if (trip.activity !== 'driving' && trip.activity !== 'ferry' && trip.activity !== 'rail') {
     trip.speedKmh = 0;
     trip.activityLeft -= 1;
     const co = trip.coDriverId ? state.drivers[trip.coDriverId] : undefined;
@@ -86,15 +89,23 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   }
 
   const loc = ctx.net.locate(leg.nodes, trip.progressKm)!;
+  if (loc.edge.rail && trip.railEdge !== loc.edge.index) {
+    // Verladung auf die Bahn: Fahrpreis je Lastzug
+    trip.railEdge = loc.edge.index;
+    const fare = loc.edge.fare;
+    trip.costs.rail = (trip.costs.rail ?? 0) + fare;
+    book(state, 'company', -fare, 'toll', `Bahn: ${loc.edge.rail.name} (${vehicle.plate})`);
+    tlog(state, trip, `Verladung auf die ${loc.edge.rail.name} (${formatMoney(fare)}) – Fahrer ruhen im Liegewagen`);
+  }
   if (loc.edge.ferry) {
-    trip.activity = 'ferry';
-    trip.speedKmh = loc.edge.truckKmh;
+    trip.activity = loc.edge.rail ? 'rail' : 'ferry';
+    trip.speedKmh = Math.round(loc.edge.truckKmh);
     hosRest(driver.hos, 1);
     if (trip.coDriverId && state.drivers[trip.coDriverId]) hosRest(state.drivers[trip.coDriverId].hos, 1);
     trip.progressKm = Math.min(leg.km, trip.progressKm + loc.edge.truckKmh / 60);
     return;
   }
-  if (trip.activity === 'ferry') trip.activity = 'driving';
+  if (trip.activity === 'ferry' || trip.activity === 'rail') trip.activity = 'driving';
 
   // Verkehrsstörung auf der aktuellen Kante
   const dis = disruptionOnEdge(state, loc.edge);
@@ -156,14 +167,16 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   const fuelCountry = CITY_BY_ID[loc.reverse ? loc.edge.b : loc.edge.a].country;
   if (shouldRefuel(state, vehicle, model.tankL, FUEL_RESERVE, fuelCountry)) {
     const liters = model.tankL - vehicle.fuelL;
-    const cost = Math.round(liters * dieselPriceIn(state, fuelCountry));
+    const drive = driveOf(vehicle.modelId);
+    const unit = DRIVE_UNIT[drive];
+    const cost = Math.round(liters * energyPriceIn(state, vehicle.modelId, fuelCountry));
     vehicle.fuelL = model.tankL;
     trip.costs.fuel += cost;
-    book(state, 'company', -cost, 'fuel', `Diesel ${Math.round(liters)} l (${vehicle.plate})`);
-    trip.activity = 'fueling';
-    trip.activityLeft = FUEL_STOP_MIN;
+    book(state, 'company', -cost, 'fuel', `${drive === 'electric' ? 'Strom' : drive === 'lng' ? 'LNG' : 'Diesel'} ${Math.round(liters)} ${unit} (${vehicle.plate})`);
+    trip.activity = drive === 'electric' ? 'charging' : 'fueling';
+    trip.activityLeft = stopMinFor(vehicle.modelId, FUEL_STOP_MIN);
     trip.speedKmh = 0;
-    tlog(state, trip, `Tankstopp in ${COUNTRY_NAMES[fuelCountry] ?? fuelCountry}: ${Math.round(liters)} l für ${formatMoney(cost)}`);
+    tlog(state, trip, `${drive === 'electric' ? 'Ladestopp' : 'Tankstopp'} in ${COUNTRY_NAMES[fuelCountry] ?? fuelCountry}: ${Math.round(liters)} ${unit} für ${formatMoney(cost)}`);
     return;
   }
 
@@ -319,7 +332,7 @@ function nextStop(state: GameState, ctx: SimContext, trip: Trip) {
   trip.legIndex++;
   trip.progressKm = 0;
   const leg = trip.legs[trip.legIndex];
-  const r = routeNow(state, ctx, leg.nodes[0], leg.nodes[leg.nodes.length - 1]);
+  const r = routeNow(state, ctx, leg.nodes[0], leg.nodes[leg.nodes.length - 1], !!trip.rail);
   if (r) trip.legs[trip.legIndex] = { nodes: r.nodes, km: r.km, loaded: leg.loaded };
   const stop = trip.stops![trip.legIndex];
   trip.phase = stop.kind === 'pickup' ? 'to_pickup' : 'to_delivery';

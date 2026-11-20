@@ -721,3 +721,12 @@ svg.brand-logo { border-radius: 0; }
 .mk-box .row select { flex: 1; min-width: 0; }
 .mk-active { display: flex; flex-wrap: wrap; gap: 4px; }
 @media (max-width: 1100px) { .livery-grid, .marketing-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Paket C: kombinierter Verkehr, Antriebe */
+.rail-offer { display: flex; gap: 8px; align-items: flex-start; padding: 9px 11px; margin-bottom: 10px; border: 1px dashed #a78bfa; border-radius: 8px; cursor: pointer; font-size: 12.5px; color: var(--text); }
+.rail-offer.active { border-style: solid; background: rgba(167, 139, 250, .1); }
+.rail-offer svg { color: #a78bfa; flex-shrink: 0; margin-top: 1px; }
+.rail-offer small { display: block; color: var(--text-2); margin-top: 2px; }
+.drive-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 1px 6px; border-radius: 5px; background: rgba(52, 211, 153, .14); color: #34d399; white-space: nowrap; }
+.drive-badge.lng { background: rgba(56, 189, 248, .14); color: #38bdf8; }
+.green-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 1px 6px; border-radius: 5px; background: rgba(52, 211, 153, .14); color: #34d399; }

@@ -40,7 +40,7 @@ export type Command =
   | { type: 'setPaused'; paused: boolean }
   | { type: 'acceptOrder'; orderId: Id }
   | { type: 'cancelOrder'; orderId: Id }
-  | { type: 'dispatch'; orderId: Id; driverId: Id; vehicleId: Id; trailerId: Id; coDriverId?: Id }
+  | { type: 'dispatch'; orderId: Id; driverId: Id; vehicleId: Id; trailerId: Id; coDriverId?: Id; rail?: boolean }
   | { type: 'queueDispatch'; orderId: Id; vehicleId: Id }
   | { type: 'unqueue'; orderId: Id; vehicleId: Id }
   | { type: 'coLoad'; orderId: Id; vehicleId: Id }
