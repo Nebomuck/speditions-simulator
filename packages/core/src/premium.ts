@@ -5,6 +5,7 @@
 // Die KI-Disposition fasst Premium-Aufträge nicht an.
 
 import type { SimContext } from './context.ts';
+import { claimOrder, orderVisible } from './shard.ts';
 import { CITIES, CITY_BY_ID, type CityDef } from './data/cities.ts';
 import { CARGO_BY_ID } from './data/catalog.ts';
 import { addLog, book, formatMoney } from './finance.ts';
@@ -134,6 +135,7 @@ export function dailyPremium(state: GameState, ctx: SimContext): void {
 /** Stündlich: Genehmigungen werden erteilt. */
 export function hourlyPremium(state: GameState): void {
   for (const o of Object.values(state.orders)) {
+    if (!orderVisible(state, o)) continue;
     const p = o.premium;
     if (p?.permit !== 'pending' || p.permitReady === undefined || state.time < p.permitReady) continue;
     p.permit = 'granted';
@@ -153,7 +155,7 @@ export function applyPermit(state: GameState, orderId: Id): { ok: true } | { ok:
   book(state, 'company', -cost, 'other', `Genehmigung Schwertransport ${p.title}`);
   p.permit = 'pending';
   p.permitReady = state.time + (p.permitHours ?? 48) * 60;
-  if (o.status === 'offered') o.status = 'accepted';
+  claimOrder(state, o);
   addLog(state, {
     level: 'info',
     category: 'order',

@@ -22,6 +22,7 @@ import { newId } from './rng.ts';
 import { defaultNews } from './news.ts';
 import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, ScenarioId, TeamRole } from './types.ts';
+import { MAIN_COMPANY, companyView, freshRelation, splitState, worldOf, type WorldState } from './shard.ts';
 
 export const STATE_VERSION = 13;
 
@@ -65,6 +66,8 @@ export interface NewGameOptions {
   scenario?: ScenarioId;
   /** Neustart-Bonus aus früheren Firmenverkäufen (siehe legacyBonus) */
   legacy?: { capital: number; reputation: number; exits: number };
+  /** Gründung in einer laufenden Welt: Uhrzeit, ID-Zähler und Zufallsstand der Welt übernehmen */
+  start?: { time: number; nextId: number; rng: number };
 }
 
 export function makeCharacter(name: string, partial: Partial<Character> = {}): Character {
@@ -95,14 +98,14 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
   const base = opts.difficulty === 'custom' ? DIFFICULTIES.normal : DIFFICULTIES[opts.difficulty];
   const difficulty: Difficulty = { ...base, ...(opts.difficulty === 'custom' ? sanitizeDifficulty(opts.customDifficulty) : {}), id: opts.difficulty };
   const seed = (opts.seed ?? Math.floor(Math.random() * 2 ** 31)) | 0;
-  const startTime = 6 * 60; // Montag 06:00
+  const startTime = opts.start?.time ?? 6 * 60; // Montag 06:00
 
   const state: GameState = {
     format: 'spedsim-state',
     version: STATE_VERSION,
     seed,
-    rng: seed,
-    nextId: 1,
+    rng: opts.start?.rng ?? seed,
+    nextId: opts.start?.nextId ?? 1,
     time: startTime,
     speed: 5,
     paused: true,
@@ -203,7 +206,8 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     category: 'company',
     text: `${state.company.name} wurde in ${hq.name} gegründet. Startkapital: ${formatMoney(state.company.account.balance)}. Viel Erfolg!`,
   });
-  return state;
+  // Welt mit einer Firma; die Simulation arbeitet auf der Firmenansicht
+  return companyView(splitState(state));
 }
 
 export function addPlayer(
@@ -222,4 +226,32 @@ export function addPlayer(
   state.players[p.id] = player;
   if (!p.isFounder) addLog(state, { level: 'info', category: 'multiplayer', text: `${p.name} ist der Firma beigetreten.` });
   return player;
+}
+
+/**
+ * Gründet eine weitere Firma in einer bestehenden Welt (Wettbewerbs-Multiplayer). Die Firma übernimmt Uhrzeit,
+ * ID-Zähler, Zufallsstand und Schwierigkeitsgrad der Welt; ihre Startdaten der Welt (Börse, Kunden) entfallen.
+ */
+export function addCompany(world: WorldState, ctx: SimContext, opts: Omit<NewGameOptions, 'difficulty' | 'customDifficulty' | 'seed' | 'start'> & { companyId?: Id }): Id {
+  let id = opts.companyId ?? `c${world.companyOrder.length + 1}`;
+  for (let n = world.companyOrder.length + 1; world.companies[id]; n++) id = `c${n}`;
+  const temp = createNewGame(ctx, {
+    ...opts,
+    seed: world.seed,
+    difficulty: world.difficulty.id,
+    customDifficulty: world.difficulty,
+    start: { time: world.time, nextId: world.nextId, rng: world.rng },
+  });
+  const tw = worldOf(temp);
+  world.nextId = tw.nextId;
+  world.rng = tw.rng;
+  const shard = tw.companies[MAIN_COMPANY];
+  // Kundenstamm der Welt übernehmen, mit neuer Beziehung; die Startkunden der Gründung entfallen
+  const first = world.companies[world.companyOrder[0]];
+  shard.customers = Object.fromEntries(Object.values(first.customers).map((c) => [c.id, freshRelation(c)]));
+  // übernommene Aufträge ohne Eigentümer gehören den bisherigen Firmen (bis hier: der ersten)
+  for (const o of Object.values(world.orders)) if (o.status !== 'offered') o.companyId ??= world.companyOrder[0];
+  world.companies[id] = shard;
+  world.companyOrder.push(id);
+  return id;
 }

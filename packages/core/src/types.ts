@@ -479,6 +479,10 @@ export interface Order {
   partial?: boolean;
   /** grüner Kunde: verlangt ein emissionsarmes Fahrzeug oder einen emissionsarmen Fuhrpark, zahlt dafür mehr */
   green?: boolean;
+  /** Wettbewerb: Firma, die den Auftrag übernommen hat (fehlt: erste Firma der Welt) */
+  companyId?: Id;
+  /** Wettbewerb: Preis je Firma für das offene Angebot (Treue, Vertrieb, Kampagnen) */
+  quotes?: Record<Id, Money>;
   /** Tour aus einem Rahmenvertrag */
   contractId?: Id;
   status: OrderStatus;

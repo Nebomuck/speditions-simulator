@@ -7,6 +7,7 @@ import { defaultAutoDispatch } from './autodispatch.ts';
 import { defaultEconomy } from './economy.ts';
 import { defaultEvents } from './events.ts';
 import type { GameState } from './types.ts';
+import { companyView, splitState } from './shard.ts';
 
 export const SAVE_FORMAT = 'spedsim-save';
 
@@ -159,5 +160,6 @@ export function deserializeSave(text: string): GameState {
     v++;
   }
   (state as unknown as GameState).version = STATE_VERSION;
-  return state as unknown as GameState;
+  // Einzelspiel und kooperative Spiele: eine Welt mit einer Firma
+  return companyView(splitState(state as unknown as GameState));
 }

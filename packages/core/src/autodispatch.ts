@@ -4,6 +4,7 @@
 // Die Planungsqualität hängt von der Kompetenz des Disponenten ab (Suchtiefe, Kalkulationsfehler, Priorisierung).
 
 import { CITY_BY_ID } from './data/cities.ts';
+import { claimOrder, offerPayment, orderVisible } from './shard.ts';
 import { CARGO_BY_ID, TRUCK_BY_ID, loadSpace } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { VEHICLES_PER_DISPATCHER } from './company.ts';
@@ -120,7 +121,7 @@ function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: Sta
   const maxEmpty = rules.maxEmptyKm * (queued ? 1 : Math.min(4, 1 + (state.autoDispatch.idleHours[vehicle.id] ?? 0) / 4));
   const emptyLimit = maxEmpty * (1 + err * 0.4);
   const pool = Object.values(state.orders).filter((o) => {
-    if (reserved.orders.has(o.id)) return false;
+    if (reserved.orders.has(o.id) || !orderVisible(state, o)) return false;
     // Premium-Aufträge disponiert nur die Geschäftsführung selbst
     if (o.premium) return false;
     if (o.status === 'accepted') {
@@ -136,7 +137,7 @@ function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: Sta
     return o.status === 'accepted' || haversineKm(ll(startCity), ll(o.fromCityId)) <= emptyLimit;
   });
   // Vorsortierung nach grober Wirtschaftlichkeit, dann die besten `depth` genau kalkulieren
-  const rough = (o: Order) => (o.status === 'accepted' ? 1e12 : 0) + o.payment - haversineKm(ll(startCity), ll(o.fromCityId)) * 150;
+  const rough = (o: Order) => (o.status === 'accepted' ? 1e12 : 0) + offerPayment(state, o) - haversineKm(ll(startCity), ll(o.fromCityId)) * 150;
   const shortlist = pool.sort((a, b) => rough(b) - rough(a)).slice(0, searchDepth(skill));
 
   const out: Candidate[] = [];
@@ -212,7 +213,7 @@ function execute(state: GameState, ctx: SimContext, s: Pick<DispatchSuggestion, 
     const v = validateDispatch(state, ctx, input);
     const e = v.issues.find((i) => i.level === 'error');
     if (e || !v.estimate) return e?.text ?? 'Disposition nicht möglich.';
-    if (order.status === 'offered') order.status = 'accepted';
+    claimOrder(state, order);
     createTrip(state, ctx, input, v.estimate);
     estimate = v.estimate;
   }

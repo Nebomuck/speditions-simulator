@@ -93,6 +93,13 @@ export function createBot(s: GameState, opts: BotOptions = {}) {
   s.paused = false;
 
   return {
+    /** stündliche Pflege ohne Simulation (für Welten mit mehreren Bots, die gemeinsam ticken) */
+    tend() {
+      ensureDispatchers();
+      care();
+    },
+    /** tägliches Wachstum ohne Simulation */
+    grow,
     /** einen Spieltag simulieren (stündlich pflegen, täglich wachsen); `hourly` z. B. für Invariantenprüfungen */
     day(hourly?: () => void) {
       ensureDispatchers();

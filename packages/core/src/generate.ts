@@ -1,6 +1,7 @@
 // Prozedurale Erzeugung: Fahrer/Bewerber, Kunden, Gebrauchtfahrzeugangebote, Kennzeichen.
 
 import { CITIES, CITY_BY_ID, type CityDef, type Industry } from './data/cities.ts';
+import { mirrorCustomer } from './shard.ts';
 import { TRUCK_MODELS, TRUCK_BY_ID } from './data/catalog.ts';
 import { COMPANY_CORE, COMPANY_PREFIX, FIRST_NAMES, LAST_NAMES, LEGAL_FORM } from './data/names.ts';
 import { haversineKm } from './geo.ts';
@@ -128,5 +129,6 @@ export function customerFor(state: GameState, cityId: string, industry: Industry
     deliveries: 0,
   };
   state.customers[c.id] = c;
+  mirrorCustomer(state, c);
   return c;
 }

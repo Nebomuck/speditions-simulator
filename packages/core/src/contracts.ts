@@ -3,6 +3,7 @@
 // kosten eine Vertragsstrafe und Kundenzufriedenheit. Gute Erfüllung führt zu Verlängerungsangeboten.
 
 import { deptCount } from './company.ts';
+import { companyIdOf, isMultiCompany } from './shard.ts';
 import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { CARGOS, CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
@@ -145,6 +146,7 @@ function scheduleDay(state: GameState, ctx: SimContext, c: Contract, day: number
     international: CITY_BY_ID[c.fromCityId].country !== CITY_BY_ID[c.toCityId].country,
     contractId: c.id,
     status: 'accepted',
+    ...(isMultiCompany(state) ? { companyId: companyIdOf(state) } : {}),
     offerExpires: pickupStart,
     created: state.time,
   };

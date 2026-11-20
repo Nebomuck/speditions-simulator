@@ -3,6 +3,7 @@
 // Kunden übernehmen.
 
 import { CITY_BY_ID } from './data/cities.ts';
+import { claimOrder, offerPayment, orderVisible } from './shard.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import { STRATEGY_LABEL, activeCompetitors, nearCompetitor } from './competition.ts';
 import { levelDef } from './company.ts';
@@ -53,12 +54,12 @@ export function subcontractQuotes(state: GameState, o: Order): SubcontractQuote[
   for (const c of activeCompetitors(state)) {
     if (!from || !nearCompetitor(c, from)) continue;
     const share = Math.min(0.95, SHARE_BASE * c.priceLevel + (c.status === 'trouble' ? -0.03 : 0));
-    const price = Math.round((o.payment * share) / 100) * 100;
+    const price = Math.round((offerPayment(state, o) * share) / 100) * 100;
     const lateChance = Math.min(0.5, LATE_CHANCE[c.strategy] + (c.status === 'trouble' ? 0.15 : 0));
-    quotes.push({ partnerId: c.id, name: c.name, price, margin: o.payment - price, lateChance, note: c.status === 'trouble' ? `${STRATEGY_LABEL[c.strategy]}, in Schwierigkeiten` : STRATEGY_LABEL[c.strategy] });
+    quotes.push({ partnerId: c.id, name: c.name, price, margin: offerPayment(state, o) - price, lateChance, note: c.status === 'trouble' ? `${STRATEGY_LABEL[c.strategy]}, in Schwierigkeiten` : STRATEGY_LABEL[c.strategy] });
   }
-  const price = Math.round((o.payment * EXCHANGE_PARTNER.share) / 100) * 100;
-  quotes.push({ partnerId: EXCHANGE_PARTNER.id, name: EXCHANGE_PARTNER.name, price, margin: o.payment - price, lateChance: EXCHANGE_PARTNER.late, note: 'immer verfügbar' });
+  const price = Math.round((offerPayment(state, o) * EXCHANGE_PARTNER.share) / 100) * 100;
+  quotes.push({ partnerId: EXCHANGE_PARTNER.id, name: EXCHANGE_PARTNER.name, price, margin: offerPayment(state, o) - price, lateChance: EXCHANGE_PARTNER.late, note: 'immer verfügbar' });
   return quotes.sort((a, b) => b.margin - a.margin);
 }
 
@@ -77,6 +78,7 @@ export function subcontractOrder(state: GameState, orderId: Id, partnerId?: Id):
   const late = rand.chance(state, q.lateChance);
   const onTime = Math.max(earliest, o.deliveryEnd - rand.int(state, 30, 300));
   const deliverAt = Math.round(late ? Math.max(earliest, o.deliveryEnd) + rand.int(state, 45, 360) : Math.min(onTime, Math.max(earliest, o.deliveryEnd - 30)));
+  claimOrder(state, o);
   o.status = 'in_transit';
   o.subcontract = { partnerId: q.partnerId, name: q.name, price: q.price, since: state.time, deliverAt };
   addLog(state, { level: 'info', category: 'order', text: `Auftrag ${CITY_BY_ID[o.fromCityId].name} → ${CITY_BY_ID[o.toCityId].name} an ${q.name} vergeben (${formatMoney(q.price)}, dir bleiben ${formatMoney(q.margin)}).`, ref: { kind: 'order', id: o.id } });
@@ -86,6 +88,7 @@ export function subcontractOrder(state: GameState, orderId: Id, partnerId?: Id):
 /** Stündlich: Zustellungen der Subunternehmer abschließen */
 export function hourlyPartners(state: GameState): void {
   for (const o of Object.values(state.orders)) {
+    if (!orderVisible(state, o)) continue;
     const sc = o.subcontract;
     if (!sc || o.status !== 'in_transit' || state.time < sc.deliverAt) continue;
     const lateMin = Math.max(0, Math.round(sc.deliverAt - o.deliveryEnd));

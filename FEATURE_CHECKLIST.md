@@ -196,6 +196,9 @@ Stand: 20.11.2026 · Version 0.19.0
 | Alternative Antriebe | Getestet (CO₂-Maut, Energiepreise je Antrieb, Ladestopps unterwegs, Ladepark am Standort) |
 | Grüne Kunden | Getestet (feste Zuordnung, Anteil, Dispositionsprüfung mit Fahrzeug und Fuhrparkanteil) |
 | Kombinierter Verkehr | Getestet (Bahnkanten nur auf Wunsch, Fahrpreis, Ruhe auf dem Zug, kein Diesel); im Browser geprüft: Angebot im Dialog, Karte |
+| Gemeinsame Börse und Kunden je Firma (D3) | Getestet (Kunden gespiegelt mit eigener Beziehung, Preis je Firma, Vergabe an die annehmende Firma, fremde Aufträge gesperrt, zwei Bots 30 Tage in einer Welt); Vergleichslauf gegen 0.19.0 bytegleich |
+| Mehrere Firmen in einer Welt (D2) | Getestet (zweite Firma gründen, gemeinsame Zeit und Märkte, eigene Fahrten und Buchungen, Rechte je Firma, verkaufte Firma ruht); Vergleichslauf gegen 0.19.0 bytegleich |
+| Welt und Firmen-Shards (D1) | Getestet (Feldaufteilung vollständig, Vergleichslauf identisch, structuredClone, Rücknahme beim Ausgabenlimit, Delta-Synchronisation); im Browser geprüft: Worker, Speichern, Import |
 | Subunternehmer | Getestet (Aufträge an Konkurrenz oder Börsenpartner abgeben, Marge, Verspätungsrisiko, Strafe trägt der Partner) |
 | Übernahme von Konkurrenten | Getestet (angeschlagen günstig, klein teurer; LKW, Auflieger, Betriebshof, Fahrer, Kunden) |
 

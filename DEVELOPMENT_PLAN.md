@@ -70,6 +70,11 @@ Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nu
 9. Mehrere Firmen auf einem Server mit gemeinsamer Börse und Welt, Weitergabe von Aufträgen an Mitspieler-Firmen, Rangliste.
    - Voraussetzung: Der Spielstand muss mehrere Firmen tragen. Das betrifft `GameState.company` → `companies`, Befehle mit Firmenbezug und die Delta-Synchronisation je Firma.
    - Zuerst Konzept und Migrationspfad, dann Umsetzung in Schritten.
+   - Konzept liegt vor: [KONZEPT_WETTBEWERB.md](KONZEPT_WETTBEWERB.md). Architektur: Welt plus Firmen-Shards mit einer Firmenansicht, Schritte D1–D6.
+   - D1 ✅ umgesetzt (`shard.ts`, Tests in `shard.test.ts`).
+   - D2 ✅ umgesetzt (Tick mit Welt- und Firmenschritten in `sim.ts`, `addCompany`, Tests in `world.test.ts`).
+   - D3 ✅ umgesetzt (gemeinsame Börse mit Preis je Firma, Vergabe an die annehmende Firma, Kundenbeziehung je Firma, Tests in `market.test.ts`).
+   - Als Nächstes D4: Server mit mehreren Firmen je Welt, Beitritt mit Firmenwahl, gefilterte Ansicht je Spieler, Weltchat.
 
 ## Arbeitsweise
 
@@ -81,6 +86,6 @@ Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nu
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 172/172 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
+1. `npm install`, dann `npm test` (erwartet: 187/187 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
 3. Alle Phasen sind abgeschlossen. Städte ergänzen in `data/cities.ts`, danach `npm run roadnet` (behält alle bisherigen Kanten, K=5 Nachbarn, OSRM-Antworten werden zwischengespeichert). Balancing prüfen mit `node packages/core/test/measure-balance.ts [Tage] [easy|normal|realistic] [Seed]` (Spieler-Bot aus `test/bot.ts`), Welt mit `measure-world.ts`, Störungen mit `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

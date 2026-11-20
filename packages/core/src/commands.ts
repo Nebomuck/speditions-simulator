@@ -4,6 +4,7 @@
 // Doppelbelegungen und widersprüchliche Aktionen ausgeschlossen, da Befehle sequenziell verarbeitet werden.
 
 import { sanitizeAvatar, type AvatarLook } from './avatar.ts';
+import { claimOrder, orderVisible, restoreState, tagClaimedOrders } from './shard.ts';
 import { applyLife, payDividend, type LifeAction } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
@@ -247,6 +248,15 @@ function canAfford(state: GameState, amount: number) {
 }
 
 export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd: Command): CommandResult {
+  // Wettbewerb: Aufträge anderer Firmen sind tabu
+  const orderId = (cmd as { orderId?: unknown }).orderId;
+  if (typeof orderId === 'string' && state.orders[orderId] && !orderVisible(state, state.orders[orderId])) return fail('Dieser Auftrag gehört einer anderen Spedition.');
+  const result = applyCommandChecked(state, ctx, actorId, cmd);
+  if (result.ok) tagClaimedOrders(state);
+  return result;
+}
+
+function applyCommandChecked(state: GameState, ctx: SimContext, actorId: Id, cmd: Command): CommandResult {
   const actor = state.players[actorId];
   if (!actor) return fail('Unbekannter Spieler.');
   const perm = COMMAND_PERMISSION[cmd.type];
@@ -264,8 +274,7 @@ export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd
   const result = execute(state, ctx, actor, cmd);
   const spent = balance - state.company.account.balance;
   if (result.ok && spent > actor.spendLimit) {
-    for (const k of Object.keys(state) as (keyof GameState)[]) delete state[k];
-    Object.assign(state, before);
+    restoreState(state, before);
     return fail(`Ausgabenlimit überschritten: ${formatMoney(spent)} – du darfst höchstens ${formatMoney(actor.spendLimit)} je Ausgabe freigeben.`);
   }
   return result;
@@ -289,7 +298,7 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       const o = state.orders[cmd.orderId];
       if (!o || o.status !== 'offered') return fail('Auftrag ist nicht mehr verfügbar.');
       if (state.time >= o.offerExpires) return fail('Angebot ist abgelaufen.');
-      o.status = 'accepted';
+      claimOrder(state, o);
       addLog(state, { level: 'info', category: 'order', text: `Auftrag angenommen: ${CITY_BY_ID[o.fromCityId].name} → ${CITY_BY_ID[o.toCityId].name} (${formatMoney(o.payment)}).`, ref: { kind: 'order', id: o.id } });
       return { ok: true };
     }
@@ -314,7 +323,7 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       const errors = issues.filter((i) => i.level === 'error');
       if (errors.length || !estimate) return fail(errors[0]?.text ?? 'Disposition nicht möglich.', issues);
       const order = state.orders[cmd.orderId];
-      if (order.status === 'offered') order.status = 'accepted';
+      claimOrder(state, order);
       const trip = createTrip(state, ctx, cmd, estimate);
       return { ok: true, id: trip.id, warnings: issues };
     }

@@ -4,6 +4,7 @@
 // entscheidet das Spiel private Karten selbst (ausgewogene Wahl).
 
 import type { SimContext } from './context.ts';
+import { claimOrder } from './shard.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID } from './data/catalog.ts';
 import { activeCompetitors } from './competition.ts';
@@ -329,7 +330,7 @@ export const DECISION_RULES: DecisionRule[] = [
       const order = state.orders[str(dec, 'orderId')];
       if (!order || order.status !== 'offered') return 'Der Eilauftrag ist nicht mehr verfügbar.';
       if (o === 'accept') {
-        order.status = 'accepted';
+        claimOrder(state, order);
         return `Eilauftrag angenommen: ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name} für ${formatMoney(order.payment)} – jetzt disponieren!`;
       }
       order.status = 'expired';

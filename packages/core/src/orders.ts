@@ -4,6 +4,7 @@
 // Marktnachfrage beeinflussen das Volumen.
 
 import { negotiationBonus } from './life.ts';
+import { companyIdOf, companyViews, isMultiCompany, worldOf } from './shard.ts';
 import { meetingBonus } from './team.ts';
 import { regionFactor } from './economy.ts';
 import { competitionPriceFactor, competitorTakesCustomerOrder } from './competition.ts';
@@ -114,17 +115,24 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   const slack = express ? rand.float(state, 1.08, 1.2) : rand.float(state, 1.2, 1.7);
   const deliveryEnd = Math.ceil((pickupEnd + transit * slack + 60) / half) * half;
 
-  // Vergütung; zufriedene Stammkunden zahlen etwas besser
-  const loyalty = customer.deliveries > 0 ? ((customer.satisfaction - 50) / 50) * 0.05 : 0;
-  const priceFactor = 1 + (0.5 - customer.priceSensitivity) * 0.12 + loyalty + salesPriceBonus(state) + negotiationBonus(state) + meetingBonus(state);
-  const region = (0.9 + 0.1 * regionFactor(state, origin.country)) * competitionPriceFactor(state, origin.country) * marketingPriceFactor(state, origin.country);
-  let payment = baseRate(state, cargo, route.km) * priceFactor * region * rand.float(state, 0.9, 1.12);
-  if (express) payment *= 1.3;
-  // Teilladung: weniger Gesamterlös, aber höherer Preis je Tonne
-  if (partial) payment *= 0.5 + 0.5 * Math.min(1, weightT / 24);
+  // Vergütung je Firma: zufriedene Stammkunden zahlen etwas besser, dazu Vertrieb, Verhandlung und Kampagnen.
+  // Der Zufallsanteil gilt für alle Firmen gleich.
+  const luck = rand.float(state, 0.9, 1.12);
   const green = isGreenCustomer(customer);
-  if (green) payment *= 1 + GREEN_PREMIUM;
-  payment = Math.round(payment / 500) * 500;
+  const priceFor = (v: GameState) => {
+    const cu = v.customers[customer.id] ?? customer;
+    const loyalty = cu.deliveries > 0 ? ((cu.satisfaction - 50) / 50) * 0.05 : 0;
+    const priceFactor = 1 + (0.5 - cu.priceSensitivity) * 0.12 + loyalty + salesPriceBonus(v) + negotiationBonus(v) + meetingBonus(v);
+    const region = (0.9 + 0.1 * regionFactor(v, origin.country)) * competitionPriceFactor(v, origin.country) * marketingPriceFactor(v, origin.country);
+    let p = baseRate(v, cargo, route.km) * priceFactor * region * luck;
+    if (express) p *= 1.3;
+    // Teilladung: weniger Gesamterlös, aber höherer Preis je Tonne
+    if (partial) p *= 0.5 + 0.5 * Math.min(1, weightT / 24);
+    if (green) p *= 1 + GREEN_PREMIUM;
+    return Math.round(p / 500) * 500;
+  };
+  const payment = priceFor(state);
+  const quotes = isMultiCompany(state) ? Object.fromEntries(companyViews(worldOf(state)).map((v) => [companyIdOf(v), priceFor(v)])) : undefined;
   // abgeworbener Kunde: der Auftrag geht direkt an den Konkurrenten
   if (customer.lostTo && competitorTakesCustomerOrder(state, customer, payment, route.km)) return null;
 
@@ -148,6 +156,7 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
     international: origin.country !== dest.country,
     ...(partial ? { partial: true } : {}),
     ...(green ? { green: true } : {}),
+    ...(quotes ? { quotes } : {}),
     status: 'offered',
     offerExpires: Math.min(pickupStart, state.time + Math.round(rand.int(state, 4, 30) * 60 * (marketingOriginFactor(state, origin.country) > 1 ? 1.5 : 1))),
     created: state.time,

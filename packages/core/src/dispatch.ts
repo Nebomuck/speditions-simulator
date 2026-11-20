@@ -1,6 +1,7 @@
 // DispatchSystem: Planung, Kalkulation und Konfliktprüfung von Fahrten.
 
 import { effectiveEco } from './traits.ts';
+import { offerPayment } from './shard.ts';
 import { premiumBlock } from './premium.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, loadSpace } from './data/catalog.ts';
@@ -196,7 +197,7 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   const vehicleCost = Math.round((vehicleDaily * durationMin) / MIN_PER_DAY + (toPickup.km + loaded.km - toPickup.railKm - loaded.railKm) * 6); // 6 ct/km Verschleiß
   const railFare = toPickupRaw.fare + loadedRaw.fare;
   const totalCost = fuelCost + toll + railFare + driverCost + vehicleCost;
-  const revenue = order.payment - penaltyFor(order, lateMin);
+  const revenue = offerPayment(state, order) - penaltyFor(order, lateMin);
   return {
     railFare,
     rail: [...toPickupRaw.rail, ...loadedRaw.rail],

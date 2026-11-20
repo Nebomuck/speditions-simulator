@@ -178,9 +178,19 @@ function edgesWithin(ctx: SimContext, trip: Trip, maxKm: number): { edge: RoadEd
 
 /** Stündlich: abgelaufene Störungen aufheben, neue erzeugen – je fahrendem LKW nach gefahrener Strecke, dazu wenige im ganzen Netz. */
 export function updateDisruptions(state: GameState, ctx: SimContext): void {
+  companyDisruptions(state, ctx, expireDisruptions(state));
+}
+
+/** Welt: abgelaufene Störungen entfernen; liefert die aufgehobenen Sperrungen. */
+export function expireDisruptions(state: GameState): Disruption[] {
   state.disruptions ??= [];
   const lifted = state.disruptions.filter((d) => d.until <= state.time && d.kind === 'closure');
   state.disruptions = state.disruptions.filter((d) => d.until > state.time);
+  return lifted;
+}
+
+/** Je Firma: Umleitungen nach aufgehobenen Sperrungen und neue Störungen auf den eigenen Strecken. */
+export function companyDisruptions(state: GameState, ctx: SimContext, lifted: Disruption[]): void {
   // aufgehobene Sperrung: umgeleitete Fahrten nehmen wieder den kürzeren Weg
   if (lifted.length)
     for (const trip of Object.values(state.trips)) {

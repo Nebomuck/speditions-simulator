@@ -1,5 +1,13 @@
 # Changelog
 
+## Unveröffentlicht
+
+- **Technik (Vorbereitung Wettbewerbs-Multiplayer, Schritte D1 bis D3):**
+  - Der Spielzustand ist intern in eine gemeinsame Welt und je Firma einen eigenen Teil aufgeteilt.
+  - Die Simulation kann mehrere Firmen in einer Welt rechnen.
+  - Mehrere Firmen teilen sich eine Auftragsbörse: Jede sieht ihren eigenen Preis, wer zuerst annimmt, bekommt den Auftrag. Kundenbeziehungen führt jede Firma selbst.
+  - Am Spiel ändert sich nichts, Spielstände bleiben kompatibel.
+
 ## 0.19.0 – 20.11.2026
 
 Paket C „Zukunft des Transports“:
