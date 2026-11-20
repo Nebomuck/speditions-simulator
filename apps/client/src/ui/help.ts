@@ -239,7 +239,8 @@ export const HELP: HelpArticle[] = [
     page: 'market',
     keywords: 'branchenblatt zeitung news nachrichten woche schlagzeile',
     body: [
-      'Jeden Montag erscheint das Branchenblatt mit Konjunktur, Dieselpreis, Konkurrenz, Wetter, Saisonausblick und deiner Woche in Zahlen. Die neueste Ausgabe steht im Dashboard, ältere unter Markt & Wettbewerb → Branchenblatt.',
+      'Jeden Montag erscheint das Branchenblatt mit Konjunktur, Dieselpreis, Konkurrenz, Wetter, Saisonausblick und deiner Woche in Zahlen. Die neue Ausgabe öffnet sich als Zeitung, im Einzelspiel hält das Spiel dafür an. Das automatische Öffnen lässt sich unten in der Zeitung abschalten.',
+      '• Die neueste Ausgabe steht auch im Dashboard („Zeitung lesen“), ältere unter Markt & Wettbewerb → Branchenblatt.',
       '• Achte auf Meldungen über Konkurrenten in Schwierigkeiten: Dort steht, ob der Inhaber verkaufen würde und zu welchem Preis.',
     ],
   },

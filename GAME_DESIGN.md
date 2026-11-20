@@ -287,7 +287,7 @@ KI-Speditionen in Schwierigkeiten verkaufen für 75 % des üblichen Preises, kle
 Die Spedition verschwindet danach vom Markt. Der eigene Ruf steigt um 2.
 
 ### Branchenblatt
-Jeden Montag erscheint eine Ausgabe mit Schlagzeile und Rubriken: Konjunktur, die stärkste Region, Dieselpreis zur Vorwoche, Konkurrenz (Konkurs, Neugründung, Wachstum, Schwierigkeiten mit Übernahmepreis), Wetterwarnungen, Saisonausblick, Feiertage, die eigene Woche in Zahlen und ein Fahrer der Woche. Eine Schlagzeile wiederholt sich nicht zwei Wochen in Folge. Das Archiv hält 12 Ausgaben.
+Jeden Montag erscheint eine Ausgabe, die sich als Zeitung im Popup öffnet (im Einzelspiel angehalten). Sie hat Zeitungskopf, Kennzahlenleiste, Aufmacher mit Pressefoto, Marktdaten-Kasten, „Kurz notiert“ und Spalten mit Rubriken: Konjunktur, die stärkste Region, Dieselpreis zur Vorwoche, Konkurrenz (Konkurs, Neugründung, Wachstum, Schwierigkeiten mit Übernahmepreis), Wetterwarnungen, Saisonausblick, Feiertage, die eigene Woche in Zahlen und ein Fahrer der Woche. Eine Schlagzeile wiederholt sich nicht zwei Wochen in Folge. Das Archiv hält 12 Ausgaben.
 
 ### Firmenverkauf und Neustart-Bonus
 Im Einzelspiel lässt sich die Firma ab dem 90. Tag verkaufen, wenn keine Fahrt läuft. Der Preis setzt sich aus zwei Teilen zusammen:

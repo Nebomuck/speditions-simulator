@@ -568,24 +568,6 @@ body:has(.decision-card) .toasts { bottom: auto; top: 72px; }
   .start-actions { position: static; }
 }
 
-/* ---------- Branchenblatt ---------- */
-.news-card { margin-bottom: 0; }
-.news-masthead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--text); padding-bottom: 6px; font-size: 12px; }
-.news-name { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 18px; letter-spacing: .02em; }
-.news-headline { font-family: Georgia, 'Times New Roman', serif; font-size: 21px; line-height: 1.2; margin: 10px 0 12px; }
-.news-items { columns: 2 280px; column-gap: 22px; }
-.news-items.compact { columns: 4 220px; }
-.news-item { break-inside: avoid; margin: 0 0 12px; padding-left: 10px; border-left: 3px solid var(--border-strong); }
-.news-item.good { border-left-color: var(--success); }
-.news-item.bad { border-left-color: var(--danger); }
-.news-item h4 { margin: 0 0 3px; font-size: 13px; display: flex; gap: 6px; align-items: center; }
-.news-item h4 svg { color: var(--text-3); flex-shrink: 0; }
-.news-item p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
-.news-pick { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; width: 100%; text-align: left; background: none; border: none; font: inherit; color: inherit; cursor: pointer; border-radius: 6px; }
-.news-pick .ellipsis { grid-column: 1 / -1; font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.news-pick.active, .news-pick:hover { background: var(--panel-hover); }
-@media (max-width: 900px) { .news-archive { grid-template-columns: 1fr !important; } }
-
 /* ---------- Subunternehmer und Übernahmen ---------- */
 .sub-quotes { display: flex; flex-direction: column; gap: 6px; }
 .sub-quote { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
@@ -610,4 +592,90 @@ body:has(.decision-card) .toasts { bottom: auto; top: 72px; }
 .exit-kv span { color: var(--text-2); }
 .exit-kv b { text-align: right; font-variant-numeric: tabular-nums; }
 .exit-kv span:nth-last-child(2), .exit-kv b:last-child { border-top: 1px solid var(--border); padding-top: 5px; color: var(--text); font-weight: 700; }
-.news-headline + .news-lead { margin: -6px 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--text); }
+
+/* ---------- Branchenblatt: Zeitungslayout (Papier bleibt auch im Dunkelmodus hell) ---------- */
+.paper {
+  --ink: #1d1b17; --ink-2: #4a463d; --ink-3: #7a7466; --rule: #1d1b17; --paper: #f6f1e5; --accent-red: #a3261f;
+  background: var(--paper);
+  background-image: radial-gradient(rgba(60, 45, 20, .045) 1px, transparent 1px);
+  background-size: 3px 3px;
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", "Liberation Serif", serif;
+  padding: 22px 30px 16px;
+  line-height: 1.45;
+}
+.paper-top { display: flex; justify-content: space-between; gap: 12px; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); border-bottom: 1px solid var(--rule); padding-bottom: 5px; }
+.paper-mast { text-align: center; font-family: "Old English Text MT", "UnifrakturMaguntia", Georgia, serif; font-size: clamp(40px, 6vw, 66px); line-height: 1.05; font-weight: 700; letter-spacing: .01em; margin: 10px 0 2px; }
+.paper-claim { text-align: center; font-style: italic; font-size: 13px; color: var(--ink-2); padding-bottom: 8px; border-bottom: 3px double var(--rule); }
+.paper-ticker { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 22px; padding: 6px 0; border-bottom: 1px solid var(--rule); font-family: system-ui, sans-serif; font-size: 12px; font-variant-numeric: tabular-nums; }
+.paper-ticker b { text-transform: uppercase; letter-spacing: .05em; font-size: 10.5px; margin-right: 4px; }
+.paper-ticker i { font-style: normal; margin-left: 4px; }
+.paper .up { color: var(--accent-red); }
+.paper .down { color: #1f6b3a; }
+.paper-front { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(220px, 1fr); margin-top: 16px; border-bottom: 1px solid var(--rule); padding-bottom: 16px; }
+.paper-lead { padding-right: 22px; border-right: 1px solid var(--rule); }
+.paper-rubric { font-family: system-ui, sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent-red); margin-bottom: 4px; }
+.paper-lead h1 { font-size: clamp(26px, 3.2vw, 38px); line-height: 1.08; margin: 0 0 10px; font-weight: 700; letter-spacing: -.01em; }
+.paper-deck { font-size: 16.5px; line-height: 1.45; margin: 0 0 12px; font-weight: 600; }
+.paper-lead p { font-size: 14.5px; margin: 0 0 10px; text-align: justify; hyphens: auto; }
+.paper .dropcap::first-letter { float: left; font-size: 3.3em; line-height: .82; padding: 4px 6px 0 0; font-weight: 700; }
+.paper-byline { font-family: system-ui, sans-serif; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em; }
+.paper-photo { margin: 4px 0 12px; }
+.paper-photo-img { position: relative; height: 170px; display: grid; place-items: center; color: #2b2925; overflow: hidden; filter: grayscale(1) contrast(1.05); background: linear-gradient(#c9c3b4, #a8a293); }
+.paper-photo-img::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(0, 0, 0, .28) 1px, transparent 1.4px); background-size: 4px 4px; mix-blend-mode: multiply; }
+.paper-photo-img > svg { position: relative; z-index: 1; }
+.paper-photo-img > svg.paper-photo-scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.paper-photo-scene .hills { fill: #8f897b; }
+.paper-photo-scene .ground { fill: #6e695d; }
+.paper-photo-scene .lane { stroke: #d8d2c3; stroke-width: 3; stroke-dasharray: 18 14; fill: none; }
+.paper-photo-img.k-weather { background: linear-gradient(#e2ded4, #b9b4a8); }
+.paper-photo-img.k-diesel { background: linear-gradient(#bdb6a6, #9a9384); }
+.paper-photo figcaption { font-family: system-ui, sans-serif; font-size: 11.5px; color: var(--ink-2); padding: 4px 0 5px; border-bottom: 1px solid #cfc7b5; }
+.paper-photo figcaption span { color: var(--ink-3); font-size: 10.5px; margin-left: 4px; }
+.paper-side { padding-left: 18px; display: flex; flex-direction: column; gap: 14px; }
+.paper-box { border: 1px solid var(--rule); padding: 8px 10px; background: rgba(255, 255, 255, .35); }
+.paper-box.company { border-top: 4px solid var(--accent-red); }
+.paper-box h4, .paper-briefs h4 { margin: 0 0 6px; font-family: system-ui, sans-serif; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.paper-box table { width: 100%; border-collapse: collapse; font-family: system-ui, sans-serif; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.paper-box td { padding: 3px 0; border-bottom: 1px dotted #b9b19f; }
+.paper-box tr:last-child td { border-bottom: none; }
+.paper-box td:last-child { text-align: right; font-weight: 600; }
+.paper-briefs { border-top: 2px solid var(--rule); padding-top: 6px; }
+.paper-briefs p { font-size: 13px; margin: 0 0 8px; line-height: 1.4; }
+.paper-cols { columns: 3 220px; column-gap: 26px; column-rule: 1px solid #cfc7b5; padding-top: 14px; }
+.paper-article { break-inside: avoid; margin: 0 0 16px; }
+.paper-article h3 { font-size: 19px; line-height: 1.15; margin: 0 0 6px; }
+.paper-article p { font-size: 13.5px; margin: 0 0 7px; text-align: justify; hyphens: auto; }
+.paper-foot { display: flex; justify-content: space-between; gap: 12px; border-top: 3px double var(--rule); margin-top: 6px; padding-top: 6px; font-family: system-ui, sans-serif; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+
+/* Popup */
+.paper-backdrop { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 18px; background: rgba(8, 12, 20, .72); backdrop-filter: blur(3px); animation: paper-fade .2s ease; }
+.paper-sheet { position: relative; width: min(1060px, 100%); max-height: calc(100vh - 36px); display: flex; flex-direction: column; border-radius: 4px; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, .55); animation: paper-in .35s cubic-bezier(.2, .8, .2, 1); background: #f6f1e5; }
+.paper-scroll { overflow: auto; }
+.paper-close { position: absolute; top: 8px; right: 8px; z-index: 2; border: none; background: rgba(29, 27, 23, .08); color: #1d1b17; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
+.paper-close:hover { background: rgba(29, 27, 23, .16); }
+.paper-actions { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--panel); border-top: 1px solid var(--border); }
+.paper-actions label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+@keyframes paper-in { from { opacity: 0; transform: translateY(18px) rotate(-.6deg) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes paper-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .paper-sheet, .paper-backdrop { animation: none; } }
+.paper-inline .paper { border-radius: var(--radius); border: 1px solid var(--border); }
+@media (max-width: 820px) {
+  .paper { padding: 16px; }
+  .paper-front { grid-template-columns: 1fr; }
+  .paper-lead { padding-right: 0; border-right: none; }
+  .paper-side { padding-left: 0; padding-top: 14px; }
+  .paper-top span:first-child { display: none; }
+}
+
+/* Dashboard-Anriss */
+.news-teaser { cursor: pointer; font-family: Georgia, "Times New Roman", serif; }
+.news-teaser .paper-rubric { color: var(--danger); }
+.news-teaser h3 { margin: 0 0 6px; font-size: 21px; line-height: 1.2; }
+.news-teaser p { margin: 0 0 8px; color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.news-teaser ul { margin: 0; padding-left: 18px; columns: 2 240px; font-size: 13px; color: var(--text-2); }
+.news-teaser:hover h3 { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.news-pick { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; width: 100%; text-align: left; background: none; border: none; font: inherit; color: inherit; cursor: pointer; border-radius: 6px; }
+.news-pick .ellipsis { grid-column: 1 / -1; font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.news-pick.active, .news-pick:hover { background: var(--panel-hover); }
+@media (max-width: 900px) { .news-archive { grid-template-columns: 1fr !important; } }

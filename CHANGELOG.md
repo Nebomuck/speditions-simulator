@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.16.1 – 20.11.2026
+
+- **Branchenblatt als Zeitung:** Die neue Ausgabe öffnet sich jeden Montag als Popup. Im Einzelspiel hält das Spiel so lange an, „Weiterspielen“ setzt es fort.
+  - Die Ausgabe sieht aus wie eine gedruckte Wochenzeitung: Zeitungskopf mit Datum, Kalenderwoche und Preis sowie eine Kennzahlenleiste (Diesel, Konjunktur, Marktführer, dein Platz).
+  - Der Aufmacher hat eine große Schlagzeile, Vorspann, ein Pressefoto mit Bildunterschrift und einen zweiten Absatz.
+  - Rechts stehen die Kästen „Marktdaten der Woche“ und „Deine Firma“ sowie „Kurz notiert“, darunter weitere Artikel in Spalten mit Rubriken.
+  - Das Papier bleibt auch im Dunkelmodus hell.
+  - Das automatische Öffnen lässt sich im Popup abschalten. Im Dashboard steht ein Anriss mit „Zeitung lesen“, das Archiv unter Markt & Wettbewerb nutzt dasselbe Layout.
+
 ## 0.16.0 – 10.11.2026
 
 - **Subunternehmer:** Angenommene Aufträge lassen sich mit „Abgeben“ an einen Partner vergeben, auch wenn kein eigener LKW frei ist. Der Partner holt ab und liefert, du stellst die Rechnung und behältst die Differenz.

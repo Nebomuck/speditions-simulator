@@ -45,6 +45,8 @@ interface UiState {
   dispatchDraft: { orderId?: string; vehicleId?: string } | null;
   /** Auftrag, für den der Subunternehmer-Dialog offen ist */
   subcontractOrderId?: string | null;
+  /** geöffnete Ausgabe des Branchenblatts (Popup) */
+  newsOpen?: number | null;
   /** offener Reiter unter Markt & Wettbewerb */
   marketTab?: 'overview' | 'news' | 'regions' | 'competition' | 'events';
   /** geöffneter Hilfeartikel (F1) oder null */

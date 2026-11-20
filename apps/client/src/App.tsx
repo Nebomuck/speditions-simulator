@@ -24,6 +24,7 @@ import { helpForPage } from './ui/help.ts';
 import { Tutorial } from './ui/Tutorial.tsx';
 import { DecisionCard } from './ui/DecisionCard.tsx';
 import { ExitScreen } from './ui/ExitScreen.tsx';
+import { NewsPopup } from './ui/News.tsx';
 import { ErrorBoundary } from './ui/ErrorBoundary.tsx';
 import { Resizer } from './ui/Resizer.tsx';
 import { startBackground, stopBackground } from './ui/sound.ts';
@@ -108,6 +109,7 @@ export function App() {
       <DispatchDialog />
       <Tutorial />
       <DecisionCard />
+      <NewsPopup />
       <ExitScreen />
       <HelpDialog />
       <ContextMenuHost />

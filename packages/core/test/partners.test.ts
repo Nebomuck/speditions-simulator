@@ -109,6 +109,10 @@ describe('Branchenblatt', () => {
     expect(issue.headline.length).toBeGreaterThan(3);
     expect(issue.items.some((i) => i.kind === 'diesel')).toBe(true);
     expect(issue.items.some((i) => i.kind === 'company')).toBe(true);
+    // Marktdaten für Kopfleiste und Kasten
+    expect(issue.figures?.diesel).toBeGreaterThan(50);
+    expect(issue.figures?.companies).toBeGreaterThan(1);
+    expect(issue.figures?.fleet).toBe(Object.keys(s.vehicles).length);
   });
 
   it('meldet Konkurrenten in Schwierigkeiten mit Übernahmepreis', () => {

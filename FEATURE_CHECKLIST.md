@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 10.11.2026 · Version 0.16.0
+Stand: 20.11.2026 · Version 0.16.1
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -201,7 +201,7 @@ Stand: 10.11.2026 · Version 0.16.0
 | Anpassbare Panelgrößen | Implementiert (Seitenleiste, Dispositionsliste, Fahrzeugfenster; gespeichert, Doppelklick setzt zurück) |
 | Tutorial „Erste Schritte“ | Implementiert (9 Schritte, erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor) |
 | Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 24 Artikel) |
-| Branchenblatt | Getestet (wöchentliche Ausgabe montags, Dashboard-Karte, Archiv mit 12 Ausgaben) |
+| Branchenblatt | Getestet (wöchentliche Ausgabe montags als Zeitungs-Popup, Marktdaten, Dashboard-Anriss, Archiv mit 12 Ausgaben) |
 | Dezente Animationen | Implementiert (Seitenwechsel, Meldungen, Dialoge; respektiert „Bewegung reduzieren“) |
 
 ## 21–22 · Fortschritt & Schwierigkeit
