@@ -29,6 +29,8 @@ import { applyPermit } from './premium.ts';
 import { acquireCompetitor, subcontractOrder } from './partners.ts';
 import { sellCompany } from './exit.ts';
 import { setFuelCard, setFuelPolicy, type FuelCard, type FuelPolicy } from './fuel.ts';
+import { installEquipment, type EquipmentId } from './equipment.ts';
+import { attendFair, setLivery, setOnlinePresence, startCampaign, type Livery } from './branding.ts';
 import {
   cancelJoint, castVote, closeVote, createTask, createVote, deleteTask, mayManageLocation, proposeJoint, readMessage, respondJoint, sendMessage, setPlayerLimits, setRole, updateTask,
 } from './team.ts';
@@ -102,7 +104,12 @@ export type Command =
   | { type: 'acquireCompetitor'; competitorId: Id }
   | { type: 'sellCompany' }
   | { type: 'setFuelPolicy'; policy: FuelPolicy }
-  | { type: 'setFuelCard'; card: FuelCard };
+  | { type: 'setFuelCard'; card: FuelCard }
+  | { type: 'installEquipment'; vehicleId: Id; item: EquipmentId }
+  | { type: 'setLivery'; livery: Partial<Livery> }
+  | { type: 'startCampaign'; country: string }
+  | { type: 'attendFair'; fairId: string }
+  | { type: 'setOnlinePresence'; on: boolean };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -177,11 +184,16 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   sellCompany: 'admin',
   setFuelPolicy: 'fleet',
   setFuelCard: 'finance',
+  installEquipment: 'fleet',
+  setLivery: 'admin',
+  startCampaign: 'expansion',
+  attendFair: 'expansion',
+  setOnlinePresence: 'expansion',
 };
 
 /** Befehle, die Geld vom Firmenkonto ausgeben können (unterliegen dem Ausgabenlimit eines Spielers) */
 const SPENDING: ReadonlySet<Command['type']> = new Set<Command['type']>([
-  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'winBackCustomer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff', 'acquireCompetitor',
+  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'winBackCustomer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff', 'acquireCompetitor', 'installEquipment', 'startCampaign', 'attendFair',
 ]);
 
 /** Standort, den ein Befehl verwaltet (für die Beschränkung auf zugewiesene Niederlassungen); null = neuer Standort */
@@ -701,6 +713,26 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     }
     case 'setFuelCard': {
       const r = setFuelCard(state, cmd.card);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'installEquipment': {
+      const r = installEquipment(state, cmd.vehicleId, cmd.item);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'setLivery': {
+      const r = setLivery(state, cmd.livery ?? {});
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'startCampaign': {
+      const r = startCampaign(state, cmd.country);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'attendFair': {
+      const r = attendFair(state, ctx, cmd.fairId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'setOnlinePresence': {
+      const r = setOnlinePresence(state, !!cmd.on);
       return r.ok ? { ok: true } : fail(r.error);
     }
   }

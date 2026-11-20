@@ -16,6 +16,7 @@ import { effectiveEco, traitAccident, traitCustomerBonus, traitHandlingMin, trai
 import { onPremiumDelivery } from './premium.ts';
 import { onDelivery } from './progress.ts';
 import { maybeInspect } from './inspections.ts';
+import { equipAccidentFactor, equipFuelFactor, equipWearFactor } from './equipment.ts';
 import { formatDateTime, formatDuration, hourOfDay } from './time.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
 import { WEATHER, edgeCountry, edgeWeather, isCustomsBorder, rollBorderWait, tripBan, weatherIn } from './world.ts';
@@ -177,7 +178,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   if (trip.coDriverId && state.drivers[trip.coDriverId]) hosRide(state.drivers[trip.coDriverId].hos, 1);
 
   const loadFrac = leg.loaded ? tripLoadFraction(state, trip) : 0;
-  vehicle.fuelL = Math.max(0, vehicle.fuelL - km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver)));
+  vehicle.fuelL = Math.max(0, vehicle.fuelL - km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver)) * equipFuelFactor(vehicle));
   vehicle.odometerKm += km;
   driver.kmDriven += km;
   if (leg.loaded) trip.kmLoaded += km;
@@ -191,7 +192,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   if (maybeInspect(state, trip, km, here, leg.loaded)) return;
 
   // Verschleiß – abhängig von Haltbarkeit, Beladung und Fahrweise
-  const wear = (0.0006 / model.durability) * (1 + loadFrac * 0.3) * (1.1 - driver.ecoDriving / 500) * km * fleetWearFactor(state) * traitWear(driver);
+  const wear = (0.0006 / model.durability) * (1 + loadFrac * 0.3) * (1.1 - driver.ecoDriving / 500) * km * fleetWearFactor(state) * traitWear(driver) * equipWearFactor(vehicle);
   vehicle.condition = Math.max(0, vehicle.condition - wear);
   if (trip.trailerId) {
     const tr = state.trailers[trip.trailerId];
@@ -209,7 +210,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
 
   // Unfall (Wetter, Erfahrung) und Reifenpanne – selten; ein Zufallswurf für beide
   const ef = state.difficulty.eventFactor;
-  const pAccident = km * ACCIDENT_PER_KM * wx.risk * (1.4 - driver.experience / 100) * ef * traitAccident(driver);
+  const pAccident = km * ACCIDENT_PER_KM * wx.risk * (1.4 - driver.experience / 100) * ef * traitAccident(driver) * equipAccidentFactor(vehicle);
   const pTire = km * TIRE_PER_KM * ef;
   if (rand.chance(state, pAccident + pTire)) {
     if (rand.chance(state, pAccident / (pAccident + pTire))) accident(state, trip, weatherIn(state, here));

@@ -40,7 +40,7 @@ async function save(name: string, auto: boolean) {
   const meta: SaveMeta = {
     name, savedAt: new Date().toISOString(), company: s.company.name, time: s.time, balance: s.company.account.balance, auto,
     seed: s.seed, vehicles: Object.keys(s.vehicles).length, level: s.company.level, scenario: s.scenario?.id, difficulty: s.difficulty.id,
-    founder: Object.values(s.players).find((p) => p.isFounder)?.name,
+    founder: Object.values(s.players).find((p) => p.isFounder)?.name, livery: s.company.livery,
   };
   await writeSave(meta, serializeSave(s, name));
 }

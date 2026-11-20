@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.18.0 – 20.11.2026
+
+Paket B „Identität und Ausstattung“:
+
+- **Fahrzeugausstattung:** Unter Fuhrpark lässt sich jeder LKW nachrüsten („Ausstattung“ in der Zeile oder im Rechtsklickmenü). Der Einbau dauert 2–8 Stunden in der Werkstatt, in der eigenen Werkstatt ist er 10 % günstiger.
+  - Standklimaanlage (2.900 €) und Kühlschrank mit Kaffeemaschine (650 €) machen die Fahrer zufriedener, je nach Anteil im Fuhrpark bis +6 bzw. +2.
+  - Retarder (3.800 €): 12 % weniger Verschleiß. Notbrems- und Spurhalteassistent (2.400 €): 40 % weniger Unfälle. Aerodynamikpaket (3.200 €): 4 % weniger Verbrauch, auch in der Vorkalkulation.
+  - Die Hälfte des Einbaupreises steckt danach im Marktwert des Fahrzeugs.
+- **Firmenlackierung:** Unter Kunden & Verträge stellst du Grund- und Zweitfarbe, Logoform und Kürzel ein.
+  - Das Logo erscheint in der Kopfleiste, auf den Fahrzeugbildern im Fuhrpark und auf der Karte, im Branchenblatt und auf der Startseite bei „Meine Speditionen“.
+  - Die Fahrzeugpunkte auf der Karte bekommen einen Rand in der Firmenfarbe.
+- **Marketing und Messen** (Kunden & Verträge):
+  - Regionale Kampagne (5.500 €, 30 Tage): doppelt so viele Börsenangebote aus dem gewählten Land, die Angebote stehen länger, Preise +3 %.
+  - Messestand (12.000 €, danach 60 Tage Pause) auf einer von acht erfundenen Fachmessen: zwei neue Großkunden aus dem Messeland, ein Rahmenvertragsangebot von einem davon und Ruf +3.
+  - Online-Auftritt (400 € im Monat): 5 % mehr Anfragen und jeden Monat etwas Ruf, bis 70.
+
 ## 0.17.0 – 20.11.2026
 
 Paket A „Fahralltag“:

@@ -130,6 +130,10 @@ export const HELP: HelpArticle[] = [
       '• „Günstig tanken“ lässt die Fahrer in billigen Ländern schon ab 65 % Tankinhalt nachfüllen.',
       '• Tankkarten geben 2 % oder 4 % Rabatt gegen eine monatliche Gebühr je Fahrzeug.',
       '• Die Betriebstankstelle ist noch günstiger.',
+      'Ausstattung: „Ausstattung“ in der Fahrzeugzeile rüstet einen freien LKW in der Werkstatt nach (2–8 h, eigene Werkstatt 10 % günstiger).',
+      '• Standklima und Kühlschrank machen die Fahrer zufriedener, je mehr LKW im Fuhrpark sie haben.',
+      '• Retarder: 12 % weniger Verschleiß. Notbrems- und Spurhalteassistent: 40 % weniger Unfälle. Aerodynamikpaket: 4 % weniger Verbrauch.',
+      '• Die Hälfte des Einbaupreises bleibt im Marktwert des Fahrzeugs.',
     ],
   },
   {
@@ -154,6 +158,19 @@ export const HELP: HelpArticle[] = [
       'Pünktliche Lieferungen machen Kunden zufriedener, Verspätungen und Stornos kosten Zufriedenheit und Ruf.',
       '• Zufriedene Stammkunden zahlen bis zu 5 % mehr und bieten Rahmenverträge an: feste Strecke, feste Wochentage, fester Preis, Strafe bei Ausfall.',
       '• Unter 40 % Zufriedenheit kann ein Kunde ohne laufenden Vertrag zur Konkurrenz wechseln. Ein Vertriebsbesuch (1.500 €) holt ihn vielleicht zurück.',
+    ],
+  },
+  {
+    id: 'marketing',
+    title: 'Marketing, Messen und Firmenlackierung',
+    page: 'customers',
+    keywords: 'marketing werbung kampagne messe messestand online website ruf lackierung logo farbe firmenfarbe',
+    body: [
+      'Unter Kunden & Verträge machst du die Firma bekannter:',
+      '• Regionale Kampagne (5.500 €, 30 Tage): doppelt so viele Börsenangebote aus einem Land, die Angebote stehen länger, Kunden zahlen 3 % mehr.',
+      '• Messestand (12.000 €, danach 60 Tage Pause): zwei neue Großkunden aus dem Messeland, ein Rahmenvertragsangebot und Ruf +3.',
+      '• Online-Auftritt (400 € im Monat): 5 % mehr Anfragen und jeden Monat etwas Ruf, bis 70.',
+      'Firmenlackierung: Farben, Logoform und Kürzel erscheinen in der Kopfleiste, auf Fahrzeugbildern, auf der Karte und im Branchenblatt.',
     ],
   },
   {

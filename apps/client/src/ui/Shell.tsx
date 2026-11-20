@@ -3,6 +3,7 @@ import { SPEEDS, formatTime, formatDate, WEEKDAY_NAMES, weekday, holidayName, se
 import { getUi, navigate, sendCommand, setUi, useGame, useUi, type Page } from '../game/store.ts';
 import { helpForPage } from './help.ts';
 import { Money } from './components.tsx';
+import { CompanyLogo } from './CompanyLogo.tsx';
 
 const NAV: { page: Page; label: string; icon: typeof Map }[] = [
   { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -58,7 +59,7 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <img className="brand-logo" src="/icon.svg" alt="Cargovia" />
+        {s.company.livery ? <CompanyLogo livery={s.company.livery} size={30} className="brand-logo" /> : <img className="brand-logo" src="/icon.svg" alt="Cargovia" />}
         <div>
           {s.company.name}
           <small>Cargovia</small>

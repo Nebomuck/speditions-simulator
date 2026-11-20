@@ -8,6 +8,7 @@ import { rollTrait } from './traits.ts';
 import { rand, newId } from './rng.ts';
 import { MIN_PER_DAY, toDate } from './time.ts';
 import type { Applicant, Customer, CustomerSize, GameState, Money, Qualification, VehicleOffer } from './types.ts';
+import { equipmentValue } from './equipment.ts';
 
 export function personName(state: GameState, country: string): string {
   const key = FIRST_NAMES[country] ? country : 'XX';
@@ -92,7 +93,7 @@ export function vehicleMarketValue(state: GameState, vehicleId: string): Money {
   const v = state.vehicles[vehicleId];
   const m = TRUCK_BY_ID[v.modelId];
   const age = toDate(state.time).getUTCFullYear() - v.year;
-  return usedValue(m.price, age, v.odometerKm, v.condition);
+  return usedValue(m.price, age, v.odometerKm, v.condition) + equipmentValue(v);
 }
 
 /** Inzahlungnahme beim Händler: etwas besser als ein Privatverkauf (90 %). */

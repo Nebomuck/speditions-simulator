@@ -3,7 +3,8 @@
 // Hochdach von der Modellreihe. Keine fremden Bilddateien.
 
 import type { ReactNode } from 'react';
-import { TRUCK_BY_ID, type TrailerType } from '@spedsim/core';
+import { TRUCK_BY_ID, type Livery, type TrailerType } from '@spedsim/core';
+import { CompanyLogo } from './CompanyLogo.tsx';
 
 const MAKER: Record<string, { color: string; dark: string; shape: 'box' | 'aero' | 'angled' | 'classic' }> = {
   Nordwal: { color: '#2563eb', dark: '#1e3a8a', shape: 'box' },
@@ -92,10 +93,23 @@ const STRAPS = (x0: number, x1: number, y0: number, y1: number, step: number, co
 };
 
 /** Aufbau eines Aufliegers bzw. Solo-LKW zwischen x0 und x1; Unterkante 44 */
-function Body({ type, x0, x1, seed = 0 }: { type: TrailerType; x0: number; x1: number; seed?: number }) {
+function Body({ type, x0, x1, seed = 0, livery }: { type: TrailerType; x0: number; x1: number; seed?: number; livery?: Livery }) {
   const w = x1 - x0;
   const top = 8;
   const h = 44 - top;
+  if (livery && (type === 'curtain' || type === 'box' || type === 'reefer')) {
+    const curtain = type === 'curtain';
+    return (
+      <g>
+        <rect x={x0} y={top} width={w} height={h} rx={1.5} fill={curtain ? livery.primary : '#f8fafc'} stroke="#64748b" strokeWidth={1} />
+        {curtain && STRAPS(x0, x1, top + 2, 43, 13, 'rgba(0,0,0,0.18)')}
+        <rect x={x0} y={top + h * 0.62} width={w} height={4} fill={curtain ? livery.secondary : livery.primary} />
+        <CompanyLogo livery={livery} size={h * 0.62} x={x0 + w / 2 - h * 0.31} y={top + 2} />
+        <rect x={x0} y={top} width={w} height={3} fill="#64748b" />
+        <rect x={x0} y={41} width={w} height={3} fill="#475569" />
+      </g>
+    );
+  }
   switch (type) {
     case 'curtain':
       return (
@@ -201,12 +215,12 @@ function Body({ type, x0, x1, seed = 0 }: { type: TrailerType; x0: number; x1: n
 }
 
 /** Sattelauflieger: Front bei x0, Länge 228; mit Stützbeinen, wenn nicht angekuppelt */
-function Semitrailer({ type, x0, coupled, seed }: { type: TrailerType; x0: number; coupled: boolean; seed: number }) {
+function Semitrailer({ type, x0, coupled, seed, livery }: { type: TrailerType; x0: number; coupled: boolean; seed: number; livery?: Livery }) {
   const x1 = x0 + 228;
   const low = type === 'lowbed';
   return (
     <g>
-      <Body type={type} x0={x0} x1={x1} seed={seed} />
+      <Body type={type} x0={x0} x1={x1} seed={seed} livery={livery} />
       {!low && <rect x={x0 + 4} y={44} width={x1 - x0 - 8} height={3} fill="#1f2937" />}
       {!coupled && !low && <rect x={x0 + 40} y={46} width={3} height={GROUND - 46} fill="#4b5563" />}
       {coupled && <rect x={x0 + 14} y={44} width={6} height={3} fill="#111827" />}
@@ -227,7 +241,7 @@ function Svg({ w, h = 64, width, title, children }: { w: number; h?: number; wid
 }
 
 /** Fahrzeugbild: Zugmaschine (optional mit Auflieger), Solo-LKW oder Transporter */
-export function VehicleArt({ modelId, trailer, width = 140, seed = 0 }: { modelId: string; trailer?: TrailerType | null; width?: number; seed?: number }) {
+export function VehicleArt({ modelId, trailer, width = 140, seed = 0, livery }: { modelId: string; trailer?: TrailerType | null; width?: number; seed?: number; livery?: Livery }) {
   const m = TRUCK_BY_ID[modelId];
   if (!m) return null;
   const high = m.hp >= 480 || /Fernverkehr|Highline/.test(m.name);
@@ -251,7 +265,7 @@ export function VehicleArt({ modelId, trailer, width = 140, seed = 0 }: { modelI
     return (
       <Svg w={170} width={width} title={title}>
         <rect x={6} y={44} width={160} height={5} rx={1} fill="#374151" />
-        <Body type={m.body ?? 'box'} x0={44} x1={166} seed={seed} />
+        <Body type={m.body ?? 'box'} x0={44} x1={166} seed={seed} livery={livery} />
         <Cab x0={2} maker={m.maker} high={false} />
         <Wheel x={18} />
         <Wheel x={130} />
@@ -262,16 +276,16 @@ export function VehicleArt({ modelId, trailer, width = 140, seed = 0 }: { modelI
   return (
     <Svg w={trailer ? 284 : 92} width={width} title={trailer ? `${title} mit Auflieger` : title}>
       <Tractor maker={m.maker} high={high} />
-      {trailer && <Semitrailer type={trailer} x0={52} coupled seed={seed} />}
+      {trailer && <Semitrailer type={trailer} x0={52} coupled seed={seed} livery={livery} />}
     </Svg>
   );
 }
 
 /** Einzelner Auflieger (abgestellt, auf Stützbeinen) */
-export function TrailerArt({ type, width = 140, seed = 0 }: { type: TrailerType; width?: number; seed?: number }) {
+export function TrailerArt({ type, width = 140, seed = 0, livery }: { type: TrailerType; width?: number; seed?: number; livery?: Livery }) {
   return (
     <Svg w={232} width={width} title="Auflieger">
-      <Semitrailer type={type} x0={2} coupled={false} seed={seed} />
+      <Semitrailer type={type} x0={2} coupled={false} seed={seed} livery={livery} />
     </Svg>
   );
 }

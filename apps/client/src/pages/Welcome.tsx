@@ -19,6 +19,7 @@ import { Avatar, Modal } from '../ui/components.tsx';
 import { CharacterEditor, DEFAULT_LOOK, randomLook } from '../ui/CharacterEditor.tsx';
 import { countryName } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
+import { CompanyLogo } from '../ui/CompanyLogo.tsx';
 
 const DIFF_TEXT: Record<Exclude<DifficultyId, 'custom'>, string> = {
   easy: 'Mehr Startkapital, höhere Margen, weniger Pannen',
@@ -121,7 +122,7 @@ function CompanyCard({ c, online, busy, onPlay, onLoad, onDelete, onDeleteSave }
   return (
     <div className={`co-card ${mp ? 'mp' : 'sp'}`}>
       <div className="co-head">
-        <div className="co-icon">{mp ? <Network size={18} /> : <Truck size={18} />}</div>
+        {meta?.livery ? <CompanyLogo livery={meta.livery} size={38} className="co-logo" /> : <div className="co-icon">{mp ? <Network size={18} /> : <Truck size={18} />}</div>}
         <div className="co-title">
           <b title={c.name}>{c.name || 'Multiplayer-Firma'}</b>
           <div className="co-tags">

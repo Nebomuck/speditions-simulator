@@ -16,6 +16,7 @@ import type { GameState, HoursOfService, Id, Money, Order, Trip, TripLeg, TripSt
 import { BAN_RULES, banApplies, banAppliesTo, banOnRoute, routeBorderMin, routeCountries, routeSegments, simulateRoute } from './world.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
 import { dieselPriceIn } from './fuel.ts';
+import { equipFuelFactor } from './equipment.ts';
 
 /** Spesen je angefangenem Tag für die Doppelbesatzung (Übernachtung im Fahrzeug, Verpflegung) */
 export const TEAM_ALLOWANCE_PER_DAY = 32_00;
@@ -171,7 +172,7 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   const border2 = routeBorderMin(ctx, loadedRaw.nodes);
   const model = TRUCK_BY_ID[vehicle.modelId];
   const loadFrac = loadFraction(state, vehicle, input.trailerId || undefined, order);
-  const fuelL = toPickup.km * consumptionPerKm(vehicle.modelId, 0, effectiveEco(driver)) + loaded.km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver));
+  const fuelL = (toPickup.km * consumptionPerKm(vehicle.modelId, 0, effectiveEco(driver)) + loaded.km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver))) * equipFuelFactor(vehicle);
   const usable = model.tankL * (1 - FUEL_RESERVE);
   const tankNow = from ? model.tankL * 0.6 : vehicle.fuelL; // Vorausplanung: Tankstand unbekannt → Annahme
   const fuelStops = Math.max(0, Math.ceil((fuelL - (tankNow - model.tankL * FUEL_RESERVE)) / usable));
@@ -696,7 +697,7 @@ export function planCoLoad(state: GameState, ctx: SimContext, vehicleId: Id, ord
       if (before === 0) delayed.push({ orderId: id, lateMin: m });
     }
   }
-  const fuelCost = Math.round(Math.max(0, extraKm) * consumptionPerKm(vehicle.modelId, 0.5, effectiveEco(driver)) * state.market.diesel);
+  const fuelCost = Math.round(Math.max(0, extraKm) * consumptionPerKm(vehicle.modelId, 0.5, effectiveEco(driver)) * equipFuelFactor(vehicle) * state.market.diesel);
   const toll = Math.round(Math.max(0, sim.toll - base.toll) * tollFactor(vehicle.modelId));
   const driverCost = Math.round(((driver.salary * EMPLOYER_COST_FACTOR) / (30 * MIN_PER_DAY)) * Math.max(0, extraMin));
   const extraCost = fuelCost + toll + driverCost + Math.round(Math.max(0, extraKm) * 6) + extraPenalty;

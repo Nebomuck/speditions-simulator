@@ -6,6 +6,7 @@ import { CITY_BY_ID } from './data/cities.ts';
 import { addLog, book, formatMoney } from './finance.ts';
 import { wageLevel } from './generate.ts';
 import { dispatchShortfall } from './company.ts';
+import { comfortBonus } from './equipment.ts';
 import { rand } from './rng.ts';
 import { MIN_PER_DAY, formatDate, formatDateTime, toDate } from './time.ts';
 import type { SimContext } from './context.ts';
@@ -60,6 +61,8 @@ export function satisfactionFactors(state: GameState, d: Driver): { target: numb
   if (lead > 0) reasons.push({ text: 'gute Mitarbeiterführung', delta: lead });
   const short = dispatchShortfall(state);
   if (short > 0) reasons.push({ text: 'überlastete Disposition', delta: -Math.min(12, 2 + short) });
+  const comfort = comfortBonus(state);
+  if (comfort > 0) reasons.push({ text: 'gut ausgestattete Fahrzeuge', delta: comfort });
   if (traitSatisfaction(d)) reasons.push({ text: 'Frohnatur', delta: traitSatisfaction(d) });
   if (d.hired <= state.company.founded) reasons.push({ text: 'Fahrer der ersten Stunde', delta: 8 });
   else {

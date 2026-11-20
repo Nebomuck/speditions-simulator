@@ -16,6 +16,8 @@ export interface SaveMeta {
   scenario?: string;
   difficulty?: string;
   founder?: string;
+  /** Firmenlackierung für das Logo auf der Startseite */
+  livery?: import('@spedsim/core').Livery;
 }
 
 export type HostRequest =

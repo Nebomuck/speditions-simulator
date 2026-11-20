@@ -3,6 +3,8 @@
 // Geldbeträge sind immer ganze Euro-Cent (Money), Zeiten immer Spielminuten seit Spielbeginn (GameTime).
 
 import type { AvatarLook } from './avatar.ts';
+import type { Livery, MarketingState } from './branding.ts';
+import type { EquipmentId } from './equipment.ts';
 
 export type Id = string;
 export type Money = number; // Cent
@@ -193,6 +195,10 @@ export interface Company {
   fuelPolicy?: 'reserve' | 'cheap';
   /** Tankkarte (fehlt: keine) */
   fuelCard?: 'none' | 'basic' | 'premium';
+  /** Firmenlackierung (fehlt: Standardfarben aus dem Seed) */
+  livery?: Livery;
+  /** Marketing: Kampagnen, Messen, Online-Auftritt */
+  marketing?: MarketingState;
 }
 
 /** Ratenkredit (Annuität, monatliche Rate am Monatsersten). */
@@ -392,6 +398,8 @@ export interface Vehicle {
   /** Vorausplanung: Folgeaufträge, die nach der laufenden Fahrt automatisch starten (gleicher Fahrer/Auflieger) */
   queue?: QueuedJob[];
   history: { t: GameTime; text: string; cost: Money }[];
+  /** Nachrüstungen (Standklima, Retarder, …) */
+  equipment?: EquipmentId[];
 }
 
 export interface QueuedJob {

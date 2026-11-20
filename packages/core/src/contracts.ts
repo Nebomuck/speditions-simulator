@@ -13,7 +13,7 @@ import { freshHos, simulateDriving } from './hos.ts';
 import { baseRate, pickDestination } from './orders.ts';
 import { newId, rand } from './rng.ts';
 import { MIN_PER_DAY, WEEKDAY_SHORT, dayIndex, formatDate, holidayName, weekday } from './time.ts';
-import type { Contract, GameState, Id, Order } from './types.ts';
+import type { Contract, Customer, GameState, Id, Order } from './types.ts';
 
 export const CONTRACT_OFFER_TARGET = 4;
 /** Touren gelten als nicht gefahren, wenn sie so lange nach Ende des Ladefensters nicht disponiert sind */
@@ -34,7 +34,7 @@ function openContractOrders(state: GameState, contractId: Id): Order[] {
 }
 
 /** Neues Vertragsangebot: bevorzugt von zufriedenen Stammkunden, sonst als Ausschreibung aus der Region. */
-export function generateContractOffer(state: GameState, ctx: SimContext, renewalOf?: Contract): Contract | null {
+export function generateContractOffer(state: GameState, ctx: SimContext, renewalOf?: Contract, fromCustomer?: Customer): Contract | null {
   if (renewalOf) {
     const c: Contract = {
       ...renewalOf,
@@ -52,8 +52,8 @@ export function generateContractOffer(state: GameState, ctx: SimContext, renewal
     return c;
   }
   const regulars = Object.values(state.customers).filter((c) => c.deliveries >= 2 && c.satisfaction >= 55);
-  const regular = regulars.length > 0 && rand.chance(state, 0.7);
-  let customer = regular ? rand.weighted(state, regulars, (c) => c.satisfaction * Math.sqrt(c.deliveries)) : undefined;
+  const regular = !fromCustomer && regulars.length > 0 && rand.chance(state, 0.7);
+  let customer = fromCustomer ?? (regular ? rand.weighted(state, regulars, (c) => c.satisfaction * Math.sqrt(c.deliveries)) : undefined);
   // Ladungsarten, die die eigene Flotte fahren kann, werden bevorzugt angeboten
   const spaces = new Set<string>(Object.values(state.trailers).map((t) => t.type));
   for (const v of Object.values(state.vehicles)) {

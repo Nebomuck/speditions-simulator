@@ -321,6 +321,27 @@ Ein zweiter Fahrer fährt mit. Ist der Fahrer am Steuer erschöpft und hat der a
 - **Kosten:** Beide Fahrer sind gebunden. Die Vorkalkulation rechnet beide Löhne und 32 € Spesen je angefangenem Tag, die Spesen werden bei Fahrtende gebucht.
 - **Grenzen:** Folgeaufträge (Vorausplanung) gibt es nur mit einem Fahrer. Nach der Fahrt sind beide am Zielort frei.
 
+### Fahrzeugausstattung
+Nachrüstungen werden in der Werkstatt eingebaut. Das Fahrzeug muss frei am Standort stehen und ist für die Einbauzeit gebunden. Mietfahrzeuge lassen sich nicht umrüsten.
+
+| Ausstattung | Preis | Einbau | Wirkung |
+|---|---|---|---|
+| Standklimaanlage | 2.900 € | 6 h | Fahrerzufriedenheit bis +6 (Anteil ausgestatteter LKW im Fuhrpark) |
+| Kühlschrank und Kaffeemaschine | 650 € | 2 h | Fahrerzufriedenheit bis +2 |
+| Retarder | 3.800 € | 8 h | Verschleiß ×0,88 |
+| Notbrems- und Spurhalteassistent | 2.400 € | 5 h | Unfallwahrscheinlichkeit ×0,6 |
+| Aerodynamikpaket | 3.200 € | 6 h | Verbrauch ×0,96 (auch in der Vorkalkulation) |
+
+Die eigene Werkstatt am Standort spart 10 %. Der Marktwert steigt um die Hälfte des Listenpreises. Weil Fahrer die Fahrzeuge wechseln, wirkt der Komfort über den Anteil im ganzen Fuhrpark.
+
+### Firmenlackierung
+Grundfarbe, Zweitfarbe, Logoform (Kreis, Wappen, Raute, Quadrat, Pfeil) und ein Kürzel mit 1–3 Zeichen. Ohne eigene Wahl gilt eine Standardfarbe aus dem Spielstart. Das Logo erscheint in der Kopfleiste, auf Fahrzeugbildern, im Fahrzeugfenster der Karte, im Branchenblatt und auf der Startseite. Gezeichnete Planen- und Kofferaufbauten werden in der Firmenfarbe lackiert, auf Fotos klebt das Logo. Die Fahrzeugpunkte der Karte bekommen einen Rand in der Grundfarbe.
+
+### Marketing und Messen
+- **Regionale Kampagne:** 5.500 €, 30 Tage, je Land höchstens eine. Herkunftsgewicht der Börsenaufträge aus dem Land ×2, Angebotsdauer ×1,5, Preis ×1,03. Jede laufende Kampagne erhöht das Börsenvolumen um 6 %.
+- **Messestand:** 12.000 €, danach 60 Tage Sperrfrist. Acht erfundene Messen in großen Logistikstädten. Zwei Kunden aus dem Messeland (neue Kunden als Großkunden, Zufriedenheit mindestens 65), ein Rahmenvertragsangebot bevorzugt von einem dieser Kunden, Ruf +3.
+- **Online-Auftritt:** 400 € im Monat in den Fixkosten. Börsenvolumen +5 %, am Monatsersten Ruf +0,5 bis höchstens 70.
+
 ## 18. Bedienung, Hilfe und Atmosphäre
 
 - **Erste Schritte:** In neuen Spielen führt eine Liste durch neun Schritte (Börse, erste Disposition, Zeit, Karte, Lieferung, Finanzen, Fuhrpark, zweites Fahrzeug, Hilfe). Sie erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor und lässt sich ausblenden bzw. über die Hilfe wieder einblenden.

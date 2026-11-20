@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Crosshair, X, Navigation, PackagePlus, MapPin, TriangleAlert, Wrench } from 'lucide-react';
 import {
   CARGO_BY_ID, TRUCK_BY_ID, CITY_BY_ID, drivableNow, formatDateTime, formatDuration, formatHours, nearestCity, remainingKm, vehicleSchedule, vehicleMarker, isTripLate, ordersOnBoard,
-  REST_KIND_LABEL, loadSpace, disruptionLabel, WEATHER, BAN_RULES, weatherIn, banUntil, banApplies,
+  REST_KIND_LABEL, loadSpace, liveryOf, disruptionLabel, WEATHER, BAN_RULES, weatherIn, banUntil, banApplies,
 } from '@spedsim/core';
 import { localStorageSet, sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Bar, Money } from '../ui/components.tsx';
@@ -134,7 +134,7 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
         </button>
         <button className="icon-btn" onClick={() => setUi({ selectedVehicleId: null, followVehicle: false })}><X size={16} /></button>
       </div>
-      <div className="panel-art"><VehicleProfile modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={320} seed={artSeed(v.id)} /></div>
+      <div className="panel-art"><VehicleProfile modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={320} seed={artSeed(v.id)} livery={liveryOf(s)} /></div>
       <div className="row wrap">
         <Badge kind={trip ? (trip.activity === 'breakdown' || trip.activity === 'accident' ? 'danger' : trip.activity === 'ban' || trip.activity === 'border' ? 'warning' : 'info') : 'success'}>{activityLabel(trip, v.status)}</Badge>
         {late && <Badge kind="danger">Verspätet</Badge>}

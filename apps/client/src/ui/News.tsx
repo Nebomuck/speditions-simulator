@@ -3,9 +3,10 @@
 
 import { useEffect, useState } from 'react';
 import { Building2, CloudLightning, Fuel, Newspaper as NewspaperIcon, Snowflake, Swords, TrendingUp, UserRound, X } from 'lucide-react';
-import { MONTH_NAMES, NEWS_NAME, WEEKDAY_NAMES, formatDate, formatMoney, toDate, weekday, type GameState, type NewsIssue, type NewsItem, type NewsKind } from '@spedsim/core';
+import { MONTH_NAMES, NEWS_NAME, WEEKDAY_NAMES, formatDate, formatMoney, liveryOf, toDate, weekday, type GameState, type NewsIssue, type NewsItem, type NewsKind } from '@spedsim/core';
 import { getUi, navigate, sendCommand, setUi, useGame, useUi } from '../game/store.ts';
 import { Card, Empty } from './components.tsx';
+import { CompanyLogo } from './CompanyLogo.tsx';
 
 const KIND_ICON: Record<NewsKind, typeof NewspaperIcon> = {
   market: TrendingUp, diesel: Fuel, rivals: Swords, weather: CloudLightning, season: Snowflake, company: Building2, driver: UserRound,
@@ -154,7 +155,7 @@ export function Newspaper({ issue, s }: { issue: NewsIssue; s: GameState }) {
             )}
             {f && (
               <div className="paper-box company">
-                <h4>{s.company.name}</h4>
+                <h4 className="paper-co"><CompanyLogo livery={liveryOf(s)} size={22} />{s.company.name}</h4>
                 <table>
                   <tbody>
                     <tr><td>Lieferungen</td><td>{f.deliveries}</td></tr>

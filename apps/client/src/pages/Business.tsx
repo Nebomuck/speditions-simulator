@@ -12,6 +12,7 @@ import { Badge, Bar, Card, Empty, Money, PageHeader, useSort } from '../ui/compo
 import { Avatar } from '../ui/Portrait.tsx';
 import { cityLabel, cityName, countryName, km, tons, trailerName, QUAL_LABEL } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
+import { LiveryCard, MarketingCard } from '../ui/Branding.tsx';
 
 const INDUSTRY: Record<string, string> = {
   port: 'Hafen', chemical: 'Chemie', automotive: 'Automobil', food: 'Lebensmittel', agriculture: 'Landwirtschaft', steel: 'Stahl',
@@ -32,6 +33,8 @@ export function CustomersPage() {
       <PageHeader title="Kunden & Verträge" subtitle={`${customers.length} bekannte Unternehmen · Reputation ${Math.round(s.company.reputation)}/100`} />
       <Tenders />
       <Contracts />
+      <MarketingCard />
+      <LiveryCard />
       <Card title="Kundenbeziehungen" sub="Pünktliche Lieferungen steigern die Zufriedenheit; Verspätungen und Stornierungen senken sie.">
         <div className="table-wrap" style={{ border: 'none', maxHeight: 'calc(100vh - 260px)' }}>
           <table className="table">

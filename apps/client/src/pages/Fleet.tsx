@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Wrench, ShoppingCart, Tag, Truck, Container, Gauge, MapPin, Send, Fuel } from 'lucide-react';
+import { Wrench, ShoppingCart, Tag, Truck, Container, Gauge, MapPin, Send, Fuel, Sparkles, Check } from 'lucide-react';
 import {
-  COUNTRY_DIESEL, COUNTRY_NAMES, FUEL_CARDS, FUEL_POLICY_LABEL, dieselPriceIn, fuelCard, fuelPolicy, type FuelCard as FuelCardId, type FuelPolicy,
+  COUNTRY_DIESEL, COUNTRY_NAMES, EQUIPMENT, liveryOf, EQUIPMENT_IDS, hasEquipment, FUEL_CARDS, FUEL_POLICY_LABEL, dieselPriceIn, fuelCard, fuelPolicy, type FuelCard as FuelCardId, type FuelPolicy,
   TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, annuity, capacity, deptCount, formatDateTime, hasFacility, openVehicleLoan, serviceCost, toDate, tradeInValue,
   vehicleLoanRate, vehicleMarketValue, vehicleRentPerDay, type TrailerType, type TruckModel, type Vehicle,
 } from '@spedsim/core';
-import { sendCommand, setUi, useGame } from '../game/store.ts';
+import { sendCommand, setUi, useGame, useUi } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Modal, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { activityLabel, bodyName, cityName, dec, km, modelName, trailerName } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
@@ -38,6 +38,7 @@ export function vehicleMenu(s: GameState, v: Vehicle): MenuItem[] {
       disabled: !idle || v.condition >= 98,
       onClick: () => sendCommand({ type: 'serviceVehicle', vehicleId: v.id }),
     },
+    { label: 'Ausstattung nachrüsten …', icon: <Sparkles size={14} />, disabled: v.ownership === 'rented', onClick: () => setUi({ equipVehicleId: v.id, page: 'fleet' }) },
     { label: v.ownership === 'owned' ? 'Verkaufen …' : 'Zurückgeben …', icon: <Tag size={14} />, danger: true, sep: true, disabled: !idle, onClick: () => sellOrReturn(v) },
   ];
 }
@@ -47,6 +48,8 @@ export function FleetPage() {
   const [shop, setShop] = useState<'none' | 'used' | 'new' | 'trailer'>('none');
   const [where, setWhere] = useState('');
   const [below, setBelow] = useState(70);
+  const equipId = useUi((u) => u.equipVehicleId);
+  const livery = liveryOf(s);
   const cap = capacity(s);
   const all = Object.values(s.vehicles);
   const match = (cityId: string, moving: boolean) => !where || (where === 'moving' ? moving : !moving && cityId === where);
@@ -107,8 +110,8 @@ export function FleetPage() {
                     <td><b>{v.plate}</b></td>
                     <td>
                       <div className="row">
-                        <VehiclePhoto modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={60} seed={artSeed(v.id)} />
-                        <div>{m.maker} {m.name}<div className="dim">{kindText(v.modelId)} · {v.year} · {m.hp} PS · {m.emission} · Ø {dec(m.consumption)} l/100 km</div></div>
+                        <VehiclePhoto modelId={v.modelId} trailer={trip?.trailerId ? s.trailers[trip.trailerId]?.type : null} width={60} seed={artSeed(v.id)} livery={livery} />
+                        <div>{m.maker} {m.name}<div className="dim">{kindText(v.modelId)} · {v.year} · {m.hp} PS · {m.emission} · Ø {dec(m.consumption)} l/100 km</div>{!!v.equipment?.length && <div className="equip-tags">{v.equipment.map((id) => <span key={id} className="equip-tag" title={EQUIPMENT[id].effect}>{EQUIPMENT[id].name}</span>)}</div>}</div>
                       </div>
                     </td>
                     <td><Badge kind={trip ? 'info' : v.status === 'workshop' ? 'warning' : 'success'}>{activityLabel(trip, v.status)}</Badge>{v.busyUntil && <div className="dim" style={{ fontSize: 12 }}>bis {formatDateTime(v.busyUntil)}</div>}</td>
@@ -127,6 +130,7 @@ export function FleetPage() {
                         >
                           <Wrench size={13} />Werkstatt
                         </button>
+                        <button className="btn small" disabled={v.ownership === 'rented'} onClick={() => setUi({ equipVehicleId: v.id })} title="Standklima, Retarder, Assistenzsysteme, Aerodynamik"><Sparkles size={13} />Ausstattung</button>
                         <button className="btn small" disabled={v.status !== 'idle'} onClick={() => setUi({ selectedVehicleId: v.id, page: 'map' })}>Karte</button>
                         <button
                           className="btn small danger"
@@ -152,7 +156,7 @@ export function FleetPage() {
               {trailers.map((t) => (
                 <tr key={t.id}>
                   <td><b>{t.plate}</b></td>
-                  <td><div className="row"><TrailerPhoto type={t.type} width={72} seed={artSeed(t.id)} />{trailerName(t.type)}</div></td>
+                  <td><div className="row"><TrailerPhoto type={t.type} width={72} seed={artSeed(t.id)} livery={livery} />{trailerName(t.type)}</div></td>
                   <td><Badge kind={t.status === 'idle' ? 'success' : 'info'}>{t.status === 'idle' ? 'frei' : 'im Einsatz'}</Badge></td>
                   <td>{t.status === 'idle' ? cityName(t.cityId) : 'unterwegs'}</td>
                   <td><div className="row"><Bar value={t.condition} />{Math.round(t.condition)} %</div></td>
@@ -169,6 +173,7 @@ export function FleetPage() {
         </div>
       </Card>
       <FuelCard />
+      {s.vehicles[equipId ?? ''] && <EquipmentDialog vehicle={s.vehicles[equipId!]} onClose={() => setUi({ equipVehicleId: null })} />}
       {shop === 'used' && <UsedMarket onClose={() => setShop('none')} />}
       {shop === 'new' && <NewMarket onClose={() => setShop('none')} />}
       {shop === 'trailer' && <TrailerMarket onClose={() => setShop('none')} />}
@@ -383,6 +388,43 @@ function TrailerMarket({ onClose }: { onClose: () => void }) {
 }
 
 /** Fahrzeugklasse inkl. festem Aufbau, z. B. „Solo-LKW · Koffer 3,2 t“. */
+/** Nachrüstungen für ein Fahrzeug */
+function EquipmentDialog({ vehicle: v, onClose }: { vehicle: Vehicle; onClose: () => void }) {
+  const s = useGame();
+  const own = hasFacility(s, v.cityId, 'workshop');
+  const idle = v.status === 'idle';
+  return (
+    <Modal title={<>Ausstattung · {v.plate}</>} onClose={onClose} width={620}>
+      <p className="dim" style={{ marginTop: 0 }}>
+        Der Einbau dauert einige Stunden in der Werkstatt{own ? ' – in der eigenen Werkstatt 10 % günstiger' : ''}. Die Hälfte des Preises steckt danach im Wiederverkaufswert.
+        {!idle && <><br /><b>Das Fahrzeug muss frei am Standort stehen.</b></>}
+      </p>
+      <div className="equip-list">
+        {EQUIPMENT_IDS.map((id) => {
+          const e = EQUIPMENT[id];
+          const has = hasEquipment(v, id);
+          const price = Math.round(e.price * (own ? 0.9 : 1));
+          return (
+            <div key={id} className={`equip-row ${has ? 'has' : ''}`}>
+              <div style={{ flex: 1 }}>
+                <b>{e.name}</b>
+                <div className="dim" style={{ fontSize: 12 }}>{e.effect}</div>
+              </div>
+              {has ? (
+                <Badge kind="success"><Check size={12} />eingebaut</Badge>
+              ) : (
+                <button className="btn small primary" disabled={!idle} onClick={() => sendCommand({ type: 'installEquipment', vehicleId: v.id, item: id })} title={`Einbauzeit ${e.hours} h`}>
+                  <Money value={price} /> · {e.hours} h
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}
+
 function kindText(modelId: string) {
   const m = TRUCK_BY_ID[modelId];
   if (!m?.body) return VEHICLE_KIND_LABEL.tractor;

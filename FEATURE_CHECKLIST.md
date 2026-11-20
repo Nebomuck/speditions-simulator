@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 20.11.2026 · Version 0.17.0
+Stand: 20.11.2026 · Version 0.18.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -190,6 +190,9 @@ Stand: 20.11.2026 · Version 0.17.0
 | Tankstrategie und Tankkarten | Getestet (Dieselpreis je Land, „Günstig tanken“, Tankkarten Basis/Premium, Vorkalkulation mit Länderpreisen) |
 | Straßenkontrollen | Getestet (Häufigkeit je Land, Mängel, Stilllegung, Ladungssicherung, Tempo, Tachograph, Fuhrparkmanagement senkt die Quote) |
 | Doppelbesatzung | Getestet (Fahrerwechsel ohne Halt, Mitfahren zählt als Pause, Team-Vorkalkulation, Spesen) |
+| Fahrzeugausstattung | Getestet (Einbau in der Werkstatt, Kosten, Marktwert, Verbrauch in der Vorkalkulation, Komfort und Zufriedenheit) |
+| Firmenlackierung | Getestet (Standard aus dem Spielstart, Prüfung von Farben, Form und Kürzel); im Browser geprüft: Kopfleiste, Fuhrpark, Karte |
+| Marketing und Messen | Getestet (Kampagne mit Ablauf, Herkunftsgewicht und Volumen, Messe mit Neukunden, Ruf und Sperrfrist, Online-Auftritt in den Fixkosten) |
 | Subunternehmer | Getestet (Aufträge an Konkurrenz oder Börsenpartner abgeben, Marge, Verspätungsrisiko, Strafe trägt der Partner) |
 | Übernahme von Konkurrenten | Getestet (angeschlagen günstig, klein teurer; LKW, Auflieger, Betriebshof, Fahrer, Kunden) |
 

@@ -36,6 +36,8 @@ export * from './news.ts';
 export * from './exit.ts';
 export * from './fuel.ts';
 export * from './inspections.ts';
+export * from './equipment.ts';
+export * from './branding.ts';
 export * from './trips.ts';
 export * from './sim.ts';
 export * from './commands.ts';

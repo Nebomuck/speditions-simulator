@@ -11,6 +11,7 @@ import { dailyProgress } from './progress.ts';
 import { hourlyTeam } from './team.ts';
 import { hourlyPartners } from './partners.ts';
 import { dailyNews } from './news.ts';
+import { dailyMarketing } from './branding.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney, processInvoices, processMonthEnd } from './finance.ts';
 import { makeApplicant, makeVehicleOffer } from './generate.ts';
@@ -135,5 +136,6 @@ function daily(state: GameState, ctx: SimContext) {
   dailyScenario(state);
   dailyProgress(state);
   dailyNews(state);
+  dailyMarketing(state);
   pruneTrips(state);
 }

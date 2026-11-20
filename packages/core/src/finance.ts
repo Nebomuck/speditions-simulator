@@ -12,6 +12,7 @@ import { MIN_PER_DAY, formatDate } from './time.ts';
 import type { Customer, GameState, Id, Invoice, LedgerAccount, LedgerCategory, Loan, LogEntry, Money, Order } from './types.ts';
 import { crisisPaymentFactor } from './economy.ts';
 import { FUEL_CARDS, fuelCard, fuelCardMonthly } from './fuel.ts';
+import { ONLINE_MONTHLY } from './branding.ts';
 
 export const EMPLOYER_COST_FACTOR = 1.21; // Arbeitgeberanteil Sozialversicherung (Spielwert)
 export const OVERDRAFT_INTEREST_PA = 0.12;
@@ -138,6 +139,7 @@ export function monthlyFixedCosts(state: GameState): { label: string; amount: Mo
   }
   const card = fuelCardMonthly(state);
   if (card > 0) items.push({ label: `${FUEL_CARDS[fuelCard(state)].name} (${Object.keys(state.vehicles).length} Fahrzeuge)`, amount: card, category: 'fuel' });
+  if (state.company.marketing?.online) items.push({ label: 'Online-Auftritt (Frachtportal, Bewertungen)', amount: ONLINE_MONTHLY, category: 'other' });
   items.push({ label: 'Software, Telefon, Verwaltung', amount: 120_00 + 25_00 * Object.keys(state.vehicles).length, category: 'other' });
   return items;
 }

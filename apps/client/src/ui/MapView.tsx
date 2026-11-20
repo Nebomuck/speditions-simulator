@@ -53,6 +53,9 @@ function roadsGeoJSON(): GeoJSON.FeatureCollection {
   };
 }
 
+/** Randfarbe der Fahrzeugpunkte aus der Firmenlackierung (null = Standard) */
+let liveryStroke: string | null = null;
+
 function citiesGeoJSON(state: GameState | null): GeoJSON.FeatureCollection {
   const own = new Set(state?.company.locations.map((l) => l.cityId) ?? []);
   return {
@@ -298,6 +301,14 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
         });
       }
       src.setData({ type: 'FeatureCollection', features });
+      // Firmenfarbe als Rand der Fahrzeugpunkte
+      const lc = st.company.livery?.primary ?? null;
+      if (lc !== liveryStroke && map.getLayer('vehicles')) {
+        liveryStroke = lc;
+        const dark = document.documentElement.dataset.theme !== 'light';
+        map.setPaintProperty('vehicles', 'circle-stroke-color', lc ?? (dark ? '#0b1120' : '#ffffff'));
+        map.setPaintProperty('vehicles', 'circle-stroke-width', lc ? 2.5 : 2);
+      }
       if (u.followVehicle && followPos && !mini) map.jumpTo({ center: followPos });
     };
     raf = requestAnimationFrame(frame);
@@ -588,8 +599,8 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     paint: {
       'circle-radius': ['case', ['get', 'selected'], 8, 6.5],
       'circle-color': ['case', ['get', 'late'], '#f87171', colorExpr],
-      'circle-stroke-width': 2,
-      'circle-stroke-color': dark ? '#0b1120' : '#ffffff',
+      'circle-stroke-width': liveryStroke ? 2.5 : 2,
+      'circle-stroke-color': liveryStroke ?? (dark ? '#0b1120' : '#ffffff'),
     },
   });
   map.addLayer({
