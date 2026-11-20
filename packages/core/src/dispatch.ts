@@ -15,6 +15,10 @@ import { MIN_PER_DAY, formatDateTime, formatDuration } from './time.ts';
 import type { GameState, HoursOfService, Id, Money, Order, Trip, TripLeg, TripStop, Vehicle } from './types.ts';
 import { BAN_RULES, banApplies, banAppliesTo, banOnRoute, routeBorderMin, routeCountries, routeSegments, simulateRoute } from './world.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
+import { dieselPriceIn } from './fuel.ts';
+
+/** Spesen je angefangenem Tag für die Doppelbesatzung (Übernachtung im Fahrzeug, Verpflegung) */
+export const TEAM_ALLOWANCE_PER_DAY = 32_00;
 
 export interface DispatchInput {
   orderId: Id;
@@ -22,6 +26,8 @@ export interface DispatchInput {
   vehicleId: Id;
   /** leer bei Solo-LKW/Transporter (fester Aufbau) */
   trailerId: Id;
+  /** Doppelbesatzung: zweiter Fahrer */
+  coDriverId?: Id;
 }
 
 /** Startpunkt einer Planung: jetzt am Standort des Fahrzeugs oder später (Vorausplanung nach laufender Fahrt). */
@@ -134,28 +140,32 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   const loaded = { ...loadedRaw, driveMin: loadedRaw.driveMin / sf };
   const cargo = CARGO_BY_ID[order.cargoId];
   const hos = { ...(from?.hos ?? driver.hos) };
+  const coDriver = input.coDriverId ? state.drivers[input.coDriverId] : undefined;
+  const co = coDriver && !from ? { ...coDriver.hos } : coDriver ? { ...coDriver.hos, requiredRest: 0, requiredRestKind: 'none' as const } : undefined;
 
   let t = startTime;
   let restMin = 0;
   // ausstehende Ruhezeit zuerst
-  if (hos.requiredRest > 0) {
+  if (hos.requiredRest > 0 && !(co && co.requiredRest <= 0)) {
     const r = simulateDriving(hos, 0.0001);
     t += r.elapsed;
     restMin += r.restMin;
   }
   // Fahrt mit Lenk-/Ruhezeiten, Wetter, Grenzwartezeiten und Fahrverboten (wie in der Simulation)
-  const e1 = simulateRoute(hos, t, routeSegments(state, ctx, toPickupRaw.nodes, 0, sf), banAppliesTo(vehicle));
+  const e1 = simulateRoute(hos, t, routeSegments(state, ctx, toPickupRaw.nodes, 0, sf), banAppliesTo(vehicle), co);
   t += e1.elapsed;
   restMin += e1.restMin + e1.banMin;
   const border1 = routeBorderMin(ctx, toPickupRaw.nodes);
   // Warten aufs Ladefenster zählt als Ruhe; lange Wartezeiten nutzt der Fahrer für die Tagesruhe
   const wait = pickupWaitMin(hos, t, order.pickupStart, order.pickupEnd);
   hosRest(hos, wait);
+  if (co) hosRest(co, wait);
   t += wait;
   const pickupEta = t;
   t += cargo.loadMin;
   hosWork(hos, cargo.loadMin);
-  const e2 = simulateRoute(hos, t, routeSegments(state, ctx, loadedRaw.nodes, 0, sf), banAppliesTo(vehicle, order.cargoId));
+  if (co) hosWork(co, cargo.loadMin);
+  const e2 = simulateRoute(hos, t, routeSegments(state, ctx, loadedRaw.nodes, 0, sf), banAppliesTo(vehicle, order.cargoId), co);
   t += e2.elapsed;
   restMin += e2.restMin + e2.banMin;
   const border2 = routeBorderMin(ctx, loadedRaw.nodes);
@@ -170,9 +180,10 @@ export function estimateTrip(state: GameState, ctx: SimContext, input: DispatchI
   hosWork(hos, 0);
   const lateMin = Math.max(0, deliveryEta - order.deliveryEnd);
   const durationMin = deliveryEta - startTime;
-  const fuelCost = Math.round(fuelL * state.market.diesel);
+  // Preis: Mittel aus Lade- und Entladeland, mit Tankkarte
+  const fuelCost = Math.round(fuelL * (dieselPriceIn(state, CITY_BY_ID[order.fromCityId].country) + dieselPriceIn(state, CITY_BY_ID[order.toCityId].country)) / 2);
   const toll = Math.round((toPickup.toll + loaded.toll) * tollFactor(vehicle.modelId));
-  const driverCost = Math.round(((driver.salary * EMPLOYER_COST_FACTOR) / (30 * MIN_PER_DAY)) * durationMin);
+  const driverCost = Math.round((((driver.salary + (coDriver?.salary ?? 0)) * EMPLOYER_COST_FACTOR) / (30 * MIN_PER_DAY)) * durationMin) + (coDriver ? Math.ceil(durationMin / MIN_PER_DAY) * TEAM_ALLOWANCE_PER_DAY : 0);
   const vehicleDaily = (model.insurance + (vehicle.leaseRate ?? model.price / 72)) / 30;
   const vehicleCost = Math.round((vehicleDaily * durationMin) / MIN_PER_DAY + (toPickup.km + loaded.km) * 6); // 6 ct/km Verschleiß
   const totalCost = fuelCost + toll + driverCost + vehicleCost;
@@ -216,6 +227,9 @@ export function validateDispatch(state: GameState, ctx: SimContext, input: Dispa
   if (!driver) err('driver_missing', 'Fahrer existiert nicht.');
   if (!vehicle) err('vehicle_missing', 'Fahrzeug existiert nicht.');
   if (!solo && !trailer) err('trailer_missing', 'Bitte einen Auflieger wählen.');
+  const coDriver = input.coDriverId ? state.drivers[input.coDriverId] : undefined;
+  if (input.coDriverId && !coDriver) err('codriver_missing', 'Zweiter Fahrer existiert nicht.');
+  if (coDriver && coDriver.id === input.driverId) err('codriver_same', 'Für die Doppelbesatzung braucht es zwei verschiedene Fahrer.');
   if (issues.length) return { issues, estimate: null };
 
   if (order.status !== 'offered' && order.status !== 'accepted') err('order_status', 'Auftrag ist nicht mehr disponierbar.');
@@ -228,8 +242,12 @@ export function validateDispatch(state: GameState, ctx: SimContext, input: Dispa
     if (vehicle.status !== 'idle') err('vehicle_busy', `LKW ${vehicle.plate} ist bereits unterwegs – Folgeauftrag über „Vorausplanen“ einplanen.`);
     if (trailer && trailer.status !== 'idle') err('trailer_busy', `Auflieger ${trailer.plate} ist bereits verplant.`);
     if (driver.cityId !== vehicle.cityId) err('location_driver', `${driver.name} befindet sich nicht am Standort des LKW (${CITY_BY_ID[vehicle.cityId].name}).`);
+    if (coDriver && coDriver.status !== 'idle') err('codriver_busy', `${coDriver.name} ist nicht verfügbar (bereits verplant oder abwesend).`);
+    if (coDriver && coDriver.cityId !== vehicle.cityId) err('location_codriver', `${coDriver.name} befindet sich nicht am Standort des LKW (${CITY_BY_ID[vehicle.cityId].name}).`);
     if (trailer && trailer.cityId !== vehicle.cityId) err('location_trailer', `Auflieger steht nicht am Standort des LKW (${CITY_BY_ID[trailer.cityId].name}).`);
   } else if (vehicle.status !== 'on_trip') err('vehicle_not_busy', `LKW ${vehicle.plate} ist frei – bitte direkt disponieren.`);
+  if (opts.queued && coDriver) err('codriver_queued', 'Doppelbesatzung lässt sich nur direkt disponieren, nicht vorausplanen.');
+  if (coDriver) for (const q of order.qualifications) if (!coDriver.qualifications.includes(q)) err('qualification', `${coDriver.name} fehlt die Qualifikation ${q === 'ADR' ? 'ADR-Schein (Gefahrgut)' : q === 'heavy' ? 'Schwertransport' : q}.`);
   const space = loadSpace(vehicle.modelId, trailer?.type);
   if (space && space.type !== order.trailerType)
     err('trailer_type', `Ungeeigneter Laderaum: benötigt ${TRAILER_BY_TYPE[order.trailerType].name}, vorhanden ${solo ? `Aufbau ${TRAILER_BY_TYPE[space.type].name.replace('auflieger', '')}` : TRAILER_BY_TYPE[space.type].name}.`);
@@ -281,6 +299,7 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
     id,
     orderId: order.id,
     driverId: driver.id,
+    ...(input.coDriverId ? { coDriverId: input.coDriverId } : {}),
     vehicleId: vehicle.id,
     ...(trailer ? { trailerId: trailer.id } : {}),
     stops: [
@@ -307,6 +326,11 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
   order.tripId = id;
   driver.status = 'on_trip';
   driver.tripId = id;
+  const co = input.coDriverId ? state.drivers[input.coDriverId] : undefined;
+  if (co) {
+    co.status = 'on_trip';
+    co.tripId = id;
+  }
   vehicle.status = 'on_trip';
   vehicle.tripId = id;
   if (trailer) {
@@ -316,7 +340,7 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
   addLog(state, {
     level: 'info',
     category: 'trip',
-    text: `${driver.name} übernimmt ${CARGO_BY_ID[order.cargoId].name} ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name} (geplante Ankunft ${formatDateTime(estimate.deliveryEta)}).`,
+    text: `${driver.name}${co ? ` und ${co.name} (Doppelbesatzung)` : ''} übernimmt ${CARGO_BY_ID[order.cargoId].name} ${CITY_BY_ID[order.fromCityId].name} → ${CITY_BY_ID[order.toCityId].name} (geplante Ankunft ${formatDateTime(estimate.deliveryEta)}).`,
     ref: { kind: 'trip', id },
   });
   return trip;

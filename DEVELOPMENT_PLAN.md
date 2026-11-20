@@ -23,7 +23,51 @@ Spielspaß-Paket 1 (0.14.0) ist umgesetzt: Entscheidungskarten, Ausschreibungen 
 
 Spielspaß-Paket 2 (unveröffentlicht) ist umgesetzt: Premium-Aufträge (Schwertransport mit Genehmigung, Messe-Termin), Szenarien, Quartalsziele der Hausbank mit Bonität, Erfolge und Rekorde, Fahrereigenschaften mit kleinen Geschichten.
 
-1. Rückmeldung aus dem Spielen abwarten und daraus das nächste Paket ableiten
+Spielspaß-Paket 3 (0.16.x) ist umgesetzt: Subunternehmer, Übernahmen, Branchenblatt (als Zeitungs-Popup), Firmenverkauf mit Neustart-Bonus.
+
+### Ausbau-Plan (beschlossen am 20.11.2026)
+
+Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nur eine grobe Preisstaffel. Alles Folgende ist neu.
+
+**Paket A – Fahralltag (0.17.0)** – ✅ umgesetzt (Tests in `packageA.test.ts`)
+1. **Tankstrategie:** Dieselpreis je Land (Faktor zum Marktpreis, z. B. Luxemburg −12 %, Schweiz +12 %).
+   - Strategie je Firma: „Reserve“ (bisher) oder „Günstig tanken“, die in billigen Ländern ab 65 % Tankstand nachtankt.
+   - Tankkarten: Basis (−2 %, 25 € je Fahrzeug und Monat) und Premium (−4 %, 60 €).
+   - Länderpreise unter Fuhrpark, die Vorkalkulation rechnet die Kartenrabatte mit ein.
+2. **Kontrollen und Bußgelder:** Straßenkontrollen während der Fahrt, Häufigkeit je Land (Deutschland, Frankreich, Österreich häufiger).
+   - Geprüft werden Fahrzeugzustand (Mängel unter 50 %), Ladungssicherung (Erfahrung), Tempo (Bleifuß) und Tachograph (Zuverlässigkeit).
+   - Folgen: 30–90 min Aufenthalt, Bußgeld 150–2.500 €, bei schweren Mängeln Weiterfahrt erst nach Reparatur vor Ort.
+   - Das Fuhrparkmanagement senkt die Quote. Meldung im Log, Ereignis im Branchenblatt.
+3. **Doppelbesatzung:** zweiter Fahrer im LKW.
+   - Ist der aktive Fahrer erschöpft, wechseln beide ohne Halt. Mitfahren zählt als Fahrtunterbrechung, Tages- und Wochenruhe nur im stehenden LKW.
+   - So sind etwa 18 h Fahrt je 29 h möglich.
+   - Disposition mit zweiter Fahrerauswahl, Vorkalkulation mit Team-Lenkzeiten, beide Fahrer gebunden, Spesenzuschlag je Tag.
+
+**Paket B – Identität und Ausstattung (0.18.0)**
+4. **Fahrzeugausstattung:**
+   - Standklima und Kühlschrank: Fahrerzufriedenheit.
+   - Retarder: weniger Verschleiß.
+   - Notbrems- und Spurhalteassistent: weniger Unfälle.
+   - Aerodynamikpaket: weniger Verbrauch.
+   - Einbau in der Werkstatt mit Kosten. Die Ausstattung steigert den Wiederverkaufswert.
+5. **Firmenlackierung:** Farben und ein einfaches Logo (Form, Kürzel). Die Lackierung erscheint auf Fahrzeugbildern, Kartenmarkern und im Branchenblatt.
+6. **Marketing und Messen:**
+   - Regionale Kampagne: mehr Angebote und längere Exklusivzeit in einem Land, 30 Tage.
+   - Messestand: neue Großkunden und ein Vertragsangebot.
+   - Online-Auftritt: dauerhaft etwas mehr Ruf, monatliche Kosten.
+
+**Paket C – Zukunft des Transports (0.19.0)**
+7. **Alternative Antriebe:** Elektro-LKW (Reichweite, Ladestopps, Ladesäule als Einrichtung) und LNG-LKW.
+   - Die Maut richtet sich nach CO₂-Klasse. Strom- und LNG-Preis laufen mit.
+   - „Grüne“ Kunden zahlen Aufschläge und verlangen einen Anteil emissionsarmer Fahrzeuge.
+8. **Kombinierter Verkehr:** Bahnverbindungen als eigene Kanten im Netz (z. B. Rollende Landstraße über den Brenner, Freiburg–Novara, Köln–Verona).
+   - Die Fahrt auf der Bahn zählt als Ruhezeit und kostet je Auflieger.
+   - Die Routenwahl bietet die Bahn an, wenn sie schneller oder günstiger ist.
+
+**Paket D – Wettbewerbs-Multiplayer (eigener Umbau, ab 0.20.0)**
+9. Mehrere Firmen auf einem Server mit gemeinsamer Börse und Welt, Weitergabe von Aufträgen an Mitspieler-Firmen, Rangliste.
+   - Voraussetzung: Der Spielstand muss mehrere Firmen tragen. Das betrifft `GameState.company` → `companies`, Befehle mit Firmenbezug und die Delta-Synchronisation je Firma.
+   - Zuerst Konzept und Migrationspfad, dann Umsetzung in Schritten.
 
 ## Arbeitsweise
 
@@ -35,6 +79,6 @@ Spielspaß-Paket 2 (unveröffentlicht) ist umgesetzt: Premium-Aufträge (Schwert
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 136/136 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
+1. `npm install`, dann `npm test` (erwartet: 157/157 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
 3. Alle Phasen sind abgeschlossen. Städte ergänzen in `data/cities.ts`, danach `npm run roadnet` (behält alle bisherigen Kanten, K=5 Nachbarn, OSRM-Antworten werden zwischengespeichert). Balancing prüfen mit `node packages/core/test/measure-balance.ts [Tage] [easy|normal|realistic] [Seed]` (Spieler-Bot aus `test/bot.ts`), Welt mit `measure-world.ts`, Störungen mit `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

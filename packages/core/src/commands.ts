@@ -28,6 +28,7 @@ import { placeBid, withdrawBid } from './tenders.ts';
 import { applyPermit } from './premium.ts';
 import { acquireCompetitor, subcontractOrder } from './partners.ts';
 import { sellCompany } from './exit.ts';
+import { setFuelCard, setFuelPolicy, type FuelCard, type FuelPolicy } from './fuel.ts';
 import {
   cancelJoint, castVote, closeVote, createTask, createVote, deleteTask, mayManageLocation, proposeJoint, readMessage, respondJoint, sendMessage, setPlayerLimits, setRole, updateTask,
 } from './team.ts';
@@ -37,7 +38,7 @@ export type Command =
   | { type: 'setPaused'; paused: boolean }
   | { type: 'acceptOrder'; orderId: Id }
   | { type: 'cancelOrder'; orderId: Id }
-  | { type: 'dispatch'; orderId: Id; driverId: Id; vehicleId: Id; trailerId: Id }
+  | { type: 'dispatch'; orderId: Id; driverId: Id; vehicleId: Id; trailerId: Id; coDriverId?: Id }
   | { type: 'queueDispatch'; orderId: Id; vehicleId: Id }
   | { type: 'unqueue'; orderId: Id; vehicleId: Id }
   | { type: 'coLoad'; orderId: Id; vehicleId: Id }
@@ -99,7 +100,9 @@ export type Command =
   | { type: 'setPauseOnDecision'; on: boolean }
   | { type: 'subcontractOrder'; orderId: Id; partnerId?: Id }
   | { type: 'acquireCompetitor'; competitorId: Id }
-  | { type: 'sellCompany' };
+  | { type: 'sellCompany' }
+  | { type: 'setFuelPolicy'; policy: FuelPolicy }
+  | { type: 'setFuelCard'; card: FuelCard };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -172,6 +175,8 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   subcontractOrder: 'dispatch',
   acquireCompetitor: 'expansion',
   sellCompany: 'admin',
+  setFuelPolicy: 'fleet',
+  setFuelCard: 'finance',
 };
 
 /** Befehle, die Geld vom Firmenkonto ausgeben können (unterliegen dem Ausgabenlimit eines Spielers) */
@@ -688,6 +693,14 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     }
     case 'sellCompany': {
       const r = sellCompany(state);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'setFuelPolicy': {
+      const r = setFuelPolicy(state, cmd.policy);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'setFuelCard': {
+      const r = setFuelCard(state, cmd.card);
       return r.ok ? { ok: true } : fail(r.error);
     }
   }

@@ -180,7 +180,7 @@ export interface Company {
   /** 0–100, beeinflusst Auftragsangebot. */
   reputation: number;
   /** Kumulierte Kennzahlen für Statistiken. */
-  totals: { deliveries: number; lateDeliveries: number; revenue: Money; kmLoaded: number; kmEmpty: number; subcontracted?: number; acquisitions?: number };
+  totals: { deliveries: number; lateDeliveries: number; revenue: Money; kmLoaded: number; kmEmpty: number; subcontracted?: number; acquisitions?: number; inspections?: number; fines?: Money };
   /** laufende Bankkredite */
   loans: Loan[];
   /** Abteilungen: Büro- und Fachpersonal */
@@ -189,6 +189,10 @@ export interface Company {
   level: number;
   /** Bonität bei der Hausbank 0–4 (A … E; fehlt: 2 = C), folgt den Quartalszielen */
   rating?: number;
+  /** Tankstrategie (fehlt: erst bei Reserve tanken) */
+  fuelPolicy?: 'reserve' | 'cheap';
+  /** Tankkarte (fehlt: keine) */
+  fuelCard?: 'none' | 'basic' | 'premium';
 }
 
 /** Ratenkredit (Annuität, monatliche Rate am Monatsersten). */
@@ -305,6 +309,8 @@ export interface HoursOfService {
   /** Noch abzuleistende Ruhe/Pause in Minuten; >0 bedeutet Fahrer darf nicht fahren. */
   requiredRest: number;
   requiredRestKind: 'none' | 'break' | 'daily' | 'weekly';
+  /** Minuten am Stück als Beifahrer (Doppelbesatzung: zählt als Fahrtunterbrechung, nicht als Tagesruhe) */
+  rideStreak?: number;
 }
 
 export type DriverStatus = 'idle' | 'on_trip' | 'resting' | 'sick' | 'vacation' | 'training' | 'traveling';
@@ -497,6 +503,7 @@ export type TripActivity =
   | 'accident'
   | 'ban'
   | 'border'
+  | 'inspection'
   | 'done';
 
 export interface TripLeg {
@@ -568,6 +575,8 @@ export interface Trip {
   /** Lade- und Entladestellen; bei Beiladungen mehrere Aufträge. Fehlt bei Überführungen. */
   stops?: TripStop[];
   driverId: Id;
+  /** Doppelbesatzung: zweiter Fahrer (wechselt sich mit `driverId` am Steuer ab) */
+  coDriverId?: Id;
   vehicleId: Id;
   trailerId?: Id;
   legs: TripLeg[];

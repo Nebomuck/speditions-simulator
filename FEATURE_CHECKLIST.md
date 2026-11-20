@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 20.11.2026 · Version 0.16.1
+Stand: 20.11.2026 · Version 0.17.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -187,6 +187,9 @@ Stand: 20.11.2026 · Version 0.16.1
 |---|---|
 | Abstraktes Warenflussmodell (Häfen, Industrie, Landwirtschaft, Städte) | Getestet |
 | Regionale Nachfrageänderung durch Ereignisse/Entwicklung | Getestet |
+| Tankstrategie und Tankkarten | Getestet (Dieselpreis je Land, „Günstig tanken“, Tankkarten Basis/Premium, Vorkalkulation mit Länderpreisen) |
+| Straßenkontrollen | Getestet (Häufigkeit je Land, Mängel, Stilllegung, Ladungssicherung, Tempo, Tachograph, Fuhrparkmanagement senkt die Quote) |
+| Doppelbesatzung | Getestet (Fahrerwechsel ohne Halt, Mitfahren zählt als Pause, Team-Vorkalkulation, Spesen) |
 | Subunternehmer | Getestet (Aufträge an Konkurrenz oder Börsenpartner abgeben, Marge, Verspätungsrisiko, Strafe trägt der Partner) |
 | Übernahme von Konkurrenten | Getestet (angeschlagen günstig, klein teurer; LKW, Auflieger, Betriebshof, Fahrer, Kunden) |
 
@@ -200,7 +203,7 @@ Stand: 20.11.2026 · Version 0.16.1
 | Kontextmenüs | Implementiert (Rechtsklick auf Fahrzeuge, Aufträge und Fahrer) |
 | Anpassbare Panelgrößen | Implementiert (Seitenleiste, Dispositionsliste, Fahrzeugfenster; gespeichert, Doppelklick setzt zurück) |
 | Tutorial „Erste Schritte“ | Implementiert (9 Schritte, erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor) |
-| Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 24 Artikel) |
+| Hilfesystem | Implementiert (F1 / „?“, Kontexthilfe je Seite, Suche, 25 Artikel) |
 | Branchenblatt | Getestet (wöchentliche Ausgabe montags als Zeitungs-Popup, Marktdaten, Dashboard-Anriss, Archiv mit 12 Ausgaben) |
 | Dezente Animationen | Implementiert (Seitenwechsel, Meldungen, Dialoge; respektiert „Bewegung reduzieren“) |
 

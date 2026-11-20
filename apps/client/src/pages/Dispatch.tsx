@@ -271,7 +271,7 @@ function TripList() {
                   <Badge kind={t.phase === 'done' ? 'success' : t.activity === 'breakdown' || late ? 'danger' : 'info'}>{t.phase === 'done' ? 'Abgeschlossen' : activityLabel(t, '')}</Badge>
                   {late && t.phase !== 'done' && <Badge kind="danger">verspätet</Badge>}
                 </td>
-                <td>{s.drivers[t.driverId]?.name ?? '–'}</td>
+                <td>{s.drivers[t.driverId]?.name ?? '–'}{t.coDriverId && <div className="dim" style={{ fontSize: 11.5 }}>+ {s.drivers[t.coDriverId]?.name} (Doppelbesatzung)</div>}</td>
                 <td>{s.vehicles[t.vehicleId]?.plate ?? '–'}</td>
                 <td className="num">{t.phase === 'done' ? '–' : km(remainingKm(t))}</td>
                 <td className="nowrap">{formatDateTime(eta)}</td>

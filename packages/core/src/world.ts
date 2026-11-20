@@ -5,7 +5,7 @@ import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, COUNTRY_NAMES, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { disruptionOnEdge, weatherClosure } from './disruptions.ts';
-import { drivableNow, hosDrive, hosRest } from './hos.ts';
+import { drivableNow, hosDrive, hosRest, hosRide, requireRest } from './hos.ts';
 import { addLog } from './finance.ts';
 import { rand } from './rng.ts';
 import type { RoadEdge } from './routing.ts';
@@ -273,18 +273,29 @@ export function routeSegments(state: GameState, ctx: SimContext, nodes: string[]
  * Schätzt die Dauer einer Fahrt über `segments` ab `t0` mit Lenk- und Ruhezeiten und – wenn `banned` – Fahrverboten
  * (der LKW wartet am Beginn des Abschnitts, die Wartezeit zählt als Ruhe). Verändert `h` (vorher kopieren!).
  */
-export function simulateRoute(h: HoursOfService, t0: GameTime, segments: DriveSegment[], banned: boolean): { elapsed: number; restMin: number; banMin: number } {
+export function simulateRoute(hos: HoursOfService, t0: GameTime, segments: DriveSegment[], banned: boolean, co?: HoursOfService): { elapsed: number; restMin: number; banMin: number } {
+  // Doppelbesatzung: `h` sitzt am Steuer, `p` fährt mit; erschöpft sich `h`, übernimmt `p` ohne Halt
+  let h = hos;
+  let p = co;
   let t = t0;
   let restMin = 0;
   let banMin = 0;
   for (const seg of segments) {
     t += seg.waitMin;
+    if (p) hosRest(p, seg.waitMin);
     let left = seg.driveMin;
     let guard = 0;
-    while (left > 0.001 && guard++ < 2000) {
+    while (left > 0.001 && guard++ < 4000) {
+      if (p && drivableNow(h) <= 0 && drivableNow(p) > 0) {
+        [h, p] = [p, h];
+        continue;
+      }
+      if (drivableNow(h) <= 0) requireRest(h);
       if (h.requiredRest > 0) {
-        const r = h.requiredRest;
+        if (p) requireRest(p);
+        const r = Math.max(h.requiredRest, p?.requiredRest ?? 0);
         hosRest(h, r);
+        if (p) hosRest(p, r);
         t += r;
         restMin += r;
         continue;
@@ -292,13 +303,15 @@ export function simulateRoute(h: HoursOfService, t0: GameTime, segments: DriveSe
       const until = banned ? banUntil(seg.country, t) : null;
       if (until !== null) {
         hosRest(h, until - t);
+        if (p) hosRest(p, until - t);
         banMin += until - t;
         t = until;
         continue;
       }
       // in Stundenschritten, damit ein beginnendes Fahrverbot erkannt wird
-      const chunk = Math.min(left, drivableNow(h), banned && BAN_COUNTRIES.includes(seg.country) ? 60 : Infinity);
+      const chunk = Math.min(left, drivableNow(h), banned && BAN_COUNTRIES.includes(seg.country) ? 60 : Infinity, p ? 45 : Infinity);
       hosDrive(h, chunk);
+      if (p) hosRide(p, chunk);
       t += chunk;
       left -= chunk;
     }

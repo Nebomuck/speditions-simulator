@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.17.0 – 20.11.2026
+
+Paket A „Fahralltag“:
+
+- **Tankstrategie:** Diesel kostet je Land unterschiedlich viel. Luxemburg ist 12 % günstiger, die Schweiz und Norwegen 12 % teurer. Unter Fuhrpark stehen die Preise aller Länder.
+  - „Günstig tanken“ lässt die Fahrer in billigen Ländern schon ab 65 % Tankinhalt nachfüllen.
+  - Tankkarten: Basis mit 2 % Rabatt für 25 € je Fahrzeug und Monat, Premium mit 4 % Rabatt für 60 €.
+  - Die Vorkalkulation rechnet mit den Preisen von Lade- und Entladeland und dem Kartenrabatt.
+- **Straßenkontrollen:** Unterwegs kontrollieren Behörden etwa einmal im Monat je LKW, in Deutschland, Österreich, der Schweiz und Frankreich häufiger.
+  - Geprüft werden Fahrzeugzustand, Ladungssicherung, Tempo und Tachograph.
+  - Beanstandungen kosten Bußgeld und Zeit. Bei sehr schlechtem Zustand geht es erst nach einer Reparatur vor Ort weiter.
+  - Gepflegte Fahrzeuge, erfahrene und zuverlässige Fahrer sowie ein Fuhrparkmanagement senken das Risiko.
+- **Doppelbesatzung:** Im Dispositionsdialog lässt sich ein zweiter Fahrer mitschicken. Die beiden wechseln sich am Steuer ab, so sind etwa 18 h Fahrt je Tag möglich statt 9 h.
+  - Mitfahren zählt als Pause, Tages- und Wochenruhe gibt es aber nur im stehenden LKW.
+  - Kosten: beide Löhne plus 32 € Spesen je Tag. Die Vorkalkulation zeigt die frühere Ankunft.
+  - Leipzig–Madrid ist so gut einen Tag schneller am Ziel.
+
 ## 0.16.1 – 20.11.2026
 
 - **Branchenblatt als Zeitung:** Die neue Ausgabe öffnet sich jeden Montag als Popup. Im Einzelspiel hält das Spiel so lange an, „Weiterspielen“ setzt es fort.

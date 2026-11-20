@@ -141,7 +141,7 @@ export function VehiclePanel({ vehicleId }: { vehicleId: string }) {
         {trip && <Badge>{trip.legs[trip.legIndex].loaded ? 'Beladen' : 'Leer'}</Badge>}
       </div>
       <dl className="kv mt">
-        <dt>Fahrer</dt><dd>{driver?.name ?? '–'}</dd>
+        <dt>Fahrer</dt><dd>{driver?.name ?? '–'}{trip?.coDriverId && <> · Beifahrer {s.drivers[trip.coDriverId]?.name}</>}</dd>
         <dt>Position</dt><dd>{near.km < 15 ? cityName(near.id) : `${Math.round(near.km)} km bei ${cityName(near.id)}`} ({countryName(CITY_BY_ID[near.id].country)})</dd>
         <dt>Wetter</dt><dd>{WEATHER[weatherIn(s, CITY_BY_ID[near.id].country)].name}{(() => {
           const c = CITY_BY_ID[near.id].country;

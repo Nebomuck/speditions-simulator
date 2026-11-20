@@ -296,6 +296,31 @@ Im Einzelspiel lässt sich die Firma ab dem 90. Tag verkaufen, wenn keine Fahrt 
 
 Kredite werden abgelöst, der Erlös geht aufs Privatkonto, und das Spiel endet. Verkäufe merkt sich der PC. Die nächste Gründung bekommt 10 % aller Erlöse als zusätzliches Startkapital (höchstens 100.000 €) und +3 Ruf je Verkauf (höchstens +9). Der Bonus lässt sich abwählen.
 
+### Tankstrategie
+Der Dieselpreis je Land ist ein Faktor zum Marktpreis. Luxemburg liegt bei 0,88, Bulgarien und Nordmazedonien bei 0,90, Polen bei 0,93, Deutschland bei 1,0, Italien bei 1,06, Großbritannien bei 1,10, die Schweiz und Norwegen bei 1,12. Getankt wird zum Preis des Landes, in dem der LKW gerade fährt. Es gibt zwei Strategien:
+- **Reserve:** Getankt wird, wenn der Tank unter die Reserve fällt.
+- **Günstig tanken:** Zusätzlich wird in Ländern mit Faktor ≤ 0,95 ab 65 % Tankinhalt nachgefüllt.
+
+Tankkarten gewähren 2 % Rabatt für 25 € je Fahrzeug und Monat (Basis) oder 4 % für 60 € (Premium). Die Gebühr steht in den Fixkosten. Die Vorkalkulation rechnet mit dem Mittel aus Lade- und Entladeland samt Kartenrabatt. Die Betriebstankstelle (−9 %) füllt bei der Abfahrt am Standort voll.
+
+### Straßenkontrollen
+Je gefahrenem km kommt eine Kontrolle mit 1/12.000 × Landesfaktor: Deutschland und die Schweiz 1,4, Österreich und Norwegen 1,3, Frankreich 1,25, Benelux und Skandinavien 1,1, sonst 0,8–1,0. Das ergibt etwa eine Kontrolle im Monat je LKW. Ohne Beanstandung dauert sie 25–45 min. Mögliche Befunde:
+- **Zustand unter 35 %:** mit 70 % Wahrscheinlichkeit Stilllegung, 400–900 € Bußgeld, 600–1.500 € Reparatur vor Ort (auf 50 %) und 2–4 h Aufenthalt.
+- **Zustand unter 50 %:** Mängel, 150–600 €.
+- **Ladungssicherung** (nur beladen): Wahrscheinlichkeit 22 % − Erfahrung/600, mindestens 3 %. Bußgeld 300–1.500 €, in Frankreich, Österreich und der Schweiz ×1,4.
+- **Tempo:** Wahrscheinlichkeit 4 %, beim „Bleifuß“ 25 %. Bußgeld 80–400 €.
+- **Tachograph:** nur bei Zuverlässigkeit unter 45, 1.500–5.000 € Bußgeld, Ruf −2.
+
+Jede Abteilungsstufe des Fuhrparkmanagements senkt die Wahrscheinlichkeiten um 25 % (höchstens 60 %). Jede Beanstandung kostet −2 Fahrerzufriedenheit.
+
+### Doppelbesatzung
+Ein zweiter Fahrer fährt mit. Ist der Fahrer am Steuer erschöpft und hat der andere Lenkzeit, wechseln die beiden ohne Halt. Die Regeln dazu:
+- **Mitfahren:** zählt als Fahrtunterbrechung und baut eine verlangte 45-min-Pause ab, aber nicht als Tages- oder Wochenruhe.
+- **Ruhe:** Können beide nicht mehr fahren, ruht der LKW, bis beide ihre Pflichtruhe abgeleistet haben.
+- **Leistung:** So sind etwa 18 h Fahrt je 29 h möglich. Die EU-Regel erlaubt im Team bis zu 21 h in 30 h, das Spiel rechnet ohne 10-h-Tage.
+- **Kosten:** Beide Fahrer sind gebunden. Die Vorkalkulation rechnet beide Löhne und 32 € Spesen je angefangenem Tag, die Spesen werden bei Fahrtende gebucht.
+- **Grenzen:** Folgeaufträge (Vorausplanung) gibt es nur mit einem Fahrer. Nach der Fahrt sind beide am Zielort frei.
+
 ## 18. Bedienung, Hilfe und Atmosphäre
 
 - **Erste Schritte:** In neuen Spielen führt eine Liste durch neun Schritte (Börse, erste Disposition, Zeit, Karte, Lieferung, Finanzen, Fuhrpark, zweites Fahrzeug, Hilfe). Sie erkennt den Fortschritt am Spielzustand, hebt das nächste Bedienelement hervor und lässt sich ausblenden bzw. über die Hilfe wieder einblenden.

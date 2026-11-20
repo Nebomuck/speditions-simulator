@@ -5,15 +5,17 @@ import { fleetBreakdownFactor, fleetWearFactor } from './company.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
-import { FUEL_RESERVE, FUEL_STOP_MIN, UNLOAD_MIN_FACTOR, consumptionPerKm, penaltyFor, speedFactor, startNextQueued, tollFactor, tripLoadFraction } from './dispatch.ts';
+import { FUEL_RESERVE, FUEL_STOP_MIN, TEAM_ALLOWANCE_PER_DAY, UNLOAD_MIN_FACTOR, consumptionPerKm, penaltyFor, speedFactor, startNextQueued, tollFactor, tripLoadFraction } from './dispatch.ts';
 import { disruptionLabel, disruptionOnEdge, routeNow } from './disruptions.ts';
 import { onContractDelivery } from './contracts.ts';
 import { addLog, adjustSatisfaction, book, createInvoice, formatMoney } from './finance.ts';
-import { HOS_RULES, drivableNow, hosDrive, hosRest, hosWork, pickupWaitMin, requireRest } from './hos.ts';
+import { dieselPriceIn, shouldRefuel } from './fuel.ts';
+import { HOS_RULES, canTakeOver, drivableNow, hosDrive, hosRest, hosRide, hosWork, pickupWaitMin, requireRest } from './hos.ts';
 import { rand } from './rng.ts';
 import { effectiveEco, traitAccident, traitCustomerBonus, traitHandlingMin, traitSpeed, traitWear } from './traits.ts';
 import { onPremiumDelivery } from './premium.ts';
 import { onDelivery } from './progress.ts';
+import { maybeInspect } from './inspections.ts';
 import { formatDateTime, formatDuration, hourOfDay } from './time.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
 import { WEATHER, edgeCountry, edgeWeather, isCustomsBorder, rollBorderWait, tripBan, weatherIn } from './world.ts';
@@ -37,6 +39,7 @@ export const ACTIVITY_LABEL: Record<TripActivity, string> = {
   accident: 'Unfall',
   ban: 'Fahrverbot',
   border: 'Grenzkontrolle',
+  inspection: 'Straßenkontrolle',
   done: 'Abgeschlossen',
 };
 
@@ -63,8 +66,14 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   if (trip.activity !== 'driving' && trip.activity !== 'ferry') {
     trip.speedKmh = 0;
     trip.activityLeft -= 1;
-    if (STATIONARY_REST.includes(trip.activity)) hosRest(driver.hos, 1);
-    else hosWork(driver.hos, 1);
+    const co = trip.coDriverId ? state.drivers[trip.coDriverId] : undefined;
+    if (STATIONARY_REST.includes(trip.activity)) {
+      hosRest(driver.hos, 1);
+      if (co) hosRest(co.hos, 1);
+    } else {
+      hosWork(driver.hos, 1);
+      if (co) hosWork(co.hos, 1);
+    }
     if (trip.activityLeft <= 0) onActivityEnd(state, ctx, trip);
     return;
   }
@@ -80,6 +89,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
     trip.activity = 'ferry';
     trip.speedKmh = loc.edge.truckKmh;
     hosRest(driver.hos, 1);
+    if (trip.coDriverId && state.drivers[trip.coDriverId]) hosRest(state.drivers[trip.coDriverId].hos, 1);
     trip.progressKm = Math.min(leg.km, trip.progressKm + loc.edge.truckKmh / 60);
     return;
   }
@@ -120,13 +130,21 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
     return;
   }
 
-  // Lenkzeit erschöpft → Pause/Ruhezeit
+  // Lenkzeit erschöpft → Fahrerwechsel (Doppelbesatzung) oder Pause/Ruhezeit
   if (drivableNow(driver.hos) <= 0) {
+    const co = trip.coDriverId ? state.drivers[trip.coDriverId] : undefined;
+    if (co && canTakeOver(co.hos)) {
+      trip.coDriverId = driver.id;
+      trip.driverId = co.id;
+      tlog(state, trip, `Fahrerwechsel: ${co.name} übernimmt das Steuer`);
+      return;
+    }
     // Sicherheitsnetz: Lenkzeit erschöpft, aber keine Ruhe verlangt → Ruhepflicht nachtragen
     if (driver.hos.requiredRest <= 0) requireRest(driver.hos);
-    const kind = driver.hos.requiredRestKind;
+    if (co && co.hos.requiredRest <= 0) requireRest(co.hos);
+    const kind = co && (co.hos.requiredRestKind === 'weekly' || (co.hos.requiredRestKind === 'daily' && driver.hos.requiredRestKind === 'break')) ? co.hos.requiredRestKind : driver.hos.requiredRestKind;
     trip.activity = kind === 'weekly' ? 'rest_weekly' : kind === 'daily' ? 'rest_daily' : 'break';
-    trip.activityLeft = Math.max(1, driver.hos.requiredRest);
+    trip.activityLeft = Math.max(1, driver.hos.requiredRest, co?.hos.requiredRest ?? 0);
     trip.speedKmh = 0;
     tlog(state, trip, `${ACTIVITY_LABEL[trip.activity]} (${formatDuration(trip.activityLeft)})`);
     return;
@@ -134,18 +152,17 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
 
   // Tankstopp
   const model = TRUCK_BY_ID[vehicle.modelId];
-  if (vehicle.fuelL < model.tankL * FUEL_RESERVE) {
+  const fuelCountry = CITY_BY_ID[loc.reverse ? loc.edge.b : loc.edge.a].country;
+  if (shouldRefuel(state, vehicle, model.tankL, FUEL_RESERVE, fuelCountry)) {
     const liters = model.tankL - vehicle.fuelL;
-    const country = CITY_BY_ID[loc.reverse ? loc.edge.b : loc.edge.a].country;
-    const priceFactor = country === 'LU' || country === 'PL' || country === 'CZ' || country === 'SK' || country === 'HU' ? 0.94 : country === 'CH' || country === 'NO' ? 1.12 : 1;
-    const cost = Math.round(liters * state.market.diesel * priceFactor);
+    const cost = Math.round(liters * dieselPriceIn(state, fuelCountry));
     vehicle.fuelL = model.tankL;
     trip.costs.fuel += cost;
     book(state, 'company', -cost, 'fuel', `Diesel ${Math.round(liters)} l (${vehicle.plate})`);
     trip.activity = 'fueling';
     trip.activityLeft = FUEL_STOP_MIN;
     trip.speedKmh = 0;
-    tlog(state, trip, `Tankstopp: ${Math.round(liters)} l für ${formatMoney(cost)}`);
+    tlog(state, trip, `Tankstopp in ${COUNTRY_NAMES[fuelCountry] ?? fuelCountry}: ${Math.round(liters)} l für ${formatMoney(cost)}`);
     return;
   }
 
@@ -157,6 +174,7 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   trip.speedKmh = Math.round(speed);
   trip.progressKm += km;
   hosDrive(driver.hos, 1);
+  if (trip.coDriverId && state.drivers[trip.coDriverId]) hosRide(state.drivers[trip.coDriverId].hos, 1);
 
   const loadFrac = leg.loaded ? tripLoadFraction(state, trip) : 0;
   vehicle.fuelL = Math.max(0, vehicle.fuelL - km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver)));
@@ -168,6 +186,9 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   // Maut anteilig
   const toll = (loc.edge.toll / Math.max(loc.edge.km, 0.1)) * km * tollFactor(vehicle.modelId);
   trip.costs.toll += toll;
+
+  // Straßenkontrolle (Häufigkeit je Land)
+  if (maybeInspect(state, trip, km, here, leg.loaded)) return;
 
   // Verschleiß – abhängig von Haltbarkeit, Beladung und Fahrweise
   const wear = (0.0006 / model.durability) * (1 + loadFrac * 0.3) * (1.1 - driver.ecoDriving / 500) * km * fleetWearFactor(state) * traitWear(driver);
@@ -416,6 +437,15 @@ function finishTrip(state: GameState, ctx: SimContext, trip: Trip) {
     driver.tripId = undefined;
     driver.cityId = dest;
   }
+  const co = trip.coDriverId ? state.drivers[trip.coDriverId] : undefined;
+  if (co) {
+    co.experience = Math.min(100, co.experience + trip.kmLoaded / 4000);
+    co.status = 'idle';
+    co.tripId = undefined;
+    co.cityId = dest;
+    const days = Math.max(1, Math.ceil((state.time - trip.startedAt) / 1440));
+    book(state, 'company', -days * TEAM_ALLOWANCE_PER_DAY, 'wages', `Spesen Doppelbesatzung ${days} ${days === 1 ? 'Tag' : 'Tage'} (${vehicle_plate(state, trip)})`);
+  }
   const vehicle = state.vehicles[trip.vehicleId];
   vehicle.status = 'idle';
   vehicle.tripId = undefined;
@@ -429,6 +459,8 @@ function finishTrip(state: GameState, ctx: SimContext, trip: Trip) {
   // Vorausplanung: nächsten Folgeauftrag direkt anschließen
   if (vehicle.queue?.length && driver) startNextQueued(state, ctx, vehicle.id, driver.id, trip.trailerId);
 }
+
+const vehicle_plate = (state: GameState, trip: Trip) => state.vehicles[trip.vehicleId]?.plate ?? '';
 
 /** Fahrten älter als 30 Tage aus dem Zustand entfernen (Statistik bleibt in company.totals). */
 export function pruneTrips(state: GameState) {

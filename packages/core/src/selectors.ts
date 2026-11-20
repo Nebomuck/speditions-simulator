@@ -58,13 +58,19 @@ export function tripStopEtas(state: GameState, ctx: SimContext, trip: Trip): { e
   const driver = state.drivers[trip.driverId];
   if (trip.phase === 'done') return { etas: [], end: trip.finishedAt ?? state.time, hos: { ...driver.hos } };
   const hos = { ...driver.hos };
+  // Doppelbesatzung: zweiter Fahrer wechselt sich am Steuer ab
+  const coDriver = trip.coDriverId ? state.drivers[trip.coDriverId] : undefined;
+  const co = coDriver ? { ...coDriver.hos } : undefined;
   const vehicle = state.vehicles[trip.vehicleId];
   const sf = speedFactor(vehicle?.modelId ?? '');
   let t = state.time;
   const stationary = trip.activity !== 'driving' && trip.activity !== 'ferry';
   if (stationary) {
     t += trip.activityLeft;
-    if (['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked', 'ban'].includes(trip.activity)) hosRest(hos, trip.activityLeft);
+    if (['break', 'rest_daily', 'rest_weekly', 'waiting', 'blocked', 'ban'].includes(trip.activity)) {
+      hosRest(hos, trip.activityLeft);
+      if (co) hosRest(co, trip.activityLeft);
+    }
   }
   const atStop = trip.phase === 'loading' || trip.phase === 'unloading';
   const etas: number[] = [];
@@ -82,13 +88,14 @@ export function tripStopEtas(state: GameState, ctx: SimContext, trip: Trip): { e
     const from = li === trip.legIndex ? trip.progressKm : 0;
     const reefer = leg.loaded ? ordersOnBoard(trip, li).find((id) => CARGO_BY_ID[state.orders[id]?.cargoId]?.trailer === 'reefer') : undefined;
     const banned = !!vehicle && banAppliesTo(vehicle, reefer ? state.orders[reefer].cargoId : undefined);
-    t += simulateRoute(hos, t, routeSegments(state, ctx, leg.nodes, from, sf), banned).elapsed;
+    t += simulateRoute(hos, t, routeSegments(state, ctx, leg.nodes, from, sf), banned, co).elapsed;
     if (stop && cargo) {
       const o = state.orders[stop.orderId];
       // wie in der Simulation: Warten aufs Ladefenster zählt als Ruhe, Be-/Entladen als Arbeit
       if (stop.kind === 'pickup') {
         const wait = pickupWaitMin(hos, t, o.pickupStart, o.pickupEnd);
         hosRest(hos, wait);
+        if (co) hosRest(co, wait);
         t += wait;
         t += cargo.loadMin;
       } else t += Math.round(cargo.loadMin * UNLOAD_MIN_FACTOR);

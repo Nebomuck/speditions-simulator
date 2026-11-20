@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Wrench, ShoppingCart, Tag, Truck, Container, Gauge, MapPin, Send } from 'lucide-react';
+import { Wrench, ShoppingCart, Tag, Truck, Container, Gauge, MapPin, Send, Fuel } from 'lucide-react';
 import {
+  COUNTRY_DIESEL, COUNTRY_NAMES, FUEL_CARDS, FUEL_POLICY_LABEL, dieselPriceIn, fuelCard, fuelPolicy, type FuelCard as FuelCardId, type FuelPolicy,
   TRUCK_BY_ID, TRUCK_MODELS, TRAILERS, VEHICLE_KIND_LABEL, VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, annuity, capacity, deptCount, formatDateTime, hasFacility, openVehicleLoan, serviceCost, toDate, tradeInValue,
   vehicleLoanRate, vehicleMarketValue, vehicleRentPerDay, type TrailerType, type TruckModel, type Vehicle,
 } from '@spedsim/core';
@@ -167,6 +168,7 @@ export function FleetPage() {
           </table>
         </div>
       </Card>
+      <FuelCard />
       {shop === 'used' && <UsedMarket onClose={() => setShop('none')} />}
       {shop === 'new' && <NewMarket onClose={() => setShop('none')} />}
       {shop === 'trailer' && <TrailerMarket onClose={() => setShop('none')} />}
@@ -385,4 +387,60 @@ function kindText(modelId: string) {
   const m = TRUCK_BY_ID[modelId];
   if (!m?.body) return VEHICLE_KIND_LABEL.tractor;
   return `${VEHICLE_KIND_LABEL[m.kind ?? 'rigid']} · ${bodyName(m.body)} ${dec(m.payloadT ?? 0)} t${m.tollFactor === 0 ? ' · mautfrei' : ''}`;
+}
+
+/** Tankstrategie, Tankkarte und Dieselpreise je Land */
+function FuelCard() {
+  const s = useGame();
+  const policy = fuelPolicy(s);
+  const card = fuelCard(s);
+  const countries = Object.keys(COUNTRY_DIESEL).sort((a, b) => COUNTRY_DIESEL[a] - COUNTRY_DIESEL[b]);
+  const n = Object.keys(s.vehicles).length;
+  return (
+    <Card title={<><Fuel size={16} />Tankstrategie und Tankkarte</>} className="mt" sub="Diesel kostet je Land unterschiedlich viel – wo getankt wird, zahlt sich aus">
+      <div className="grid fuel-grid">
+        <div>
+          <div className="field">
+            <label>Tankstrategie der Fahrer</label>
+            <div className="seg">
+              {(Object.keys(FUEL_POLICY_LABEL) as FuelPolicy[]).map((p) => (
+                <button key={p} className={policy === p ? 'active' : ''} onClick={() => sendCommand({ type: 'setFuelPolicy', policy: p })}>{p === 'reserve' ? 'Bei Reserve' : 'Günstig tanken'}</button>
+              ))}
+            </div>
+            <p className="dim" style={{ fontSize: 12.5 }}>
+              {policy === 'cheap'
+                ? 'Die Fahrer füllen in günstigen Ländern (bis 5 % unter dem deutschen Preis) schon ab 65 % Tankinhalt nach. Das kostet einen zusätzlichen Tankstopp, spart aber teuren Diesel in der Schweiz, Italien oder Skandinavien.'
+                : 'Getankt wird erst, wenn der Tank auf Reserve ist – egal in welchem Land. Die Betriebstankstelle füllt bei der Abfahrt am Standort immer voll.'}
+            </p>
+          </div>
+          <div className="field">
+            <label>Tankkarte</label>
+            <div className="fuel-cards">
+              {(Object.keys(FUEL_CARDS) as FuelCardId[]).map((c) => (
+                <button key={c} className={`fuel-card${card === c ? ' active' : ''}`} onClick={() => card !== c && sendCommand({ type: 'setFuelCard', card: c })}>
+                  <b>{FUEL_CARDS[c].name}</b>
+                  <small>{FUEL_CARDS[c].text}</small>
+                  <span>{FUEL_CARDS[c].monthlyPerVehicle ? <><Money value={FUEL_CARDS[c].monthlyPerVehicle} /> je Fahrzeug · zusammen <Money value={FUEL_CARDS[c].monthlyPerVehicle * n} /> im Monat</> : 'keine Gebühr'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="table-wrap" style={{ border: 'none', maxHeight: 320 }}>
+          <table className="table">
+            <thead><tr><th>Land</th><th className="num">Faktor</th><th className="num">Preis je Liter{card !== 'none' ? ' (mit Karte)' : ''}</th></tr></thead>
+            <tbody>
+              {countries.map((c) => (
+                <tr key={c}>
+                  <td>{COUNTRY_NAMES[c] ?? c}</td>
+                  <td className={`num ${COUNTRY_DIESEL[c] < 0.96 ? 'pos' : COUNTRY_DIESEL[c] > 1.04 ? 'neg' : ''}`}>{COUNTRY_DIESEL[c] === 1 ? '±0 %' : `${COUNTRY_DIESEL[c] > 1 ? '+' : '−'}${Math.round(Math.abs(COUNTRY_DIESEL[c] - 1) * 100)} %`}</td>
+                  <td className="num">{(dieselPriceIn(s, c) / 100).toFixed(3).replace('.', ',')} €</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Card>
+  );
 }

@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowRight, Truck, User, Container, ListPlus, PackagePlus } from 'lucide-react';
-import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, formatDateTime, formatDuration, loadSpace, planCoLoad, validateDispatch, REST_KIND_LABEL, type DispatchInput } from '@spedsim/core';
+import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID, formatDateTime, formatDuration, loadSpace, planCoLoad, validateDispatch, REST_KIND_LABEL, TEAM_ALLOWANCE_PER_DAY, formatMoney, type DispatchInput } from '@spedsim/core';
 import { sendCommand, setUi, useGame, useUi, world } from '../game/store.ts';
 import { Badge, IssueList, Modal, Money } from './components.tsx';
 import { bodyName, cargoName, cityName, km, tons, modelName, trailerName, QUAL_LABEL } from './format.ts';
@@ -31,6 +31,9 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
   const [pickedDriverId, setDriverId] = useState(() => drivers.find((d) => d.status === 'idle' && d.cityId === vehicle?.cityId)?.id ?? '');
   const [pickedTrailerId, setTrailerId] = useState(() => trailers.find((t) => t.status === 'idle' && t.cityId === vehicle?.cityId && t.type === order?.trailerType)?.id ?? '');
   const [busy, setBusy] = useState(false);
+  // Doppelbesatzung: optionaler zweiter Fahrer
+  const [team, setTeam] = useState(false);
+  const [pickedCoDriverId, setCoDriverId] = useState('');
 
   // LKW unterwegs → Vorausplanung mit der laufenden Besatzung
   const currentTrip = vehicle?.tripId ? state.trips[vehicle.tripId] : undefined;
@@ -40,11 +43,13 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
   const trailerId = queued ? (currentTrip!.trailerId ?? '') : solo ? '' : pickedTrailerId;
   const needsTrailer = !solo && !queued;
 
-  const input: DispatchInput = { orderId, driverId, vehicleId, trailerId };
+  const coCandidates = drivers.filter((d) => d.id !== driverId && d.status === 'idle' && d.cityId === vehicle?.cityId);
+  const coDriverId = !queued && team ? (coCandidates.some((d) => d.id === pickedCoDriverId) ? pickedCoDriverId : coCandidates[0]?.id ?? '') : '';
+  const input: DispatchInput = { orderId, driverId, vehicleId, trailerId, ...(coDriverId ? { coDriverId } : {}) };
   const { issues, estimate } = useMemo(
     () => (orderId && driverId && vehicleId && (trailerId || !needsTrailer) ? validateDispatch(state, world, input, { queued }) : { issues: [], estimate: null }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, orderId, driverId, vehicleId, trailerId, queued],
+    [state, orderId, driverId, vehicleId, trailerId, queued, coDriverId],
   );
   // Beiladung: Auftrag in die laufende Fahrt aufnehmen (nur bei Auftragsfahrten)
   const co = useMemo(
@@ -187,6 +192,15 @@ function DispatchDialogInner({ initialOrderId, initialVehicleId }: { initialOrde
                 </div>
               ))}
             </div>
+            <label className="team-toggle">
+              <input type="checkbox" checked={team} onChange={(e) => setTeam(e.target.checked)} />
+              <span><b>Doppelbesatzung</b> – zwei Fahrer wechseln sich ab, etwa 18 h Fahrt je Tag statt 9 h. Spesen {formatMoney(TEAM_ALLOWANCE_PER_DAY)} je Tag.</span>
+            </label>
+            {team && (coCandidates.length ? (
+              <select className="input mt" value={coDriverId} onChange={(e) => setCoDriverId(e.target.value)}>
+                {coCandidates.map((d) => <option key={d.id} value={d.id}>{d.name}{d.qualifications.length ? ` (${d.qualifications.map((q) => QUAL_LABEL[q]).join(', ')})` : ''}{d.hos.requiredRest > 0 ? ` – noch ${formatDuration(d.hos.requiredRest)} Ruhe` : ''}</option>)}
+              </select>
+            ) : <p className="dim" style={{ fontSize: 12.5, margin: '6px 0 0' }}>Kein zweiter freier Fahrer am Standort {cityName(vehicle?.cityId ?? '')}.</p>)}
           </div>}
           {needsTrailer && <div className="field">
             <label>4. Auflieger</label>

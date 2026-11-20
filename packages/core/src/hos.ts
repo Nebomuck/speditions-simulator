@@ -46,6 +46,7 @@ export function drivableNow(h: HoursOfService): number {
 
 /** Fahrzeit verbuchen. Darf nur mit min <= drivableNow(h) aufgerufen werden. */
 export function hosDrive(h: HoursOfService, min: number): void {
+  h.rideStreak = 0;
   h.drivenSinceBreak += min;
   h.drivenToday += min;
   h.drivenWeek += min;
@@ -108,6 +109,25 @@ export function hosRest(h: HoursOfService, min: number): void {
     h.drivenToday = 0;
   }
 }
+
+/**
+ * Doppelbesatzung: Minuten als Beifahrer im fahrenden LKW. Zählt als Fahrtunterbrechung (auch eine
+ * verlangte 45-min-Pause), aber nicht als Tages- oder Wochenruhe – die gibt es nur im stehenden Fahrzeug.
+ */
+export function hosRide(h: HoursOfService, min: number): void {
+  h.restStreak = 0;
+  h.rideStreak = (h.rideStreak ?? 0) + min;
+  if (h.requiredRestKind === 'break' && h.requiredRest > 0) {
+    h.requiredRest = Math.max(0, h.requiredRest - min);
+    if (h.requiredRest === 0) {
+      h.requiredRestKind = 'none';
+      h.drivenSinceBreak = 0;
+    }
+  } else if (h.rideStreak >= HOS_RULES.BREAK) h.drivenSinceBreak = 0;
+}
+
+/** Doppelbesatzung: Darf der zweite Fahrer jetzt übernehmen? */
+export const canTakeOver = (h: HoursOfService) => drivableNow(h) > 0;
 
 /** Arbeitszeit ohne Lenken (Be-/Entladen, Tanken): unterbricht die Ruhe, zählt nicht als Lenkzeit. */
 export function hosWork(h: HoursOfService, _min: number): void {
