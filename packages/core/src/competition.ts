@@ -4,6 +4,7 @@
 // mit Vertriebsarbeit lassen sie sich zurückgewinnen.
 
 import { CITIES, CITY_BY_ID, type CityDef } from './data/cities.ts';
+import { companyViews, isMultiCompany, worldOf } from './shard.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
 import { salesVolumeFactor } from './company.ts';
 import { regionFactor } from './economy.ts';
@@ -144,8 +145,10 @@ export function hourlyCompetition(state: GameState): void {
   // Angebote, die schon eine Weile in der Börse stehen (der Spieler hat zuerst die Chance)
   const offers = Object.values(state.orders).filter((o) => o.status === 'offered' && !o.tender && state.time - o.created >= 90);
   if (!offers.length) return;
-  // eigener Vertrieb hält Angebote länger für den Spieler zurück
-  const share = 1 / Math.max(1, salesVolumeFactor(state));
+  // eigener Vertrieb hält Angebote länger für den Spieler zurück (Wettbewerbswelt: Mittel aller Firmen)
+  const views = isMultiCompany(state) ? companyViews(worldOf(state)).filter((v) => !v.exit) : [state];
+  const sales = views.reduce((a, v) => a + Math.max(1, salesVolumeFactor(v)), 0) / Math.max(1, views.length);
+  const share = 1 / sales;
   for (const c of comps) {
     // Kapazität in LKW-Stunden; eine Tour belegt Stunden je nach Länge
     c.carry += c.trucks * TRUCK_HOURS_PER_HOUR * (c.status === 'trouble' ? 0.8 : 1) * share;
@@ -170,14 +173,24 @@ export function hourlyCompetition(state: GameState): void {
   }
 }
 
-/** Täglich: Fixkosten, Kundenwechsel und Rückkehr von Kunden. */
+/** Täglich: Fixkosten, Kundenwechsel und Rückkehr von Kunden (Einzelspiel: beides nacheinander). */
 export function dailyCompetition(state: GameState): void {
-  const comps = activeCompetitors(state);
-  for (const c of comps) {
+  dailyCompetitorCosts(state);
+  dailyCustomerChurn(state);
+}
+
+/** Täglich (Welt): Fixkosten der KI-Speditionen */
+export function dailyCompetitorCosts(state: GameState): void {
+  for (const c of activeCompetitors(state)) {
     const cost = Math.round(c.trucks * TRUCK_DAY_COST * COST_LEVEL[c.strategy] * RATE_LEVEL * (0.95 + 0.05 * c.cityIds.length));
     c.cash -= cost;
     c.month.costs += cost;
   }
+}
+
+/** Täglich (je Firma): unzufriedene Kunden wechseln zur KI, abgewanderte kommen zurück */
+export function dailyCustomerChurn(state: GameState): void {
+  const comps = activeCompetitors(state);
   if (!comps.length) return;
   const ef = state.difficulty.eventFactor;
   const protectedIds = new Set(Object.values(state.contracts).filter((k) => k.status === 'active').map((k) => k.customerId));

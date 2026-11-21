@@ -4,7 +4,7 @@
 // entscheidet das Spiel private Karten selbst (ausgewogene Wahl).
 
 import type { SimContext } from './context.ts';
-import { claimOrder } from './shard.ts';
+import { claimOrder, isMultiCompany } from './shard.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID } from './data/catalog.ts';
 import { activeCompetitors } from './competition.ts';
@@ -642,7 +642,7 @@ function open(state: GameState, ctx: SimContext, r: DecisionRule, draft: Draft, 
 }
 
 /** Hält das Spiel bei neuen Karten an? Ohne Einstellung: im Einzelspiel ja, im Multiplayer nein (würde alle anhalten). */
-export const pausesOnDecision = (state: GameState) => state.pauseOnDecision ?? Object.keys(state.players).length <= 1;
+export const pausesOnDecision = (state: GameState) => !isMultiCompany(state) && (state.pauseOnDecision ?? Object.keys(state.players).length <= 1);
 
 /** Bestimmte Karte sofort anbieten (Tests, Tutorial); null, wenn sie gerade nicht passt */
 export function offerDecision(state: GameState, ctx: SimContext, ruleId: string, playerId?: Id): Decision | null {

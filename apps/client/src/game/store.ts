@@ -50,11 +50,13 @@ interface UiState {
   /** geöffnete Ausgabe des Branchenblatts (Popup) */
   newsOpen?: number | null;
   /** offener Reiter unter Markt & Wettbewerb */
-  marketTab?: 'overview' | 'news' | 'regions' | 'competition' | 'events';
+  marketTab?: 'overview' | 'news' | 'regions' | 'competition' | 'ranking' | 'events';
   /** geöffneter Hilfeartikel (F1) oder null */
   help: string | null;
   /** Erste-Schritte-Liste eingeblendet */
   tutorial: boolean;
+  /** Beitritt zu einer Wettbewerbswelt: eigene Firma gründen (Antwort des Servers auf den Welt-Code) */
+  mpChoose?: import('./host.ts').ChooseCompany | null;
 }
 
 let ui: UiState = {

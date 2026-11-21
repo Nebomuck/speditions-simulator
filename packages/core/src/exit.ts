@@ -5,6 +5,7 @@ import { companyValue, addLog, formatMoney } from './finance.ts';
 import { vehicleMarketValue } from './generate.ts';
 import { MIN_PER_DAY } from './time.ts';
 import type { CompanyExit, GameState, Money } from './types.ts';
+import { isMultiCompany } from './shard.ts';
 
 /** frühestens nach so vielen Tagen verkaufbar */
 export const EXIT_MIN_DAYS = 90;
@@ -55,7 +56,8 @@ export function sellCompany(state: GameState): { ok: true; exit: CompanyExit } |
     level: state.company.level,
   };
   state.exit = exit;
-  state.paused = true;
+  // Wettbewerbswelt: die Welt läuft für die anderen Firmen weiter
+  if (!isMultiCompany(state)) state.paused = true;
   for (const p of Object.values(state.players)) {
     if (p.isFounder) p.character.privateAccount.balance += v.proceeds;
   }

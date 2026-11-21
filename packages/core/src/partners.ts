@@ -3,7 +3,7 @@
 // Kunden übernehmen.
 
 import { CITY_BY_ID } from './data/cities.ts';
-import { claimOrder, offerPayment, orderVisible } from './shard.ts';
+import { claimOrder, companyIdOf, isMultiCompany, offerPayment, orderVisible } from './shard.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import { STRATEGY_LABEL, activeCompetitors, nearCompetitor } from './competition.ts';
 import { levelDef } from './company.ts';
@@ -90,7 +90,7 @@ export function hourlyPartners(state: GameState): void {
   for (const o of Object.values(state.orders)) {
     if (!orderVisible(state, o)) continue;
     const sc = o.subcontract;
-    if (!sc || o.status !== 'in_transit' || state.time < sc.deliverAt) continue;
+    if (!sc || sc.childId || o.status !== 'in_transit' || state.time < sc.deliverAt) continue;
     const lateMin = Math.max(0, Math.round(sc.deliverAt - o.deliveryEnd));
     const penalty = penaltyFor(o, lateMin);
     const customer = state.customers[o.customerId];
@@ -229,6 +229,7 @@ export function acquireCompetitor(state: GameState, competitorId: Id): Result<{ 
   }
   c.status = 'acquired';
   c.acquiredAt = state.time;
+  if (isMultiCompany(state)) c.acquiredBy = companyIdOf(state);
   c.trucks = 0;
   state.company.reputation = Math.min(100, state.company.reputation + 2);
   state.company.totals.acquisitions = (state.company.totals.acquisitions ?? 0) + 1;

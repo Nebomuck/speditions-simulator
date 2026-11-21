@@ -1,10 +1,10 @@
 // Markt & Wettbewerb: Konjunktur, regionale Nachfrage, Wetter und Fahrverbote je Land, KI-Konkurrenz, Ereignisse.
 
 import { useState } from 'react';
-import { Building2, Newspaper, TrendingUp, Map as MapIcon, Swords, Zap, Sun, CloudRain, CloudFog, Snowflake, ThermometerSnowflake, Wind, ThermometerSun, Ban } from 'lucide-react';
+import { Building2, Newspaper, TrendingUp, Map as MapIcon, Swords, Trophy, Zap, Sun, CloudRain, CloudFog, Snowflake, ThermometerSnowflake, Wind, ThermometerSun, Ban } from 'lucide-react';
 import {
   BAN_RULES, CITY_BY_ID, COUNTRIES, PHASE_LABEL, STRATEGY_LABEL, WEATHER, acquisitionOffer, activeCompetitors, type Competitor, banUntil, competitionPressure, competitorShare, formatDateTime,
-  regionFactor, weatherIn, type GameState, type WeatherKind, type WorldEvent,
+  ranking, regionFactor, weatherIn, type GameState, type WeatherKind, type WorldEvent,
 } from '@spedsim/core';
 import { sendCommand, setUi, toast, useGame, useUi } from '../game/store.ts';
 import { askConfirm } from '../ui/confirm.tsx';
@@ -12,7 +12,7 @@ import { NewsArchive } from '../ui/News.tsx';
 import { Badge, Bar, Card, Empty, LineChart, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { cityName, countryName } from '../ui/format.ts';
 
-type Tab = 'overview' | 'news' | 'regions' | 'competition' | 'events';
+type Tab = 'overview' | 'news' | 'regions' | 'competition' | 'ranking' | 'events';
 
 export const WEATHER_ICON: Record<WeatherKind, typeof Sun> = { clear: Sun, rain: CloudRain, fog: CloudFog, snow: Snowflake, ice: ThermometerSnowflake, storm: Wind, heat: ThermometerSun };
 
@@ -28,6 +28,7 @@ export function MarketPage() {
     { id: 'news', label: 'Branchenblatt', icon: Newspaper },
     { id: 'regions', label: 'Regionen & Wetter', icon: MapIcon },
     { id: 'competition', label: 'Konkurrenz', icon: Swords },
+    { id: 'ranking', label: 'Rangliste', icon: Trophy },
     { id: 'events', label: 'Ereignisse', icon: Zap },
   ];
   return (
@@ -42,8 +43,46 @@ export function MarketPage() {
       {tab === 'news' && <NewsArchive />}
       {tab === 'regions' && <Regions />}
       {tab === 'competition' && <Competition />}
+      {tab === 'ranking' && <Ranking />}
       {tab === 'events' && <Events />}
     </div>
+  );
+}
+
+/** Rangliste: Spielerfirmen und KI-Speditionen nach Firmenwert */
+function Ranking() {
+  const s = useGame();
+  const rows = s.arena?.ranking ?? ranking(s);
+  return (
+    <Card title="Rangliste nach Firmenwert">
+      <p className="dim" style={{ marginTop: 0, fontSize: 12.5 }}>
+        Firmenwert: Konto, Forderungen, Fahrzeuge, Auflieger und Einrichtungen abzüglich Kredite. Bei KI-Speditionen geschätzt aus Kasse und Flotte.
+        {s.arena ? ' In der Wettbewerbswelt stehen alle Spielerfirmen mit in der Liste.' : ''}
+      </p>
+      <div className="table-wrap" style={{ border: 'none' }}>
+        <table className="table">
+          <thead>
+            <tr><th>Platz</th><th>Spedition</th><th className="num">Firmenwert</th><th className="num">Umsatz 30 Tage</th><th className="num">Pünktlich</th><th className="num">Ruf</th><th className="num">LKW</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id} className={r.own ? 'row-own' : undefined}>
+                <td>{i + 1}.</td>
+                <td>
+                  {r.color && <span className="rank-dot" style={{ background: r.color }} />}
+                  <b>{r.name}</b> {r.own ? <Badge kind="success">Du</Badge> : <Badge kind={r.kind === 'player' ? 'info' : ''}>{r.kind === 'player' ? 'Spieler' : 'KI'}</Badge>}
+                </td>
+                <td className="num"><Money value={r.value} /></td>
+                <td className="num"><Money value={r.revenue30} /></td>
+                <td className="num">{r.punctuality === null ? '–' : `${Math.round(r.punctuality * 100)} %`}</td>
+                <td className="num">{r.reputation}</td>
+                <td className="num">{r.trucks}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 

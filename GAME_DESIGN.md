@@ -205,6 +205,29 @@ Mehrere Spieler leiten **dieselbe** Firma. Der Server simuliert allein (serverau
 - **Abstimmungen** über Unternehmensentscheidungen: 2–6 Antworten, Laufzeit 6 h bis 1 Woche. Ausgewertet wird, sobald alle abgestimmt haben, bei Ablauf oder vorzeitig durch den Ersteller bzw. die Spielleitung. Bei Gleichstand gibt es keine Entscheidung.
 - **Eigene Charaktere:** Jeder Spieler hat ein eigenes Privatkonto, das Firmenkonto ist gemeinsam.
 
+### 15a. Wettbewerbswelt
+
+Beim Hosten lässt sich eine **Wettbewerbswelt** anlegen. Dann teilen sich mehrere Speditionen eine Welt (Details: [KONZEPT_WETTBEWERB.md](KONZEPT_WETTBEWERB.md)).
+
+- **Zwei Codes:**
+  - Mit dem **Welt-Code** gründet ein Mitbewerber eine eigene Spedition (Name, Firmensitz). Höchstens 4 Firmen je Welt.
+  - Mit dem **Team-Code** einer Firma treten Mitspieler deren Team bei, wie im kooperativen Spiel.
+- **Gemeinsam:** Zeit, Wetter, Konjunktur, Dieselpreis, Auftragsbörse, Kunden und KI-Konkurrenz.
+- **Getrennt:** Fuhrpark, Personal, Konto, Ruf, Verträge, Kundenbeziehung (Zufriedenheit, Lieferungen) und Firmenchat.
+- **Börse:** Jede Firma sieht ihren eigenen Preis (Treue, Vertrieb, Kampagnen …). Wer zuerst annimmt oder disponiert, bekommt den Auftrag; bei den anderen verschwindet er.
+- **Sichtbarkeit:** Standorte und fahrende LKW der Mitbewerber erscheinen auf der Karte in deren Firmenfarbe. Fracht, Konto und Disposition bleiben verborgen.
+- **Zeit per Abstimmung:** Pause und Tempo ändern sich erst, wenn mehr als die Hälfte der aktiven Firmen zustimmt (je Firma eine Stimme, abgegeben von Spielern mit „Spielleitung“). Offene Abstimmungen verfallen nach 30 Sekunden. Entscheidungskarten halten die gemeinsame Welt nicht an.
+- **Weltchat:** ein Kanal für alle Speditionen, zusätzlich zum Firmenchat.
+- **Aufträge an Mitbewerber abgeben:** Im Dialog „Abgeben“ lässt sich ein angenommener Auftrag einer anderen Spielerfirma anbieten, zu 50–100 % des eigenen Preises.
+  - Die Firma hat 2 Spielstunden Zeit, unter Auftragsbörse → „Angebote von Mitbewerbern“ zu übernehmen oder abzulehnen.
+  - Übernimmt sie, fährt sie einen eigenen Auftrag zum vereinbarten Preis. Nach der Zustellung stellt die abgebende Firma ihre Marge in Rechnung.
+  - Verspätungsstrafen trägt die ausführende Firma, die Zufriedenheit des Kunden trifft beide. Wird der Auftrag nicht gefahren, verlieren beide Ruf.
+- **Ausschreibungen:** Alle Firmen bieten verdeckt gegeneinander und gegen die KI; jede sieht nur ihr eigenes Gebot. Den Zuschlag bekommt das beste Verhältnis aus Preis und Ruf.
+- **KI-Konkurrenz:** Sie wirbt Kunden je Firma ab. Wer schlecht liefert, verliert den Kunden, andere Firmen behalten ihn. Seine Aufträge gehen erst dann direkt an die KI, wenn ihn alle Firmen verloren haben.
+- **Rangliste** (Markt & Wettbewerb → Rangliste, auch im Einzelspiel): alle Speditionen nach Firmenwert (abzüglich Kredite), dazu Umsatz der letzten 30 Tage, Pünktlichkeit, Ruf und Flotte.
+- **Branchenblatt:** Jede Firma liest ihre eigene Ausgabe mit ihrer Firmenwoche. In der Wettbewerbswelt kommen Rangliste, neue Spielerfirmen und Übernahmen durch Mitbewerber dazu.
+- **Ende:** Die Welt ist immer offen. Verkauft eine Firma, ruht sie; die Welt läuft für die anderen weiter.
+
 ## 16. Spielfortschritt: Unternehmensstufen
 
 | Stufe | Name | Fahrzeuge | Lieferungen | Reputation | Standorte | Länder | max. Standorte |

@@ -10,6 +10,7 @@ import { dailyScenario } from './scenarios.ts';
 import { dailyProgress } from './progress.ts';
 import { hourlyTeam } from './team.ts';
 import { hourlyPartners } from './partners.ts';
+import { hourlyHandovers } from './handover.ts';
 import { dailyNews } from './news.ts';
 import { dailyMarketing } from './branding.ts';
 import type { SimContext } from './context.ts';
@@ -27,7 +28,7 @@ import { dailyCompany, hourlyCompany, monthlyCompany } from './company.ts';
 import { runAutoDispatch } from './autodispatch.ts';
 import { updateWeather } from './world.ts';
 import { dailyEconomy } from './economy.ts';
-import { dailyCompetition, hourlyCompetition, monthlyCompetition } from './competition.ts';
+import { dailyCompetitorCosts, dailyCustomerChurn, hourlyCompetition, monthlyCompetition } from './competition.ts';
 import { dailyEvents, hourlyEvents } from './events.ts';
 import type { Disruption, GameState } from './types.ts';
 import { MAIN_COMPANY, companyViews, isCompanyView, tagClaimedOrders, worldOf, type WorldState } from './shard.ts';
@@ -67,7 +68,7 @@ const MINUTE: Step[] = [
 
 const HOURLY: Step[] = [
   { scope: 'world', run: (s, ctx) => updateWeather(s, ctx) },
-  { scope: 'world', run: (s) => hourlyCompetition(s) }, // gemischt: KI wirbt Kunden der Firma ab
+  { scope: 'world', run: (s) => hourlyCompetition(s) }, // KI übernimmt liegengebliebene Börsenangebote
   { scope: 'world', run: (s, ctx) => updateOrderMarket(s, ctx) }, // gemischt: Preise mit Treue/Vertrieb der Firma
   { scope: 'company', run: (s) => processInvoices(s) },
   { scope: 'world', run: (s, _ctx, t) => { t.lifted = expireDisruptions(s); } },
@@ -82,6 +83,7 @@ const HOURLY: Step[] = [
   { scope: 'company', run: (s) => hourlyCompany(s) },
   { scope: 'company', run: (s) => hourlyTeam(s) },
   { scope: 'company', run: (s) => hourlyPartners(s) },
+  { scope: 'company', run: (s) => hourlyHandovers(s) },
   { scope: 'company', run: (s, ctx) => runAutoDispatch(s, ctx) },
 ];
 
@@ -102,7 +104,8 @@ const DAILY: Step[] = [
   } },
   // Nachfrage: Saison × Konjunktur, regionale Nachfrage, Konkurrenz und Ereignisse
   { scope: 'world', run: (s) => dailyEconomy(s) },
-  { scope: 'world', run: (s) => dailyCompetition(s) }, // gemischt: Rückgewinnung von Kunden der Firma
+  { scope: 'world', run: (s) => dailyCompetitorCosts(s) },
+  { scope: 'company', run: (s) => dailyCustomerChurn(s) }, // je Firma: Kunden wechseln zur KI und zurück
   { scope: 'company', run: (s, ctx) => dailyEvents(s, ctx) },
   { scope: 'company', run: (s, ctx) => dailyDecisions(s, ctx) },
   // Bewerber (je Firma) und Gebrauchtfahrzeuge (Welt, am Sitz der ersten Firma)
@@ -151,21 +154,26 @@ const DAILY: Step[] = [
     dailyScenario(state);
     dailyProgress(state);
   } },
-  { scope: 'world', run: (s) => dailyNews(s) }, // gemischt: Firmenwoche der ersten Firma
+  { scope: 'company', run: (s) => dailyNews(s) }, // jede Firma liest ihre eigene Ausgabe (mit ihrer Firmenwoche)
   { scope: 'company', run: (s) => {
     dailyMarketing(s);
     pruneTrips(s);
   } },
 ];
 
-function runSteps(steps: Step[], views: GameState[], ctx: SimContext, tick: TickScratch) {
+/**
+ * `tag`: nach jedem Firmenschritt Aufträge ohne Eigentümer der Firma zuordnen (Sicherheitsnetz für Annahmewege).
+ * Im Minutentakt nicht nötig – dort laufen nur Fahrten bereits übernommener Aufträge – und zu teuer.
+ */
+function runSteps(steps: Step[], views: GameState[], ctx: SimContext, tick: TickScratch, tag = true) {
   const primary = views[0];
+  const multi = tag && views.length > 1;
   for (const step of steps) {
     if (step.scope === 'world') step.run(primary, ctx, tick);
     else
       for (const v of views) {
         step.run(v, ctx, tick);
-        if (views.length > 1) tagClaimedOrders(v);
+        if (multi) tagClaimedOrders(v);
       }
   }
 }
@@ -176,7 +184,7 @@ function tickViews(views: GameState[], ctx: SimContext): void {
   if (!active.length) return;
   active[0].time += 1;
   const tick: TickScratch = { lifted: [] };
-  runSteps(MINUTE, active, ctx, tick);
+  runSteps(MINUTE, active, ctx, tick, false);
   if (active[0].time % 60 === 0) runSteps(HOURLY, active, ctx, tick);
   if (minuteOfDay(active[0].time) === 0) runSteps(DAILY, active, ctx, tick);
 }

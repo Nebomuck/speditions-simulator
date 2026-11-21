@@ -21,6 +21,9 @@ export interface MpSession {
   company: string;
   /** auf diesem PC gehostet (Server wird automatisch gestartet) */
   hosted: boolean;
+  /** Wettbewerbswelt: Code für das Team der eigenen Firma */
+  companyCode?: string;
+  competition?: boolean;
   lastPlayed: string;
   /** zuletzt gesehener Stand der Firma (für die Übersicht im Startbildschirm) */
   summary?: { time: number; balance: number; vehicles: number; level: number; players: number };
@@ -226,9 +229,16 @@ export function connect(url: string, hello: Record<string, unknown>, hosted: boo
     },
     onError: (m) => toast('danger', m),
     onStatus: (st) => setUi({ connection: st }),
+    onChooseCompany: (c) => setUi({ mpChoose: c, connection: '' }),
     onWelcome: (w) => {
       const prev = loadSessions().find((x) => x.gameId === w.gameId);
-      saveSession({ gameId: w.gameId, playerId: w.playerId, inviteCode: w.inviteCode, token: w.token, url: host.url, hosted, company: String(hello.companyName ?? prev?.company ?? ''), lastPlayed: new Date().toISOString() });
+      const nc = hello.newCompany as { companyName?: string } | undefined;
+      saveSession({
+        gameId: w.gameId, playerId: w.playerId, inviteCode: w.inviteCode, token: w.token, url: host.url, hosted,
+        company: String(hello.companyName ?? nc?.companyName ?? prev?.company ?? ''), lastPlayed: new Date().toISOString(),
+        ...(w.competition ? { competition: true, companyCode: w.companyCode } : {}),
+      });
+      setUi({ mpChoose: null });
     },
     onCompany: (gameId, company) => {
       const s = loadSessions().find((x) => x.gameId === gameId);
@@ -242,10 +252,11 @@ export function connect(url: string, hello: Record<string, unknown>, hosted: boo
 
 /** Neu beitreten. Kennt dieser PC die Firma schon (gleicher Code), tritt er als derselbe Spieler
  *  wieder bei – nötig, weil sich die Tunnel-Adresse des Hosts bei jedem Start ändert. */
-export function joinWithCode(url: string, code: string, name: string, character: unknown) {
-  const known = loadSessions().find((s) => !s.hosted && s.inviteCode.toUpperCase() === code.toUpperCase());
+export function joinWithCode(url: string, code: string, name: string, character: unknown, newCompany?: { companyName: string; hqCityId: string }) {
+  const c = code.toUpperCase();
+  const known = loadSessions().find((s) => !s.hosted && (s.inviteCode.toUpperCase() === c || s.companyCode?.toUpperCase() === c));
   if (known) return connect(url, { t: 'join', code: known.inviteCode, playerId: known.playerId, token: known.token }, false);
-  return connect(url, { t: 'join', code, name, character }, false);
+  return connect(url, { t: 'join', code, name, character, ...(newCompany ? { newCompany } : {}) }, false);
 }
 
 /** Gemerkte Firma fortsetzen – startet bei eigenen Firmen vorher den eingebauten Server. */

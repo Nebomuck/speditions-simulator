@@ -34,7 +34,7 @@ function ChatText({ text }: { text: string }) {
 }
 
 /** Für den Host: Adresse und Einladungscode, mit denen Freunde beitreten. */
-function InviteCard({ code }: { code: string }) {
+function InviteCard({ code, teamCode }: { code: string; teamCode?: string }) {
   const [ip, setIp] = useState<string | null>(null);
   useEffect(() => {
     localAddress().then(setIp);
@@ -46,14 +46,23 @@ function InviteCard({ code }: { code: string }) {
     toast('success', 'In die Zwischenablage kopiert.');
   };
   const invite = tunnel.status === 'ready' && tunnel.url ? inviteLine(tunnel.url, code) : null;
+  const teamInvite = teamCode && tunnel.status === 'ready' && tunnel.url ? inviteLine(tunnel.url, teamCode) : null;
   return (
-    <Card title="Freunde einladen" className="mb">
+    <Card title={teamCode ? 'Mitbewerber und Mitspieler einladen' : 'Freunde einladen'} className="mb">
+      {teamCode && (
+        <p className="dim" style={{ fontSize: 12.5, marginTop: 0 }}>
+          Wettbewerbswelt: Mit dem <b>Welt-Code</b> gründen Mitbewerber eine eigene Spedition. Mit dem <b>Team-Code</b> treten Mitspieler deiner Firma bei.
+        </p>
+      )}
       {isDesktop() && (
         <div className="mb">
           <div className="row wrap" style={{ gap: 10, alignItems: 'center' }}>
             <Globe size={16} />
             {invite ? (
-              <button className="btn primary" onClick={() => copy(invite)}><Copy size={15} /> Internet-Einladung kopieren: <b>{invite}</b></button>
+              <>
+                <button className="btn primary" onClick={() => copy(invite)}><Copy size={15} /> {teamCode ? 'Einladung für Mitbewerber' : 'Internet-Einladung kopieren'}: <b>{invite}</b></button>
+                {teamInvite && <button className="btn" onClick={() => copy(teamInvite)}><Copy size={15} /> Einladung ins Team: <b>{teamInvite}</b></button>}
+              </>
             ) : tunnel.status === 'error' ? (
               <>
                 <span style={{ color: 'var(--danger)' }}>Internet-Zugang fehlgeschlagen: {tunnel.error}</span>
@@ -71,7 +80,8 @@ function InviteCard({ code }: { code: string }) {
       )}
       <div className="row wrap" style={{ gap: 10 }}>
         {addr && <button className="btn" onClick={() => copy(addr)}><Copy size={15} /> Adresse (Heimnetz): <b>{addr}</b></button>}
-        <button className="btn" onClick={() => copy(code)}><Copy size={15} /> Einladungscode: <b>{code}</b></button>
+        <button className="btn" onClick={() => copy(code)}><Copy size={15} /> {teamCode ? 'Welt-Code' : 'Einladungscode'}: <b>{code}</b></button>
+        {teamCode && <button className="btn" onClick={() => copy(teamCode)}><Copy size={15} /> Team-Code: <b>{teamCode}</b></button>}
       </div>
       <p className="dim" style={{ fontSize: 12.5, marginBottom: 0 }}>
         Der Spielserver läuft auf diesem PC, solange das Spiel geöffnet ist; beim Beenden wird gespeichert.
@@ -83,7 +93,7 @@ function InviteCard({ code }: { code: string }) {
 
 const CAT_LABEL: Record<string, string> = { order: 'Auftrag', trip: 'Fahrt', finance: 'Finanzen', personnel: 'Personal', fleet: 'Fuhrpark', company: 'Firma', market: 'Markt', multiplayer: 'Team', private: 'Privat' };
 
-type Tab = 'team' | 'messages' | 'tasks' | 'together' | 'chat';
+type Tab = 'team' | 'messages' | 'tasks' | 'together' | 'chat' | 'world';
 
 const playerName = (s: GameState, id: string | undefined) => (id && s.players[id]?.name) || '–';
 
@@ -121,18 +131,35 @@ export function TeamPage() {
     { id: 'tasks', label: 'Aufgaben', icon: ListTodo, count: tasks },
     { id: 'together', label: 'Gemeinsam', icon: PartyPopper, count: invites },
     { id: 'chat', label: 'Chat & Protokoll', icon: MessagesSquare },
+    ...(s.arena ? [{ id: 'world' as Tab, label: 'Weltchat', icon: Globe }] : []),
   ];
+  const teamCode = host?.companyCode;
+  const copyCode = (c: string, what: string) => {
+    navigator.clipboard?.writeText(c);
+    toast('success', `${what} kopiert.`);
+  };
 
   return (
     <div className="page">
       <PageHeader
         title="Team & Kommunikation"
-        subtitle={host?.mode === 'remote' ? 'Kooperativer Multiplayer – alle Spieler leiten dieselbe Spedition.' : 'Einzelspieler – Multiplayer startest du im Hauptmenü über einen Spielserver.'}
+        subtitle={
+          s.arena
+            ? `Wettbewerbswelt – ${s.arena.rivals.length + 1} Speditionen konkurrieren um dieselben Aufträge, dein Team leitet ${s.company.name}.`
+            : host?.mode === 'remote' ? 'Kooperativer Multiplayer – alle Spieler leiten dieselbe Spedition.' : 'Einzelspieler – Multiplayer startest du im Hauptmenü über einen Spielserver.'
+        }
         actions={
           !hosting && host?.inviteCode && (
-            <button className="btn" onClick={() => { navigator.clipboard?.writeText(host.inviteCode!); toast('success', 'Einladungscode kopiert.'); }}>
-              <Copy size={15} /> Einladungscode: <b>{host.inviteCode}</b>
-            </button>
+            <div className="row wrap" style={{ gap: 8 }}>
+              {teamCode && (
+                <button className="btn" title="Mitspieler treten damit deinem Team bei" onClick={() => copyCode(teamCode, 'Team-Code')}>
+                  <Copy size={15} /> Team-Code: <b>{teamCode}</b>
+                </button>
+              )}
+              <button className="btn" title={teamCode ? 'Damit gründen Mitbewerber eine eigene Spedition in dieser Welt' : undefined} onClick={() => copyCode(host.inviteCode!, teamCode ? 'Welt-Code' : 'Einladungscode')}>
+                <Copy size={15} /> {teamCode ? 'Welt-Code' : 'Einladungscode'}: <b>{host.inviteCode}</b>
+              </button>
+            </div>
           )
         }
       />
@@ -145,7 +172,7 @@ export function TeamPage() {
       </div>
       {tab === 'team' && (
         <>
-          {hosting && host?.inviteCode && <InviteCard code={host.inviteCode} />}
+          {hosting && host?.inviteCode && <InviteCard code={host.inviteCode} teamCode={teamCode} />}
           <TeamTab />
         </>
       )}
@@ -153,6 +180,7 @@ export function TeamPage() {
       {tab === 'tasks' && <TasksTab />}
       {tab === 'together' && <TogetherTab />}
       {tab === 'chat' && <ChatTab />}
+      {tab === 'world' && <WorldChatTab />}
     </div>
   );
 }
@@ -576,6 +604,47 @@ function TogetherTab() {
 }
 
 // ---------------------------------------------------------------- Chat & Protokoll
+
+/** Weltchat: alle Speditionen einer Wettbewerbswelt */
+function WorldChatTab() {
+  const s = useGame();
+  const [text, setText] = useState('');
+  const chatEnd = useRef<HTMLDivElement>(null);
+  const list = s.worldChat ?? [];
+  useEffect(() => {
+    chatEnd.current?.scrollIntoView({ block: 'end' });
+  }, [list.length]);
+  const color = (companyId: string) =>
+    companyId === s.arena?.companyId ? s.company.livery?.primary : s.arena?.rivals.find((r) => r.id === companyId)?.livery.primary;
+  return (
+    <Card title="Weltchat">
+      <p className="dim" style={{ fontSize: 12.5, marginTop: 0 }}>Hier lesen alle Speditionen der Welt mit. Für Absprachen im eigenen Team gibt es den Firmenchat.</p>
+      <div className="list" style={{ height: 420, overflow: 'auto' }}>
+        {list.length === 0 && <div className="empty">Noch keine Nachrichten.</div>}
+        {list.map((m) => (
+          <div key={m.id} className="list-item">
+            <time>{formatDateTime(m.t).slice(3)}</time>
+            <span>
+              <b style={{ color: color(m.companyId) }}>{m.name}</b> <small className="dim">({m.company})</small>: {m.text}
+            </span>
+          </div>
+        ))}
+        <div ref={chatEnd} />
+      </div>
+      <form
+        className="row mt"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!text.trim()) return;
+          if ((await sendCommand({ type: 'worldChat', text }, { quiet: true })).ok) setText('');
+        }}
+      >
+        <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Nachricht an alle Speditionen …" />
+        <button className="btn primary" type="submit"><Send size={14} /></button>
+      </form>
+    </Card>
+  );
+}
 
 function ChatTab() {
   const s = useGame();

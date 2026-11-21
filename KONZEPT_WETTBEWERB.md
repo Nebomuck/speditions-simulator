@@ -102,9 +102,9 @@ Jeder Schritt ist für sich lauffähig und getestet. Einzelspiel und kooperative
 | D1 ✅ | Typen `WorldState`, `CompanyShard`, Firmenansicht (`companyView`). Neue und geladene Spiele laufen als Ansicht auf eine Welt mit einer Firma. | Alle bestehenden Tests grün, Vergleichslauf identisch, gleiche Geschwindigkeit (`shard.test.ts`) |
 | D2 ✅ | Hooks in Welt- und Firmenanteil trennen, Tick über mehrere Shards | Welt mit zwei Firmen im Test simulierbar (`world.test.ts`), Vergleichslauf mit dem alten Stand identisch |
 | D3 ✅ | Gemeinsame Börse mit Grundpreis und Firmenaufschlag, Annahme mit Vergabe, Kundenbeziehung je Firma | Zwei Firmen konkurrieren um dieselben Aufträge (`market.test.ts`), Vergleichslauf mit dem alten Stand identisch |
-| D4 | Server: mehrere Firmen je Welt, Beitritt mit Firmenwahl, gefilterte Ansicht und Delta je Spieler, Weltchat | Wettbewerbsspiel übers Netz |
-| D5 | Mitspieler-Subunternehmer, Rangliste, Branchenblatt, Ausschreibungen zwischen Spielern | Spielinhalte des Wettbewerbs |
-| D6 | Balancing mit zwei Bots in einer Welt, Lasttest mit 4 Firmen, Doku | Release |
+| D4 ✅ | Server: mehrere Firmen je Welt, Beitritt mit Firmenwahl, gefilterte Ansicht und Delta je Spieler, Weltchat | Wettbewerbsspiel übers Netz (`arena.test.ts`, Servertest „Wettbewerbswelt“) |
+| D5 ✅ | Mitspieler-Subunternehmer, Rangliste, Branchenblatt, Ausschreibungen zwischen Spielern | Spielinhalte des Wettbewerbs (`rivalry.test.ts`) |
+| D6 ✅ | Balancing mit zwei Bots in einer Welt, Lasttest mit 4 Firmen, Doku | Release (`worldload.test.ts`, Messwerte unter „Stand D6“) |
 
 **Risiken:**
 - **D2:** Die Hooks sind teils eng verflochten, zum Beispiel greift die Konkurrenz auf die Spielerkunden zu. Absicherung über bestehende Tests und einen Vergleichslauf: eine Welt mit einer Firma muss mit gleichem Seed dasselbe Ergebnis liefern wie vorher.
@@ -153,6 +153,82 @@ Jeder Schritt ist für sich lauffähig und getestet. Einzelspiel und kooperative
 - **Einzelspiel:** Ohne zweite Firma gibt es weder `quotes` noch `companyId`; Preise und Ablauf sind unverändert. Der Vergleichslauf (Spieler-Bot, 60 Tage, zwei Startwerte) ist bytegleich.
 - **Test:** Zwei Bots spielen 30 Tage in derselben Welt. Jeder übernommene Auftrag hat genau einen Eigentümer, Fahrten und Rechnungen beziehen sich nur auf eigene Aufträge, beide Firmen liefern.
 - **Noch offen:** Die gefilterte Ansicht je Spieler (fremde Aufträge ausblenden, eigener Preis als `payment`) entsteht in D4 auf dem Server. KI-Konkurrenz, Ausschreibungen und Branchenblatt laufen bis D5 weiter mit der ersten Firma.
+
+## Stand D4 (21.11.2026)
+
+- **Spielstand:** Eine Welt mit mehreren Firmen wird als ganze Welt gespeichert (Weltfelder, `companies`, `companyOrder`), Format weiterhin Version 13. Beim Laden läuft die Migrationskette je Firma. Einzelspiel und kooperative Spiele bleiben flach.
+- **Neue Weltfelder:** `competition` (Wettbewerbswelt), `timeVote` (laufende Abstimmung), `worldChat`.
+- **Spielersicht (`arena.ts`, `playerView`):** Bei mehreren Firmen bekommt jeder Spieler die Ansicht seiner Firma:
+  - offene Börsenangebote mit dem eigenen Preis als `payment`, ohne `quotes`; eigene übernommene Aufträge; keine Aufträge anderer Firmen
+  - Mitbewerber nur als Zusammenfassung in `arena.rivals`: Name, Lackierung, Standorte, Spielerzahl, Stufe, LKW-Positionen (gerundet)
+  - Die Delta-Synchronisation läuft unverändert auf dieser Sicht.
+- **Befehle:** `GameSession.command` führt Befehle in der Firma des Spielers aus (`viewForPlayer`).
+- **Zeit per Abstimmung:** In einer Welt mit mehreren Firmen starten `setPaused` und `setSpeed` eine Abstimmung (`voteTime`). Je Firma eine Stimme, Mehrheit der aktiven Firmen. Ein anderer Vorschlag ersetzt den laufenden, `rejectTimeVote` beendet ihn. Der Server verwirft offene Abstimmungen nach `voteSeconds` (Standard 30 s). `setSpeed` mit `resume` fasst Tempo und Fortsetzen in einer Abstimmung zusammen.
+- **Weitere Regeln:** Entscheidungskarten halten die gemeinsame Welt nicht an. Ein Firmenverkauf pausiert die Welt nicht. Neue Firmen bekommen eine eigene, noch freie Firmenfarbe.
+- **Server:**
+  - `create` mit `competition: true` legt eine Wettbewerbswelt an.
+  - Der Welt-Code (bisheriger Einladungscode) gründet eine neue Firma. Ohne `newCompany` antwortet der Server mit `chooseCompany` (Weltname, vorhandene Firmen).
+  - Jede Firma hat einen Team-Code (Tabelle `company_invites`), der Beitritt mit ihm landet im Team dieser Firma. `welcome` meldet `competition` und `companyCode`.
+  - Höchstens `maxCompanies` Firmen je Welt (Standard 4).
+- **Client:**
+  - Beim Hosten Option „Wettbewerbswelt“; beim Beitritt mit Welt-Code erscheinen Firmenname und Firmensitz.
+  - Team & Kommunikation zeigt Welt-Code und Team-Code (mit Internet-Einladung) und den Reiter „Weltchat“.
+  - Die Kopfzeile zeigt laufende Abstimmungen mit „Zustimmen“ und „Ablehnen“.
+  - Die Karte zeigt Standorte und fahrende LKW der Mitbewerber in deren Firmenfarbe.
+- **Noch offen (D5):** Rangliste, Subunternehmer zwischen Spielerfirmen, Ausschreibungen und Branchenblatt mit Spielerfirmen. KI-Konkurrenz, Ausschreibungen und Branchenblatt laufen bis dahin mit der ersten Firma.
+
+## Stand D5 (21.11.2026)
+
+- **Rangliste (`ranking.ts`):** Spielerfirmen und aktive KI-Speditionen nach Firmenwert.
+  - Spielerfirmen: Konto, Forderungen, Fahrzeuge, Auflieger und Einrichtungen abzüglich Kredite. Dazu Umsatz der letzten 30 Tage, Pünktlichkeit, Ruf, LKW und Firmenfarbe.
+  - KI: geschätzt aus Kasse und Flotte (42.000 € je LKW), Umsatz des letzten Monats, typische Pünktlichkeit je Strategie.
+  - In der Wettbewerbswelt steht die Liste in `arena.ranking`, im Einzelspiel rechnet der Client sie selbst.
+- **Ausschreibungen:** In der Wettbewerbswelt liegen die Gebote je Firma in `tender.bids`.
+  - Alle Firmen und die KI bieten. Bewertet wird jedes Gebot mit dem Ruf der bietenden Firma, der Vertrag entsteht in der Firma mit dem Zuschlag (`winnerCompanyId`). Verlierer bekommen die Meldung mit Grund.
+  - Die Spielersicht zeigt nur das eigene Gebot als `bid`, den Status aus eigener Sicht (gewonnen, verloren, ohne Gebot abgelaufen) und markiert im Ergebnis nur die eigene Firma.
+  - Neue Ausschreibungen entstehen im Umkreis aller Firmen und für deren Aufliegertypen.
+- **Branchenblatt:** `news` gehört jetzt zur Firma, jede Firma bekommt ihre eigene Ausgabe.
+  - In der Wettbewerbswelt kommen dazu: Platz in der Rangliste, neue Spielerfirmen, Übernahmen von KI-Firmen mit dem Namen der übernehmenden Firma (`acquiredBy`).
+  - Der Platz nach Flottengröße zählt andere Spielerfirmen mit.
+- **Subunternehmer zwischen Spielerfirmen (`handover.ts`):**
+  - `offerHandover`: angenommener Auftrag, Preis 50–100 % des eigenen Preises, Frist 2 Spielstunden (`order.handover`).
+  - `acceptHandover`: Die empfangende Firma bekommt einen eigenen Auftrag (`parentOrderId`, vereinbarter Preis). Der ursprüngliche Auftrag steht beim Partner (`subcontract.childId`).
+  - Nach der Zustellung rechnet die abgebende Firma ihre Marge mit dem Kunden ab. Verspätungsstrafen trägt die ausführende Firma, die Zufriedenheit beider Kundenbeziehungen ändert sich.
+  - Nicht gefahren (abgebrochen oder 2 Tage nach Lieferfrist offen): Auftrag storniert, Kunde verärgert, beide Firmen verlieren Ruf.
+  - `declineHandover`, `cancelHandover`, Verfall nach Frist. Eingehende Angebote stehen in `arena.incoming`.
+- **Client:**
+  - Markt & Wettbewerb → Rangliste (auch im Einzelspiel).
+  - Im Dialog „Abgeben“ kann man einen Auftrag einer Mitbewerber-Firma anbieten.
+  - In der Auftragsbörse stehen „Angebote von Mitbewerbern“ mit Übernehmen und Ablehnen.
+- **Vergleichslauf:** Das Einzelspiel bleibt bytegleich.
+- **Erledigt in D6:** KI-Konkurrenz je Firma, Balancing und Lasttest (siehe „Stand D6“).
+
+## Stand D6 (21.11.2026)
+
+- **KI-Konkurrenz je Firma:** Der Tagesschritt ist geteilt.
+  - Fixkosten der KI laufen einmal für die Welt (`dailyCompetitorCosts`).
+  - Abwerben und Rückkehr von Kunden laufen je Firma mit deren Kundenbeziehung und Ruf (`dailyCustomerChurn`).
+  - Aufträge eines abgewanderten Kunden gehen nur dann direkt an die KI, wenn alle Firmen ihn verloren haben. Sonst erscheinen sie in der Börse.
+  - Wie lange die KI liegengebliebene Börsenangebote stehen lässt, richtet sich nach dem mittleren Vertrieb aller Firmen.
+- **Leistung:** Das Sicherheitsnetz für Auftragseigentum (`tagClaimedOrders`) läuft nur noch nach Stunden- und Tagesschritten. Im Minutentakt werden nur Fahrten bereits übernommener Aufträge bewegt. Damit wächst die Rechenzeit etwa linear mit der Zahl der Firmen.
+- **Balancing (Spieler-Bot, 120 Tage, Normal, Startwerte 3 und 11):**
+
+  | Aufstellung | Umsatz je Firma | Lieferungen je Firma |
+  |---|---|---|
+  | allein (Leipzig) | 116.000–120.000 € | 75–76 |
+  | zwei Firmen, beide Leipzig | 93.000–114.000 € | 62–73 |
+  | zwei Firmen, Leipzig und Hamburg | 89.000–108.000 € | 57–77 |
+  | vier Firmen (Leipzig, Hamburg, München, Köln) | 89.000–106.000 € | 53–79 |
+
+  Eine zweite Firma kostet je nach Lage etwa 5–25 % Umsatz, weil sich die Börse teilt. Das ist gewollter Wettbewerb und kein Einbruch. Die KI übernimmt weiter den Großteil der Börse (6.000–9.000 Aufträge in 120 Tagen), deshalb bleibt für jede Spielerfirma genug. Die Spielregeln bleiben unverändert.
+- **Lasttest (4 Firmen mit Bots):**
+  - etwa 0,5 s Rechenzeit je Spieltag in den ersten Wochen, nach 120 Tagen höchstens 1,3 s
+  - Bei 60× Zeitraffer dauert ein Spieltag 24 s Echtzeit, das sind etwa 2–5 % eines Prozessorkerns.
+  - Spielstand etwa 1–2 MB, Spielersicht je Firma etwa 6 ms
+- **Tests:** `worldload.test.ts` prüft:
+  - Abwerben je Firma: Die schlecht liefernde Firma verliert den Kunden, die andere nicht.
+  - vier Firmen mit Bots über 5 Tage: Eigentum eindeutig, Sichten und Rangliste vollständig, Spielstand lädt.
+- **Vergleichslauf:** Das Einzelspiel bleibt bytegleich zu 0.19.0.
 
 ## Entscheidungen (20.11.2026)
 

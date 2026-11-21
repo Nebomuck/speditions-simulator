@@ -730,3 +730,12 @@ svg.brand-logo { border-radius: 0; }
 .drive-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 1px 6px; border-radius: 5px; background: rgba(52, 211, 153, .14); color: #34d399; white-space: nowrap; }
 .drive-badge.lng { background: rgba(56, 189, 248, .14); color: #38bdf8; }
 .green-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 1px 6px; border-radius: 5px; background: rgba(52, 211, 153, .14); color: #34d399; }
+
+/* Wettbewerbswelt: Abstimmung über Pause und Tempo */
+.vote-chip { display: flex; align-items: center; gap: 8px; margin-left: 12px; padding: 4px 10px; border-radius: 8px; background: var(--panel-2, rgba(148,163,184,.12)); border: 1px solid var(--warning, #f59e0b); font-size: 12.5px; white-space: nowrap; min-width: 0; flex-shrink: 1; }
+.vote-chip > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* Rangliste */
+.row-own td { background: color-mix(in srgb, var(--accent, #38bdf8) 10%, transparent); }
+.rank-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.card-inset { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border, rgba(148,163,184,.25)); }

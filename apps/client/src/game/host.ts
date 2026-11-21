@@ -18,8 +18,10 @@ export interface GameHost {
   save?(name: string): Promise<void>;
   exportSave?(): Promise<string>;
   close(): void;
-  /** Multiplayer: Einladungscode */
+  /** Multiplayer: Einladungscode (Wettbewerbswelt: Welt-Code für neue Firmen) */
   inviteCode?: string;
+  /** Wettbewerbswelt: Team-Code der eigenen Firma */
+  companyCode?: string;
 }
 
 export class LocalHost implements GameHost {
@@ -95,8 +97,15 @@ export class LocalHost implements GameHost {
   }
 }
 
+/** Welt-Code einer Wettbewerbswelt ohne Firmendaten: der Server fragt nach der neuen Firma */
+export interface ChooseCompany {
+  world: string;
+  companies: { name: string; hqCityId: string; players: number; exited: boolean }[];
+}
+
 type RemoteEvents = HostEvents & {
-  onWelcome?(w: { playerId: string; gameId: string; inviteCode: string; token: string }): void;
+  onWelcome?(w: { playerId: string; gameId: string; inviteCode: string; token: string; companyCode?: string; competition?: boolean }): void;
+  onChooseCompany?(c: ChooseCompany): void;
   onCompany?(gameId: string, company: string): void;
   /** vor jedem Wiederverbindungsversuch: aktuelle Server-Adresse ermitteln (Tunnel-Adresse kann wechseln) */
   resolveUrl?(): Promise<string | null>;
@@ -109,6 +118,9 @@ export class RemoteHost implements GameHost {
   private seq = 0;
   private pending = new Map<number, (r: CommandResult) => void>();
   inviteCode?: string;
+  /** Wettbewerbswelt: Code für den Beitritt zum Team der eigenen Firma */
+  companyCode?: string;
+  competition = false;
   gameId?: string;
   private closed = false;
   private welcomed = false;
@@ -143,6 +155,8 @@ export class RemoteHost implements GameHost {
       if (m.t === 'welcome') {
         this.welcomed = true;
         this.inviteCode = m.inviteCode;
+        this.companyCode = m.companyCode;
+        this.competition = !!m.competition;
         this.gameId = m.gameId;
         // bei Wiederverbindung als bestehender Spieler beitreten
         this.hello = { t: 'join', code: m.inviteCode, playerId: m.playerId, token: m.token };
@@ -174,6 +188,10 @@ export class RemoteHost implements GameHost {
       } else if (m.t === 'result') {
         this.pending.get(m.id)?.(m.result);
         this.pending.delete(m.id);
+      } else if (m.t === 'chooseCompany') {
+        // Beitritt mit Welt-Code: erst Firmendaten abfragen, dann neu verbinden
+        this.close();
+        this.events.onChooseCompany?.(m as ChooseCompany);
       } else if (m.t === 'error') {
         this.events.onError(m.message);
         // Beitritt abgelehnt (falscher Code/Token) → nicht endlos neu verbinden

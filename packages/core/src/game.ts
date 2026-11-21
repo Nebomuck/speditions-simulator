@@ -1,6 +1,7 @@
 // GameCore: Neues Spiel anlegen, Spieler hinzufügen.
 
 import { CITY_BY_ID } from './data/cities.ts';
+import { LIVERY_COLORS, defaultLivery, liveryOf } from './branding.ts';
 import { TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { ALL_PERMISSIONS } from './commands.ts';
@@ -251,6 +252,13 @@ export function addCompany(world: WorldState, ctx: SimContext, opts: Omit<NewGam
   shard.customers = Object.fromEntries(Object.values(first.customers).map((c) => [c.id, freshRelation(c)]));
   // übernommene Aufträge ohne Eigentümer gehören den bisherigen Firmen (bis hier: der ersten)
   for (const o of Object.values(world.orders)) if (o.status !== 'offered') o.companyId ??= world.companyOrder[0];
+  // eigene Firmenfarbe, damit Mitbewerber auf der Karte unterscheidbar sind
+  if (!shard.company.livery) {
+    const used = new Set(world.companyOrder.map((c) => liveryOf({ company: world.companies[c].company, seed: world.seed }).primary));
+    const base = defaultLivery({ company: shard.company, seed: world.seed });
+    const primary = LIVERY_COLORS.find((c) => !used.has(c) && c !== '#f8fafc' && c !== '#111827') ?? base.primary;
+    shard.company.livery = { ...base, primary };
+  }
   world.companies[id] = shard;
   world.companyOrder.push(id);
   return id;

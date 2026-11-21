@@ -74,7 +74,10 @@ Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nu
    - D1 ✅ umgesetzt (`shard.ts`, Tests in `shard.test.ts`).
    - D2 ✅ umgesetzt (Tick mit Welt- und Firmenschritten in `sim.ts`, `addCompany`, Tests in `world.test.ts`).
    - D3 ✅ umgesetzt (gemeinsame Börse mit Preis je Firma, Vergabe an die annehmende Firma, Kundenbeziehung je Firma, Tests in `market.test.ts`).
-   - Als Nächstes D4: Server mit mehreren Firmen je Welt, Beitritt mit Firmenwahl, gefilterte Ansicht je Spieler, Weltchat.
+   - D4 ✅ umgesetzt (Wettbewerbswelt auf dem Server: Welt- und Team-Code, Sicht je Spieler, Zeit per Abstimmung, Weltchat, Mitbewerber auf der Karte; Tests in `arena.test.ts` und im Servertest).
+   - D5 ✅ umgesetzt (Rangliste, Ausschreibungen mit verdeckten Geboten je Firma, Branchenblatt je Firma, Subunternehmer zwischen Spielerfirmen; Tests in `rivalry.test.ts`).
+   - D6 ✅ umgesetzt (KI-Konkurrenz je Firma, Balancing mit Bots in gemeinsamer Welt, Lasttest mit 4 Firmen; Tests in `worldload.test.ts`, Messwerte in KONZEPT_WETTBEWERB.md).
+   - Paket D ist vollständig. Offen ist nur das Release 0.20.0 (nach Freigabe).
 
 ## Arbeitsweise
 
@@ -86,6 +89,6 @@ Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nu
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 187/187 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
+1. `npm install`, dann `npm test` (erwartet: 200/200 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
 3. Alle Phasen sind abgeschlossen. Städte ergänzen in `data/cities.ts`, danach `npm run roadnet` (behält alle bisherigen Kanten, K=5 Nachbarn, OSRM-Antworten werden zwischengespeichert). Balancing prüfen mit `node packages/core/test/measure-balance.ts [Tage] [easy|normal|realistic] [Seed]` (Spieler-Bot aus `test/bot.ts`), Welt mit `measure-world.ts`, Störungen mit `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).

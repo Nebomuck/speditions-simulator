@@ -7,7 +7,7 @@ import { defaultAutoDispatch } from './autodispatch.ts';
 import { defaultEconomy } from './economy.ts';
 import { defaultEvents } from './events.ts';
 import type { GameState } from './types.ts';
-import { companyView, splitState } from './shard.ts';
+import { WORLD_KEYS, companyView, isMultiCompany, splitState, worldOf, type WorldState } from './shard.ts';
 
 export const SAVE_FORMAT = 'spedsim-save';
 
@@ -32,7 +32,8 @@ export function checksum(text: string): string {
 }
 
 export function serializeSave(state: GameState, name: string): string {
-  const stateJson = JSON.stringify(state);
+  // Welt mit mehreren Firmen: ganze Welt (Weltfelder, `companies`, `companyOrder`); sonst flach wie bisher
+  const stateJson = JSON.stringify(isMultiCompany(state) ? worldOf(state) : state);
   const meta = { company: state.company.name, time: state.time, balance: state.company.account.balance };
   // state als Rohtext einbetten, damit die Prüfsumme exakt über den gespeicherten Text läuft
   return `{"format":"${SAVE_FORMAT}","version":${STATE_VERSION},"savedAt":${JSON.stringify(new Date().toISOString())},"name":${JSON.stringify(name)},"checksum":"${checksum(stateJson)}","meta":${JSON.stringify(meta)},"state":${stateJson}}`;
@@ -150,9 +151,17 @@ export function deserializeSave(text: string): GameState {
   const stateStart = text.indexOf('"state":') + '"state":'.length;
   const stateJson = text.slice(stateStart, text.length - 1);
   if (checksum(stateJson) !== parsed.checksum) throw new SaveError('Prüfsumme stimmt nicht – Spielstand beschädigt.');
-  let state = parsed.state as unknown as Record<string, unknown>;
-  let v = parsed.version;
+  const v = parsed.version;
   if (v > STATE_VERSION) throw new SaveError(`Spielstand stammt aus einer neueren Spielversion (${v}).`);
+  const raw = parsed.state as unknown as Record<string, unknown>;
+  if (raw.companies && Array.isArray(raw.companyOrder)) return companyView(migrateWorld(raw as unknown as WorldState, v));
+  const state = migrate(raw, v);
+  // Einzelspiel und kooperative Spiele: eine Welt mit einer Firma
+  return companyView(splitState(state as unknown as GameState));
+}
+
+function migrate(state: Record<string, unknown>, from: number): Record<string, unknown> {
+  let v = from;
   while (v < STATE_VERSION) {
     const m = MIGRATIONS[v];
     if (!m) throw new SaveError(`Keine Migration von Version ${v} verfügbar.`);
@@ -160,6 +169,24 @@ export function deserializeSave(text: string): GameState {
     v++;
   }
   (state as unknown as GameState).version = STATE_VERSION;
-  // Einzelspiel und kooperative Spiele: eine Welt mit einer Firma
-  return companyView(splitState(state as unknown as GameState));
+  return state;
+}
+
+/**
+ * Welt mit mehreren Firmen migrieren: je Firma ein flacher Zustand aus Weltfeldern und Shard. Die Weltfelder sind
+ * dieselben Objekte, Migrationen ergänzen nur fehlende Werte (`??=`) und dürfen daher mehrfach laufen.
+ */
+function migrateWorld(world: WorldState, from: number): WorldState {
+  const w = world as unknown as Record<string, unknown>;
+  for (const id of world.companyOrder) {
+    const flat = { ...w, ...(world.companies[id] as unknown as Record<string, unknown>) };
+    delete flat.companies;
+    delete flat.companyOrder;
+    const migrated = migrate(flat, from);
+    for (const k of WORLD_KEYS) if (k in migrated) w[k] = migrated[k];
+    const shard = splitState(migrated as unknown as GameState).companies;
+    world.companies[id] = Object.values(shard)[0];
+  }
+  world.version = STATE_VERSION;
+  return world;
 }

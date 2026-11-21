@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 20.11.2026 · Version 0.19.0
+Stand: 21.11.2026 · Version 0.20.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -196,6 +196,9 @@ Stand: 20.11.2026 · Version 0.19.0
 | Alternative Antriebe | Getestet (CO₂-Maut, Energiepreise je Antrieb, Ladestopps unterwegs, Ladepark am Standort) |
 | Grüne Kunden | Getestet (feste Zuordnung, Anteil, Dispositionsprüfung mit Fahrzeug und Fuhrparkanteil) |
 | Kombinierter Verkehr | Getestet (Bahnkanten nur auf Wunsch, Fahrpreis, Ruhe auf dem Zug, kein Diesel); im Browser geprüft: Angebot im Dialog, Karte |
+| KI je Firma, Balancing und Last (D6) | Getestet (Abwerben je Firma, vier Firmen mit Bots 5 Tage); Balancing 120 Tage mit 1, 2 und 4 Firmen (5–25 % weniger Umsatz je Firma durch geteilte Börse); Lasttest 4 Firmen etwa 0,5–1,3 s je Spieltag; Vergleichslauf gegen 0.19.0 bytegleich |
+| Wettbewerb zwischen Spielerfirmen (D5) | Getestet (Rangliste mit Spielern und KI, verdeckte Gebote je Firma mit Zuschlag und Sicht je Firma, Branchenblatt je Firma mit Rangliste, Auftrag anbieten/übernehmen/ablehnen/verfallen, Marge nach Zustellung, nicht gefahrene Übernahme kostet beide Ruf); im Browser mit zwei Firmen geprüft (Angebot, Übernahme, Rangliste); Vergleichslauf gegen 0.19.0 bytegleich |
+| Wettbewerbswelt auf dem Server (D4) | Getestet (Welt-Code gründet Firma, Team-Code tritt Firma bei, getrennte Sichten ohne fremde Aufträge und Preise, Abstimmung über Pause und Tempo mit Verfall, Weltchat, Speichern und Laden der Welt, Neustart des Servers); im Browser mit zwei Firmen geprüft (Firmenwahl, Abstimmung, Mitbewerber auf der Karte, Weltchat); Vergleichslauf gegen 0.19.0 bytegleich |
 | Gemeinsame Börse und Kunden je Firma (D3) | Getestet (Kunden gespiegelt mit eigener Beziehung, Preis je Firma, Vergabe an die annehmende Firma, fremde Aufträge gesperrt, zwei Bots 30 Tage in einer Welt); Vergleichslauf gegen 0.19.0 bytegleich |
 | Mehrere Firmen in einer Welt (D2) | Getestet (zweite Firma gründen, gemeinsame Zeit und Märkte, eigene Fahrten und Buchungen, Rechte je Firma, verkaufte Firma ruht); Vergleichslauf gegen 0.19.0 bytegleich |
 | Welt und Firmen-Shards (D1) | Getestet (Feldaufteilung vollständig, Vergleichslauf identisch, structuredClone, Rücknahme beim Ausgabenlimit, Delta-Synchronisation); im Browser geprüft: Worker, Speichern, Import |

@@ -11,6 +11,14 @@ import { rand } from './rng.ts';
 import { MIN_PER_DAY, MONTH_NAMES, dayIndex, holidayName, month, weekday } from './time.ts';
 import { WEATHER } from './world.ts';
 import type { GameState, GameTime, Id, Money } from './types.ts';
+import { companyIdOf, companyViews, isMultiCompany, worldOf } from './shard.ts';
+import { ranking } from './ranking.ts';
+
+/** andere aktive Spielerfirmen (Wettbewerbswelt; sonst leer) */
+const otherPlayers = (state: GameState) =>
+  isMultiCompany(state) ? companyViews(worldOf(state)).filter((v) => !v.exit && companyIdOf(v) !== companyIdOf(state)) : [];
+/** Flotten aller Mitbewerber am Markt: KI und andere Spielerfirmen */
+const marketFleets = (state: GameState) => [...activeCompetitors(state).map((c) => c.trucks), ...otherPlayers(state).map((v) => Object.keys(v.vehicles).length)];
 
 export type NewsTone = 'good' | 'bad' | 'neutral';
 export type NewsKind = 'market' | 'diesel' | 'rivals' | 'weather' | 'season' | 'company' | 'driver';
@@ -151,7 +159,9 @@ export function composeIssue(state: GameState): NewsItem[] {
     if (c.bankruptAt !== undefined && c.bankruptAt >= since) {
       items.push({ kind: 'rivals', title: `Konkurs: ${c.name}`, text: `Die Spedition aus ${city(c.hqCityId)} hat den Betrieb eingestellt. Ihre Kunden suchen neue Partner – jetzt ist die Zeit für Vertriebsbesuche.`, tone: 'good', weight: 8, more: `Nach Informationen des ${NEWS_NAME}s hatten die Gläubiger zuletzt keine Geduld mehr. Die Fahrzeuge kommen in den Gebrauchtmarkt, die Fahrer suchen neue Arbeitgeber.` });
     } else if (c.acquiredAt !== undefined && c.acquiredAt >= since) {
-      items.push({ kind: 'rivals', title: `${state.company.name} übernimmt ${c.name}`, text: `Mit der Übernahme wächst ${state.company.name} in ${city(c.hqCityId)}. Branchenkenner sprechen von einem klugen Schachzug.`, tone: 'good', weight: 10, more: `Fahrzeuge, Hof und ein Teil der Belegschaft wechseln den Besitzer. Die Kunden des Übernommenen werden künftig von ${state.company.name} bedient.` });
+      const buyer = c.acquiredBy ? (companyViews(worldOf(state)).find((v) => companyIdOf(v) === c.acquiredBy)?.company.name ?? state.company.name) : state.company.name;
+      const mine = buyer === state.company.name;
+      items.push({ kind: 'rivals', title: `${buyer} übernimmt ${c.name}`, text: `Mit der Übernahme wächst ${buyer} in ${city(c.hqCityId)}. Branchenkenner sprechen von einem klugen Schachzug.`, tone: mine ? 'good' : 'bad', weight: 10, more: `Fahrzeuge, Hof und ein Teil der Belegschaft wechseln den Besitzer. Die Kunden des Übernommenen werden künftig von ${buyer} bedient.` });
     } else if (c.founded >= since && c.status !== 'acquired') {
       items.push({ kind: 'rivals', title: `Neu am Markt: ${c.name}`, text: `${STRATEGY_LABEL[c.strategy]} aus ${city(c.hqCityId)} startet mit ${c.trucks} LKW.`, tone: 'bad', weight: 4 });
     } else if (c.status === 'trouble') {
@@ -159,6 +169,25 @@ export function composeIssue(state: GameState): NewsItem[] {
       items.push({ kind: 'rivals', title: `${c.name} unter Druck`, text: `Die Spedition aus ${city(c.hqCityId)} verkauft LKW und senkt die Preise.${offer ? ` Gerüchten zufolge wäre der Inhaber bereit zu verkaufen – im Gespräch sind rund ${formatMoney(offer.price)}.` : ''}`, tone: 'neutral', weight: 5, more: 'Mitarbeiter berichten von verschobenen Wartungen und unbezahlten Rechnungen. Ob ein Käufer gefunden wird oder die Spedition aufgibt, dürfte sich in den nächsten Wochen entscheiden.' });
     } else if (base?.trucks[c.id] !== undefined && c.trucks > base.trucks[c.id]) {
       items.push({ kind: 'rivals', title: `${c.name} wächst`, text: `${c.trucks - base.trucks[c.id]} neue LKW in ${city(c.hqCityId)}, die Flotte zählt jetzt ${c.trucks} Fahrzeuge.`, tone: 'bad', weight: 2 });
+    }
+  }
+
+  // Wettbewerbswelt: Rangliste und neue Spielerfirmen
+  if (isMultiCompany(state)) {
+    const rk = ranking(state);
+    const pos = rk.findIndex((r) => r.own) + 1;
+    const lead = rk[0];
+    if (lead && pos > 0) {
+      items.push({
+        kind: 'rivals',
+        title: pos === 1 ? `${state.company.name} führt die Rangliste an` : `Rangliste: ${lead.name} vorn`,
+        text: `Nach Firmenwert liegt ${lead.name} mit ${formatMoney(lead.value)} vorn. ${state.company.name} steht auf Platz ${pos} von ${rk.length}.`,
+        tone: pos === 1 ? 'good' : 'neutral',
+        weight: 3,
+      });
+    }
+    for (const v of otherPlayers(state)) {
+      if (v.company.founded >= since) items.push({ kind: 'rivals', title: `Neu am Markt: ${v.company.name}`, text: `Eine neue Spedition aus ${city(v.company.hqCityId)} tritt an – mit eigenem Team und ${Object.keys(v.vehicles).length} LKW.`, tone: 'bad', weight: 5 });
     }
   }
 
@@ -192,12 +221,12 @@ export function composeIssue(state: GameState): NewsItem[] {
   if (base) {
     const del = state.company.totals.deliveries + (state.company.totals.subcontracted ?? 0) - base.deliveries;
     const rev = state.company.totals.revenue - base.revenue;
-    const rivals = activeCompetitors(state);
+    const fleets = marketFleets(state);
     const fleet = Object.keys(state.vehicles).length;
-    const rank = 1 + rivals.filter((c) => c.trucks > fleet).length;
+    const rank = 1 + fleets.filter((n) => n > fleet).length;
     items.push({
       kind: 'company', title: `${state.company.name}: Die Woche in Zahlen`,
-      text: `${del} ${del === 1 ? 'Lieferung' : 'Lieferungen'}, ${formatMoney(rev)} Umsatz. Mit ${fleet} ${fleet === 1 ? 'Fahrzeug' : 'Fahrzeugen'} Platz ${rank} von ${rivals.length + 1} im Markt nach Flottengröße.`,
+      text: `${del} ${del === 1 ? 'Lieferung' : 'Lieferungen'}, ${formatMoney(rev)} Umsatz. Mit ${fleet} ${fleet === 1 ? 'Fahrzeug' : 'Fahrzeugen'} Platz ${rank} von ${fleets.length + 1} im Markt nach Flottengröße.`,
       tone: del > 0 ? 'good' : 'neutral', weight: 1,
     });
     // Fahrer der Woche
@@ -229,8 +258,8 @@ export function issueFigures(state: GameState): NewsFigures {
     dieselChange: base?.diesel ? d / base.diesel - 1 : 0,
     cycle: state.economy?.cycle ?? 1,
     phase: PHASE_LABEL[state.economy?.phase ?? 'normal'],
-    rank: 1 + rivals.filter((c) => c.trucks > fleet).length,
-    companies: rivals.length + 1,
+    rank: 1 + marketFleets(state).filter((n) => n > fleet).length,
+    companies: marketFleets(state).length + 1,
     fleet,
     deliveries: base ? state.company.totals.deliveries + (state.company.totals.subcontracted ?? 0) - base.deliveries : 0,
     revenue: base ? state.company.totals.revenue - base.revenue : 0,

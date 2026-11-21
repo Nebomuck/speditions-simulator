@@ -134,7 +134,8 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   const payment = priceFor(state);
   const quotes = isMultiCompany(state) ? Object.fromEntries(companyViews(worldOf(state)).map((v) => [companyIdOf(v), priceFor(v)])) : undefined;
   // abgeworbener Kunde: der Auftrag geht direkt an den Konkurrenten
-  if (customer.lostTo && competitorTakesCustomerOrder(state, customer, payment, route.km)) return null;
+  // abgewanderter Kunde: Auftrag geht direkt an die KI (Wettbewerbswelt: nur, wenn ihn alle Firmen verloren haben)
+  if (customer.lostTo && lostEverywhere(state, customer.id) && competitorTakesCustomerOrder(state, customer, payment, route.km)) return null;
 
   const id = newId(state, 'ord');
   const order: Order = {
@@ -187,4 +188,10 @@ export function updateOrderMarket(state: GameState, ctx: SimContext, initial = f
 
 export function cargoOf(order: Order) {
   return CARGO_BY_ID[order.cargoId];
+}
+
+/** Hat jede Firma der Welt den Kunden an die KI verloren? (Einzelspiel: die eine Firma) */
+function lostEverywhere(state: GameState, customerId: string): boolean {
+  if (!isMultiCompany(state)) return true;
+  return companyViews(worldOf(state)).every((v) => !!v.exit || !!v.customers[customerId]?.lostTo);
 }

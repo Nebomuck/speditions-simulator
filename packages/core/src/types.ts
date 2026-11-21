@@ -493,7 +493,11 @@ export interface Order {
   /** Premium-Auftrag: nur von Hand disponierbar */
   premium?: PremiumInfo;
   /** an einen Subunternehmer vergeben (Status „in_transit“ bis zur Zustellung) */
-  subcontract?: { partnerId: Id; name: string; price: Money; since: GameTime; deliverAt: GameTime };
+  subcontract?: { partnerId: Id; name: string; price: Money; since: GameTime; deliverAt: GameTime; /** Mitspieler-Firma: deren Auftrag */ childId?: Id };
+  /** Wettbewerbswelt: Angebot an eine Mitbewerber-Firma (Subunternehmer) */
+  handover?: { to: Id; toName: string; from: Id; fromName: string; price: Money; at: GameTime; expires: GameTime };
+  /** übernommen von einer Mitbewerber-Firma: deren Auftrag */
+  parentOrderId?: Id;
   offerExpires: GameTime;
   created: GameTime;
   tripId?: Id;
@@ -762,6 +766,8 @@ export interface Competitor {
   status: 'active' | 'trouble' | 'bankrupt' | 'acquired';
   /** von dir übernommen */
   acquiredAt?: GameTime;
+  /** Wettbewerbswelt: übernehmende Firma */
+  acquiredBy?: Id;
   troubleSince?: GameTime;
   bankruptAt?: GameTime;
   /** angefangene Auftragskapazität (Bruchteil) */
@@ -827,7 +833,11 @@ export interface Tender {
   deadline: GameTime;
   status: 'open' | 'won' | 'lost' | 'expired';
   bid?: { price: Money; guarantee: boolean; by: Id; at: GameTime };
-  result?: { winner: string; price: Money; bids: { name: string; price: Money; player?: boolean }[]; note?: string };
+  /** Wettbewerbswelt: verdeckte Gebote je Spielerfirma (statt `bid`) */
+  bids?: Record<Id, { price: Money; guarantee: boolean; by: Id; at: GameTime }>;
+  /** Wettbewerbswelt: Firma mit dem Zuschlag */
+  winnerCompanyId?: Id;
+  result?: { winner: string; price: Money; bids: { name: string; price: Money; player?: boolean; companyId?: Id }[]; note?: string };
 }
 
 /** Premium-Auftrag: Schwertransport (Genehmigung nötig) oder Messe-Termin (enges Zeitfenster, hohe Strafe) */
@@ -1003,6 +1013,14 @@ export interface GameState {
   news?: import('./news.ts').NewsState;
   /** Firma verkauft: Spiel beendet */
   exit?: CompanyExit;
+  /** Wettbewerbswelt: weitere Firmen dürfen gegründet werden (Welt) */
+  competition?: boolean;
+  /** laufende Abstimmung über Pause oder Zeitraffer (Welt mit mehreren Firmen) */
+  timeVote?: import('./arena.ts').TimeVote;
+  /** Weltchat aller Firmen */
+  worldChat?: import('./arena.ts').WorldChatMessage[];
+  /** nur in der Übertragung an Spieler einer Wettbewerbswelt: eigene Firma und Mitbewerber */
+  arena?: import('./arena.ts').ArenaView;
 }
 
 /** Verkauf der Firma (Ende des Spiels, Grundlage für den Neustart-Bonus) */

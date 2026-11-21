@@ -16,6 +16,25 @@ import { baseRate, pickDestination } from './orders.ts';
 import { newId, rand } from './rng.ts';
 import { MIN_PER_DAY, formatDateTime } from './time.ts';
 import type { Contract, GameState, Id, Money, Tender } from './types.ts';
+import { companyIdOf, companyViews, isMultiCompany, worldOf } from './shard.ts';
+
+type Bid = NonNullable<Tender['bid']>;
+
+/** Gebot der eigenen Firma (Wettbewerbswelt: aus `bids`, sonst `bid`) */
+export function ownBid(state: GameState, t: Tender): Bid | undefined {
+  return isMultiCompany(state) ? t.bids?.[companyIdOf(state)] : t.bid;
+}
+function setOwnBid(state: GameState, t: Tender, b: Bid | undefined) {
+  if (!isMultiCompany(state)) {
+    t.bid = b;
+    return;
+  }
+  const id = companyIdOf(state);
+  if (b) (t.bids ??= {})[id] = b;
+  else if (t.bids) delete t.bids[id];
+}
+/** Firmen, für die Ausschreibungen entstehen (Wettbewerbswelt: alle aktiven) */
+const tenderViews = (state: GameState) => (isMultiCompany(state) ? companyViews(worldOf(state)).filter((v) => !v.exit) : [state]);
 
 /** so viele offene Ausschreibungen gibt es (plus eine je Vertriebsmitarbeiter) */
 export const TENDER_TARGET = 2;
@@ -34,14 +53,18 @@ export const tenderVolume = (t: Tender) => t.referencePrice * t.weekdays.length 
 /** Neue Ausschreibung im Umkreis der eigenen Standorte */
 export function generateTender(state: GameState, ctx: SimContext): Tender | null {
   // bevorzugt Ladungen, die die eigene Flotte fahren kann
-  const spaces = new Set<string>(Object.values(state.trailers).map((t) => t.type));
-  for (const v of Object.values(state.vehicles)) {
-    const body = TRUCK_BY_ID[v.modelId]?.body;
-    if (body) spaces.add(body);
+  const views = tenderViews(state);
+  const spaces = new Set<string>();
+  for (const s of views) {
+    for (const t of Object.values(s.trailers)) spaces.add(t.type);
+    for (const v of Object.values(s.vehicles)) {
+      const body = TRUCK_BY_ID[v.modelId]?.body;
+      if (body) spaces.add(body);
+    }
   }
   const cargo = rand.weighted(state, CARGOS, (g) => g.freq * (spaces.has(g.trailer) ? 3 : 1) * (g.qualifications.length ? 0.5 : 1));
   if (!cargo) return null;
-  const anchors = state.company.locations.map((l) => CITY_BY_ID[l.cityId]);
+  const anchors = views.flatMap((s) => s.company.locations.map((l) => CITY_BY_ID[l.cityId]));
   const near = CITIES.filter((c) => ctx.net.hasCity(c.id) && c.pop >= 150 && c.industries.some((i) => cargo.producers.includes(i)) && anchors.some((a) => haversineKm([a.lon, a.lat], [c.lon, c.lat]) <= 450));
   const origin = rand.weighted(state, near, (c) => Math.sqrt(c.pop));
   if (!origin) return null;
@@ -82,7 +105,7 @@ export function generateTender(state: GameState, ctx: SimContext): Tender | null
 /** laufende Verträge plus gewonnene, noch nicht begonnene – gegen die Kapazitätsgrenze */
 function contractCapacity(state: GameState) {
   const active = Object.values(state.contracts).filter((x) => x.status === 'active').length;
-  const bids = Object.values(state.tenders).filter((t) => t.status === 'open' && t.bid).length;
+  const bids = Object.values(state.tenders).filter((t) => t.status === 'open' && ownBid(state, t)).length;
   return { used: active + bids, max: Math.max(2, Object.keys(state.vehicles).length * 2) };
 }
 
@@ -94,17 +117,18 @@ export function placeBid(state: GameState, playerId: Id, tenderId: Id, price: nu
   if (!Number.isFinite(price) || price < t.referencePrice * BID_RANGE[0] || price > t.referencePrice * BID_RANGE[1])
     return { ok: false, error: `Gebote zwischen ${formatMoney(Math.ceil((t.referencePrice * BID_RANGE[0]) / 100) * 100)} und ${formatMoney(Math.floor((t.referencePrice * BID_RANGE[1]) / 100) * 100)} je Tour.` };
   const cap = contractCapacity(state);
-  if (!t.bid && cap.used >= cap.max) return { ok: false, error: `Mit der aktuellen Flotte sind höchstens ${cap.max} Verträge und Gebote gleichzeitig möglich.` };
-  const changed = !!t.bid;
-  t.bid = { price, guarantee: !!guarantee, by: playerId, at: state.time };
+  const prev = ownBid(state, t);
+  if (!prev && cap.used >= cap.max) return { ok: false, error: `Mit der aktuellen Flotte sind höchstens ${cap.max} Verträge und Gebote gleichzeitig möglich.` };
+  const changed = !!prev;
+  setOwnBid(state, t, { price, guarantee: !!guarantee, by: playerId, at: state.time });
   addLog(state, { level: 'info', category: 'order', text: `${changed ? 'Gebot geändert' : 'Gebot abgegeben'}: ${formatMoney(price)} je Tour ${CITY_BY_ID[t.fromCityId].name} → ${CITY_BY_ID[t.toCityId].name}${guarantee ? ' mit Pünktlichkeitsgarantie' : ''}.` });
   return { ok: true };
 }
 
 export function withdrawBid(state: GameState, tenderId: Id): { ok: true } | { ok: false; error: string } {
   const t = state.tenders[tenderId];
-  if (!t || t.status !== 'open' || !t.bid) return { ok: false, error: 'Kein offenes Gebot.' };
-  t.bid = undefined;
+  if (!t || t.status !== 'open' || !ownBid(state, t)) return { ok: false, error: 'Kein offenes Gebot.' };
+  setOwnBid(state, t, undefined);
   return { ok: true };
 }
 
@@ -115,33 +139,52 @@ function award(state: GameState, ctx: SimContext, t: Tender) {
   // zu wenig Konkurrenz vor Ort: überregionale Speditionen bieten mit
   const others = activeCompetitors(state).filter((c) => !rivals.includes(c));
   while (rivals.length < 2 && others.length) rivals = [...rivals, others.splice(rand.int(state, 0, others.length - 1), 1)[0]];
-  const bids: { name: string; price: Money; score: number; id: string; player?: boolean }[] = rivals.map((c) => {
+  const bids: { name: string; price: Money; score: number; id: string; player?: boolean; view?: GameState; bid?: Bid }[] = rivals.map((c) => {
     // Preisbrecher bieten knapp, Premium höher; wer in Not ist, unterbietet
     const price = Math.round((t.referencePrice * c.priceLevel * rand.float(state, 0.92, 1.06) * (c.status === 'trouble' ? 0.95 : 1)) / 100) * 100;
     return { name: c.name, price, score: bidScore(price, c.reputation), id: c.id };
   });
-  if (t.bid) bids.push({ name: state.company.name, price: t.bid.price, score: bidScore(t.bid.price, state.company.reputation, t.bid.guarantee), id: 'player', player: true });
+  const multi = isMultiCompany(state);
+  if (!multi) {
+    if (t.bid) bids.push({ name: state.company.name, price: t.bid.price, score: bidScore(t.bid.price, state.company.reputation, t.bid.guarantee), id: 'player', player: true, view: state, bid: t.bid });
+  } else {
+    // Wettbewerbswelt: verdeckte Gebote aller Spielerfirmen, bewertet mit dem jeweiligen Ruf
+    for (const v of tenderViews(state)) {
+      const b = t.bids?.[companyIdOf(v)];
+      if (b) bids.push({ name: v.company.name, price: b.price, score: bidScore(b.price, v.company.reputation, b.guarantee), id: companyIdOf(v), player: true, view: v, bid: b });
+    }
+  }
   bids.sort((a, b) => a.score - b.score);
   const best = bids[0];
-  const cu = state.customers[t.customerId];
   const route = `${CITY_BY_ID[t.fromCityId].name} → ${CITY_BY_ID[t.toCityId].name}`;
-  const list = bids.map((b) => ({ name: b.name, price: b.price, ...(b.player ? { player: true } : {}) }));
+  const list = bids.map((b) => ({ name: b.name, price: b.price, ...(b.player ? (multi ? { companyId: b.id } : { player: true }) : {}) }));
   if (!best) {
     t.status = 'expired';
     return;
   }
+  /** Spielerfirmen ohne Zuschlag benachrichtigen */
+  const tellLosers = () => {
+    for (const mine of bids) {
+      if (!mine.player || mine === best) continue;
+      const why = mine.price > best.price ? `dein Preis lag ${formatMoney(mine.price - best.price)} darüber` : 'der bessere Ruf hat entschieden';
+      addLog(mine.view!, { level: 'warning', category: 'order', text: `Ausschreibung ${route} verloren: Zuschlag an ${best.name} für ${formatMoney(best.price)} je Tour (${why}).` });
+    }
+  };
   if (!best.player) {
-    t.status = t.bid ? 'lost' : 'expired';
+    t.status = bids.some((b) => b.player) ? 'lost' : 'expired';
     t.result = { winner: best.name, price: best.price, bids: list };
     const c = state.competitors[best.id];
     if (c) c.reputation = Math.min(95, c.reputation + 0.5);
-    if (t.bid) {
-      const mine = bids.find((b) => b.player)!;
-      const why = mine.price > best.price ? `dein Preis lag ${formatMoney(mine.price - best.price)} darüber` : 'der bessere Ruf hat entschieden';
-      addLog(state, { level: 'warning', category: 'order', text: `Ausschreibung ${route} verloren: Zuschlag an ${best.name} für ${formatMoney(best.price)} je Tour (${why}).` });
-    }
+    tellLosers();
     return;
   }
+  // Zuschlag an eine Spielerfirma: Vertrag in deren Firma
+  const winBid = best.bid!;
+  const won = best.view!;
+  if (multi) t.winnerCompanyId = best.id;
+  tellLosers();
+  state = won;
+  const cu = state.customers[t.customerId];
   // gewonnen: als laufenden Rahmenvertrag anlegen
   const k: Contract = {
     id: newId(state, 'con'),
@@ -155,14 +198,14 @@ function award(state: GameState, ctx: SimContext, t: Tender) {
     distanceKm: t.distanceKm,
     weekdays: t.weekdays,
     pickupHour: t.pickupHour,
-    paymentPerTour: t.bid!.price,
-    penaltyMissed: Math.round((t.bid!.price * 0.3) / 100) * 100,
+    paymentPerTour: winBid.price,
+    penaltyMissed: Math.round((winBid.price * 0.3) / 100) * 100,
     weeks: t.weeks,
     regular: false,
     status: 'offered',
     offerExpires: state.time + 60,
     stats: { tours: 0, delivered: 0, late: 0, missed: 0 },
-    ...(t.bid!.guarantee ? { guarantee: true } : {}),
+    ...(winBid.guarantee ? { guarantee: true } : {}),
   };
   state.contracts[k.id] = k;
   // die Kapazität wurde beim Gebot geprüft; das Gebot selbst zählt nicht mehr mit
@@ -172,17 +215,18 @@ function award(state: GameState, ctx: SimContext, t: Tender) {
   if (!r.ok) {
     delete state.contracts[k.id];
     t.status = 'lost';
+    delete t.winnerCompanyId;
     t.result = { winner: bids[1]?.name ?? '–', price: bids[1]?.price ?? 0, bids: list, note: r.error };
     addLog(state, { level: 'danger', category: 'order', text: `Ausschreibung ${route} gewonnen, aber nicht übernehmbar: ${r.error}` });
     return;
   }
-  t.result = { winner: state.company.name, price: t.bid!.price, bids: list };
+  t.result = { winner: state.company.name, price: winBid.price, bids: list };
   if (cu) cu.satisfaction = Math.max(cu.satisfaction, 60);
   state.company.reputation = Math.min(100, state.company.reputation + 1);
   addLog(state, {
     level: 'success',
     category: 'order',
-    text: `Zuschlag! ${cu?.name ?? 'Der Kunde'} vergibt ${route} an dich: ${t.weekdays.length}× pro Woche für ${t.weeks} Wochen zu ${formatMoney(t.bid!.price)} je Tour (${bids.length - 1} Mitbewerber).`,
+    text: `Zuschlag! ${cu?.name ?? 'Der Kunde'} vergibt ${route} an dich: ${t.weekdays.length}× pro Woche für ${t.weeks} Wochen zu ${formatMoney(winBid.price)} je Tour (${bids.length - 1} Mitbewerber).`,
   });
 }
 
@@ -193,8 +237,8 @@ export function dailyTenders(state: GameState, ctx: SimContext): void {
     if (t.status === 'open' && state.time >= t.deadline) award(state, ctx, t);
     else if (t.status !== 'open' && state.time - t.deadline > 30 * MIN_PER_DAY) delete state.tenders[t.id];
   }
-  // erst, wenn die Firma Verträge stemmen kann
-  if (Object.keys(state.vehicles).length < 2) return;
+  // erst, wenn eine Firma Verträge stemmen kann
+  if (!tenderViews(state).some((s) => Object.keys(s.vehicles).length >= 2)) return;
   const open = Object.values(state.tenders).filter((t) => t.status === 'open').length;
   if (open < TENDER_TARGET + deptCount(state, 'sales') && rand.chance(state, 0.3)) generateTender(state, ctx);
 }

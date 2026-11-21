@@ -367,6 +367,23 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'competition',
+    title: 'Wettbewerbswelt',
+    page: 'multiplayer',
+    keywords: 'wettbewerb wettbewerbswelt konkurrenz mitbewerber welt-code team-code weltchat abstimmung pause tempo',
+    body: [
+      'In einer Wettbewerbswelt führen mehrere Speditionen ihre eigene Firma in derselben Welt. Anlegen: beim Hosten „Wettbewerbswelt“ ankreuzen.',
+      '• Welt-Code: Damit gründet ein Mitbewerber eine eigene Spedition (bis zu 4 Firmen). Team-Code: Damit treten Mitspieler deiner Firma bei. Beide stehen unter Team & Kommunikation.',
+      '• Alle teilen Zeit, Wetter, Dieselpreis, Kunden und die Auftragsbörse. Jede Firma sieht ihren eigenen Preis; wer zuerst annimmt, bekommt den Auftrag.',
+      '• Fuhrpark, Konto, Ruf und die Zufriedenheit deiner Kunden gehören nur dir. Standorte und fahrende LKW der Mitbewerber siehst du auf der Karte in deren Firmenfarbe.',
+      '• Pause und Tempo: Ein Klick startet eine Abstimmung. Sie gilt, sobald mehr als die Hälfte der Firmen zustimmt, und verfällt nach 30 Sekunden.',
+      '• Weltchat (Team & Kommunikation → Weltchat): ein Kanal für alle Speditionen der Welt.',
+      '• Aufträge abgeben: Im Dialog „Abgeben“ bietest du einen Auftrag einer Mitbewerber-Firma an (50–100 % deines Preises). Sie übernimmt binnen 2 Spielstunden unter „Angebote von Mitbewerbern“ in der Auftragsbörse und fährt ihn selbst; dir bleibt die Differenz.',
+      '• Ausschreibungen: Alle Firmen bieten verdeckt mit, du siehst nur dein eigenes Gebot.',
+      '• Rangliste unter Markt & Wettbewerb: alle Speditionen nach Firmenwert, mit Umsatz, Pünktlichkeit, Ruf und Flotte.',
+    ],
+  },
+  {
     id: 'keys',
     title: 'Tastenkürzel',
     page: 'settings',

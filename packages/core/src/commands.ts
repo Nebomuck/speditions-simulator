@@ -4,7 +4,9 @@
 // Doppelbelegungen und widersprüchliche Aktionen ausgeschlossen, da Befehle sequenziell verarbeitet werden.
 
 import { sanitizeAvatar, type AvatarLook } from './avatar.ts';
-import { claimOrder, orderVisible, restoreState, tagClaimedOrders } from './shard.ts';
+import { claimOrder, companyIdOf, isMultiCompany, orderVisible, restoreState, tagClaimedOrders } from './shard.ts';
+import { postWorldChat, rejectTimeVote, voteTime } from './arena.ts';
+import { acceptHandover, cancelHandover, declineHandover, offerHandover } from './handover.ts';
 import { applyLife, payDividend, type LifeAction } from './life.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
@@ -37,7 +39,7 @@ import {
 } from './team.ts';
 
 export type Command =
-  | { type: 'setSpeed'; speed: number }
+  | { type: 'setSpeed'; speed: number; /** zugleich fortsetzen (eine Abstimmung statt zwei) */ resume?: boolean }
   | { type: 'setPaused'; paused: boolean }
   | { type: 'acceptOrder'; orderId: Id }
   | { type: 'cancelOrder'; orderId: Id }
@@ -81,6 +83,12 @@ export type Command =
   | { type: 'life'; action: LifeAction }
   | { type: 'payDividend'; amount: number }
   | { type: 'chat'; text: string }
+  | { type: 'worldChat'; text: string }
+  | { type: 'offerHandover'; orderId: Id; companyId: Id; price: number }
+  | { type: 'cancelHandover'; orderId: Id }
+  | { type: 'acceptHandover'; orderId: Id }
+  | { type: 'declineHandover'; orderId: Id }
+  | { type: 'rejectTimeVote' }
   | { type: 'setPermissions'; playerId: Id; permissions: Permission[] }
   | { type: 'setRole'; playerId: Id; role: TeamRole }
   | { type: 'setPlayerLimits'; playerId: Id; spendLimit: number | null; locationIds: Id[] }
@@ -156,6 +164,12 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   repayLoan: 'loans',
   factorInvoices: 'finance',
   chat: null,
+  worldChat: null,
+  offerHandover: 'dispatch',
+  cancelHandover: 'dispatch',
+  acceptHandover: 'dispatch',
+  declineHandover: 'dispatch',
+  rejectTimeVote: 'admin',
   life: null,
   setAvatar: null,
   payDividend: 'finance',
@@ -250,7 +264,9 @@ function canAfford(state: GameState, amount: number) {
 export function applyCommand(state: GameState, ctx: SimContext, actorId: Id, cmd: Command): CommandResult {
   // Wettbewerb: Aufträge anderer Firmen sind tabu
   const orderId = (cmd as { orderId?: unknown }).orderId;
-  if (typeof orderId === 'string' && state.orders[orderId] && !orderVisible(state, state.orders[orderId])) return fail('Dieser Auftrag gehört einer anderen Spedition.');
+  // Angebote einer Mitbewerber-Firma darf die empfangende Firma annehmen oder ablehnen
+  const incoming = (cmd.type === 'acceptHandover' || cmd.type === 'declineHandover') && state.orders[cmd.orderId]?.handover?.to === companyIdOf(state);
+  if (typeof orderId === 'string' && state.orders[orderId] && !orderVisible(state, state.orders[orderId]) && !incoming) return fail('Dieser Auftrag gehört einer anderen Spedition.');
   const result = applyCommandChecked(state, ctx, actorId, cmd);
   if (result.ok) tagClaimedOrders(state);
   return result;
@@ -262,7 +278,7 @@ function applyCommandChecked(state: GameState, ctx: SimContext, actorId: Id, cmd
   const perm = COMMAND_PERMISSION[cmd.type];
   if (perm === undefined) return fail('Unbekannter Befehl.');
   if (perm && !actor.permissions.includes(perm)) return fail(`Keine Berechtigung: ${PERMISSION_LABEL[perm]}.`);
-  if (state.exit && cmd.type !== 'chat' && cmd.type !== 'setAvatar') return fail('Die Firma ist verkauft – hier gibt es nichts mehr zu tun.');
+  if (state.exit && cmd.type !== 'chat' && cmd.type !== 'worldChat' && cmd.type !== 'setAvatar') return fail('Die Firma ist verkauft – hier gibt es nichts mehr zu tun.');
   const loc = commandLocation(state, cmd);
   if (loc === null && actor.locationIds?.length) return fail('Keine Berechtigung: Du verwaltest nur zugewiesene Niederlassungen.');
   if (loc && !mayManageLocation(actor, loc)) return fail('Keine Berechtigung: Dieser Standort ist dir nicht zugewiesen.');
@@ -285,10 +301,17 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
   switch (cmd.type) {
     case 'setSpeed': {
       if (!SPEEDS.includes(cmd.speed as (typeof SPEEDS)[number])) return fail('Ungültige Geschwindigkeit.');
+      // Wettbewerbswelt: die Zeit gehört allen – Änderung per Abstimmung der Firmen
+      if (isMultiCompany(state)) return { ok: true, ...(voteTime(state, actor, { speed: cmd.speed, ...(cmd.resume ? { paused: false } : {}) }).applied ? {} : { id: state.timeVote?.id }) };
       state.speed = cmd.speed;
+      if (cmd.resume) {
+        state.paused = false;
+        state.pausedForDecision = false;
+      }
       return { ok: true };
     }
     case 'setPaused': {
+      if (isMultiCompany(state)) return { ok: true, ...(voteTime(state, actor, { paused: !!cmd.paused }).applied ? {} : { id: state.timeVote?.id }) };
       state.paused = !!cmd.paused;
       // wer selbst fortsetzt oder anhält, übernimmt: keine automatische Fortsetzung mehr
       state.pausedForDecision = false;
@@ -634,6 +657,34 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     case 'talkToDriver': {
       const r = talkToDriver(state, cmd.driverId);
       return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'worldChat': {
+      if (!isMultiCompany(state) && !state.competition) return fail('Den Weltchat gibt es nur in Wettbewerbswelten.');
+      const text = String(cmd.text ?? '').trim().slice(0, 500);
+      if (!text) return fail('Leere Nachricht.');
+      postWorldChat(state, actor, text);
+      return { ok: true };
+    }
+    case 'offerHandover': {
+      const r = offerHandover(state, cmd.orderId, cmd.companyId, Number(cmd.price));
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'cancelHandover': {
+      const r = cancelHandover(state, cmd.orderId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'acceptHandover': {
+      const r = acceptHandover(state, cmd.orderId);
+      return r.ok ? { ok: true, id: r.id } : fail(r.error);
+    }
+    case 'declineHandover': {
+      const r = declineHandover(state, cmd.orderId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'rejectTimeVote': {
+      if (!state.timeVote) return fail('Keine Abstimmung offen.');
+      rejectTimeVote(state);
+      return { ok: true };
     }
     case 'chat': {
       const text = String(cmd.text ?? '').trim().slice(0, 500);

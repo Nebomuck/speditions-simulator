@@ -15,7 +15,9 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 class TestClient {
   ws: WebSocket;
   state: GameState | null = null;
-  welcome: { playerId: string; inviteCode: string; token: string } | null = null;
+  welcome: { playerId: string; inviteCode: string; token: string; companyCode?: string; competition?: boolean } | null = null;
+  /** übrige Nachrichten (z. B. Firmenwahl) */
+  other: Record<string, unknown>[] = [];
   errors: string[] = [];
   private seq = 0;
   private pending = new Map<number, (r: { ok: boolean; error?: string }) => void>();
@@ -43,6 +45,7 @@ class TestClient {
         this.patches++;
       }
       if (m.t === 'error') this.errors.push(m.message);
+      if (m.t === 'chooseCompany') this.other.push(m);
       if (m.t === 'result') {
         this.pending.get(m.id)?.(m.result);
         this.pending.delete(m.id);
@@ -265,6 +268,78 @@ describe('Server-Betrieb', () => {
     a.close();
     b.close();
     c.close();
+    await new Promise((r) => setTimeout(r, 150));
+    await server.close();
+  });
+
+  it('Wettbewerbswelt: Firma gründen, Team-Beitritt, getrennte Sichten, Abstimmung und Weltchat (D4)', async () => {
+    const db = join(dir, 'wettbewerb.db');
+    let server = startServer({ port: 18795, dbPath: db, log: () => {}, broadcastMs: 100, voteSeconds: 1 });
+    await server.ready;
+    const host = new TestClient(18795, { t: 'create', competition: true, companyName: 'Elbe Logistik', hqCityId: 'dresden', difficulty: 'normal', name: 'Ada' });
+    await host.until(() => !!host.welcome && !!host.state);
+    expect(host.welcome!.competition).toBe(true);
+    const worldCode = host.welcome!.inviteCode;
+    expect(host.welcome!.companyCode).toBeTruthy();
+    expect(host.welcome!.companyCode).not.toBe(worldCode);
+
+    // Welt-Code ohne Firmendaten: Server fragt nach der neuen Firma
+    const probe = new TestClient(18795, { t: 'join', code: worldCode, name: 'Kim' });
+    await probe.until(() => probe.other.length > 0);
+    expect(probe.other[0]).toMatchObject({ t: 'chooseCompany', world: 'Elbe Logistik' });
+    probe.close();
+
+    const rival = new TestClient(18795, { t: 'join', code: worldCode, name: 'Kim', newCompany: { companyName: 'Hanse Fracht', hqCityId: 'hamburg' } });
+    await rival.until(() => !!rival.state && !!rival.welcome);
+    expect(rival.state!.company.name).toBe('Hanse Fracht');
+    expect(rival.state!.arena?.rivals.map((r) => r.name)).toEqual(['Elbe Logistik']);
+    await host.until(() => host.state!.arena?.rivals.length === 1);
+    // Firmen-Code: Beitritt zum Team der Hanse Fracht
+    const mate = new TestClient(18795, { t: 'join', code: rival.welcome!.companyCode, name: 'Lou' });
+    await mate.until(() => !!mate.state);
+    expect(mate.state!.company.name).toBe('Hanse Fracht');
+    await rival.until(() => Object.keys(rival.state!.players).length === 2);
+    expect(Object.keys(host.state!.players)).toHaveLength(1);
+
+    // Auftrag: Ada nimmt an, bei Hanse Fracht verschwindet er
+    const offered = Object.values(host.state!.orders).find((o) => o.status === 'offered' && rival.state!.orders[o.id]);
+    expect(offered).toBeDefined();
+    expect(offered!.quotes).toBeUndefined();
+    expect((await host.cmd({ type: 'acceptOrder', orderId: offered!.id })).ok).toBe(true);
+    await rival.until(() => !rival.state!.orders[offered!.id]);
+    expect((await rival.cmd({ type: 'acceptOrder', orderId: offered!.id })).ok).toBe(false);
+
+    // Zeit per Abstimmung: erst mit Zustimmung beider Firmen
+    expect(host.state!.paused).toBe(true);
+    await host.cmd({ type: 'setPaused', paused: false });
+    await rival.until(() => !!rival.state!.timeVote);
+    expect(rival.state!.paused).toBe(true);
+    await rival.cmd({ type: 'setPaused', paused: false });
+    await host.until(() => host.state!.paused === false && !host.state!.timeVote);
+    // offene Abstimmung verfällt nach der Frist
+    await host.cmd({ type: 'setSpeed', speed: 60 });
+    await rival.until(() => !!rival.state!.timeVote);
+    await rival.until(() => !rival.state!.timeVote, 4000);
+    expect(rival.state!.speed).not.toBe(60);
+
+    // Weltchat
+    expect((await mate.cmd({ type: 'worldChat', text: 'Moin von der Elbe-Konkurrenz' })).ok).toBe(true);
+    await host.until(() => !!host.state!.worldChat?.length);
+    expect(host.state!.worldChat![0]).toMatchObject({ name: 'Lou', company: 'Hanse Fracht' });
+
+    // Neustart: Welt mit beiden Firmen bleibt erhalten, Wiederverbindung landet in der eigenen Firma
+    const rw = rival.welcome!;
+    for (const cl of [host, rival, mate]) cl.close();
+    await new Promise((r) => setTimeout(r, 150));
+    await server.close();
+    server = startServer({ port: 18795, dbPath: db, log: () => {}, broadcastMs: 100 });
+    await server.ready;
+    const back = new TestClient(18795, { t: 'join', code: worldCode, playerId: rw.playerId, token: rw.token });
+    await back.until(() => !!back.state);
+    expect(back.state!.company.name).toBe('Hanse Fracht');
+    expect(back.state!.orders[offered!.id]).toBeUndefined();
+    expect(back.welcome!.companyCode).toBe(rw.companyCode);
+    back.close();
     await new Promise((r) => setTimeout(r, 150));
     await server.close();
   });

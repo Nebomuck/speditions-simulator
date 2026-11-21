@@ -1,12 +1,25 @@
 # Changelog
 
-## Unveröffentlicht
+## 0.20.0 – 21.11.2026
 
-- **Technik (Vorbereitung Wettbewerbs-Multiplayer, Schritte D1 bis D3):**
+Paket D „Wettbewerb“:
+
+- **Wettbewerbswelt (Multiplayer):** Beim Hosten lässt sich eine Wettbewerbswelt anlegen, in der bis zu 4 Speditionen gegeneinander antreten.
+  - Mit dem Welt-Code gründen Mitbewerber eine eigene Firma, mit dem Team-Code treten Mitspieler einer Firma bei.
+  - Alle teilen Zeit, Wetter, Dieselpreis, Kunden und die Auftragsbörse. Jede Firma sieht ihren eigenen Preis; wer zuerst annimmt, bekommt den Auftrag.
+  - Standorte und fahrende LKW der Mitbewerber erscheinen auf der Karte in deren Firmenfarbe.
+  - Pause und Tempo ändern sich per Abstimmung der Firmen (Mehrheit, 30 Sekunden Frist).
+  - Neuer Weltchat für alle Speditionen der Welt.
+  - Aufträge lassen sich an Mitbewerber-Firmen abgeben: Die andere Firma übernimmt binnen 2 Spielstunden und fährt selbst, dir bleibt die Differenz.
+  - Ausschreibungen mit verdeckten Geboten aller Firmen.
+  - Jede Firma liest ihr eigenes Branchenblatt, mit Rangliste und Meldungen über Mitbewerber.
+  - Die KI-Konkurrenz wirbt Kunden je Firma ab: Wer schlecht liefert, verliert den Kunden, die Mitbewerber behalten ihn.
+- **Rangliste** unter Markt & Wettbewerb: alle Speditionen (auch die KI) nach Firmenwert, mit Umsatz der letzten 30 Tage, Pünktlichkeit, Ruf und Flotte.
+- **Technik (Wettbewerbs-Multiplayer, Schritte D1 bis D6):**
   - Der Spielzustand ist intern in eine gemeinsame Welt und je Firma einen eigenen Teil aufgeteilt.
   - Die Simulation kann mehrere Firmen in einer Welt rechnen.
   - Mehrere Firmen teilen sich eine Auftragsbörse: Jede sieht ihren eigenen Preis, wer zuerst annimmt, bekommt den Auftrag. Kundenbeziehungen führt jede Firma selbst.
-  - Am Spiel ändert sich nichts, Spielstände bleiben kompatibel.
+  - Welten mit mehreren Firmen werden als ganze Welt gespeichert. Einzelspiel und kooperativer Multiplayer bleiben unverändert, Spielstände bleiben kompatibel.
 
 ## 0.19.0 – 20.11.2026
 

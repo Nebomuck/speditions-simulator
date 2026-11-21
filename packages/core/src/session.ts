@@ -4,6 +4,7 @@
 // unabhängig von Bildrate und Client).
 
 import { applyCommand, type Command, type CommandResult } from './commands.ts';
+import { viewForPlayer } from './arena.ts';
 import type { SimContext } from './context.ts';
 import { addLog } from './finance.ts';
 import { tickMinute } from './sim.ts';
@@ -30,7 +31,8 @@ export class GameSession {
   command(actorId: Id, cmd: Command): CommandResult {
     let result: CommandResult;
     try {
-      result = applyCommand(this.state, this.ctx, actorId, cmd);
+      // Wettbewerbswelt: jeder Spieler handelt für seine eigene Firma
+      result = applyCommand(viewForPlayer(this.state, actorId), this.ctx, actorId, cmd);
     } catch (e) {
       result = { ok: false, error: `Interner Fehler: ${(e as Error).message}` };
     }

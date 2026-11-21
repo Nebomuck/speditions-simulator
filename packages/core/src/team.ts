@@ -3,6 +3,9 @@
 // damit serverautoritativ; private Nachrichten filtert `playerView` vor dem Versand heraus.
 
 import { CITY_BY_ID } from './data/cities.ts';
+import { arenaView } from './arena.ts';
+import type { SimContext } from './context.ts';
+import { isMultiCompany } from './shard.ts';
 import { addLog, book, formatMoney } from './finance.ts';
 import { newId } from './rng.ts';
 import { MIN_PER_DAY, formatDateTime } from './time.ts';
@@ -368,7 +371,9 @@ export function hourlyTeam(state: GameState): void {
 }
 
 /** Sicht eines Spielers: fremde interne Nachrichten werden entfernt. */
-export function playerView(state: GameState, playerId: Id): GameState {
+export function playerView(state: GameState, playerId: Id, ctx?: SimContext): GameState {
+  // Wettbewerbswelt: eigene Firma, Börse mit eigenem Preis, Mitbewerber nur als Zusammenfassung
+  if (isMultiCompany(state)) return arenaView(state, playerId, ctx);
   const team = state.team;
   if (!team) return state;
   const messages = team.messages.filter((m) => m.from === playerId || m.to.includes(playerId));

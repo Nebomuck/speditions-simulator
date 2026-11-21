@@ -58,6 +58,23 @@ function roadsGeoJSON(): GeoJSON.FeatureCollection {
 /** Randfarbe der Fahrzeugpunkte aus der Firmenlackierung (null = Standard) */
 let liveryStroke: string | null = null;
 
+function rivalsGeoJSON(state: GameState): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = [];
+  for (const r of state.arena?.rivals ?? []) {
+    if (r.exited) continue;
+    const color = r.livery.primary;
+    for (const cityId of r.locations) {
+      const c = CITY_BY_ID[cityId];
+      if (c) features.push({ type: 'Feature', properties: { kind: 'site', color, text: `${r.name} · ${cityId === r.hqCityId ? 'Firmensitz' : 'Niederlassung'} ${c.name}` }, geometry: { type: 'Point', coordinates: [c.lon, c.lat] } });
+    }
+    for (const v of r.vehicles) {
+      if (!v.moving) continue;
+      features.push({ type: 'Feature', properties: { kind: 'truck', color, text: `LKW von ${r.name}` }, geometry: { type: 'Point', coordinates: v.pos } });
+    }
+  }
+  return { type: 'FeatureCollection', features };
+}
+
 function citiesGeoJSON(state: GameState | null): GeoJSON.FeatureCollection {
   const own = new Set(state?.company.locations.map((l) => l.cityId) ?? []);
   return {
@@ -264,7 +281,13 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
       if (name) new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(`<b>${name}</b><br/>Eigener Standort`).addTo(map);
     });
     map.on('dragstart', () => getUi().followVehicle && setUi({ followVehicle: false }));
-    for (const l of ['vehicles', 'vehicles-art', 'cities-own', 'vehicle-clusters', 'poi', 'poi-own']) {
+    for (const l of ['rivals-sites', 'rivals-trucks']) {
+      map.on('click', l, (e) => {
+        const f = e.features?.[0];
+        if (f) new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setText(String(f.properties?.text ?? '')).addTo(map);
+      });
+    }
+    for (const l of ['vehicles', 'vehicles-art', 'cities-own', 'vehicle-clusters', 'poi', 'poi-own', 'rivals-sites', 'rivals-trucks']) {
       map.on('mouseenter', l, () => (map.getCanvas().style.cursor = 'pointer'));
       map.on('mouseleave', l, () => (map.getCanvas().style.cursor = ''));
     }
@@ -274,6 +297,7 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
     let lastFrame = 0;
     // Blickrichtung des Seitenprofils; stehende Fahrzeuge behalten die letzte
     const facing = new Map<string, 'l' | 'r'>();
+    let lastArena: GameState['arena'] | null = null;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       if (now - lastFrame < 33) return; // ~30 fps
@@ -303,6 +327,11 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
         });
       }
       src.setData({ type: 'FeatureCollection', features });
+      // Mitbewerber: nur bei neuem Schnappschuss neu zeichnen
+      if (st.arena !== lastArena) {
+        lastArena = st.arena;
+        (map.getSource('rivals') as GeoJSONSource | undefined)?.setData(rivalsGeoJSON(st));
+      }
       // Firmenfarbe als Rand der Fahrzeugpunkte
       const lc = st.company.livery?.primary ?? null;
       if (lc !== liveryStroke && map.getLayer('vehicles')) {
@@ -422,6 +451,8 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
   });
   map.addSource('poi', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addSource('disruptions', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  // Wettbewerbswelt: Standorte und LKW der Mitbewerber in deren Firmenfarbe
+  map.addSource('rivals', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
 
   map.addLayer({
     id: 'roads',
@@ -543,6 +574,20 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
       'text-halo-color': dark ? '#0b1120' : '#ffffff',
       'text-halo-width': 1.4,
     },
+  });
+  map.addLayer({
+    id: 'rivals-sites',
+    type: 'circle',
+    source: 'rivals',
+    filter: ['==', ['get', 'kind'], 'site'],
+    paint: { 'circle-radius': 7, 'circle-color': ['get', 'color'], 'circle-opacity': 0.9, 'circle-stroke-width': 2, 'circle-stroke-color': dark ? '#0b1120' : '#ffffff' },
+  });
+  map.addLayer({
+    id: 'rivals-trucks',
+    type: 'circle',
+    source: 'rivals',
+    filter: ['==', ['get', 'kind'], 'truck'],
+    paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3, 9, 5], 'circle-color': ['get', 'color'], 'circle-opacity': 0.8, 'circle-stroke-width': 1, 'circle-stroke-color': dark ? '#0b1120' : '#ffffff' },
   });
   const colorExpr = ['match', ['get', 'activity'], ...ACTIVITY_COLOR.flat(), '#38bdf8'] as unknown as maplibregl.ExpressionSpecification;
   const single: maplibregl.ExpressionSpecification = ['!', ['has', 'point_count']];

@@ -21,8 +21,20 @@ function SubcontractDialog({ orderId, onClose }: { orderId: string; onClose: () 
   const s = useGame();
   const o = s.orders[orderId];
   const [pick, setPick] = useState<string>('');
+  const rivals = (s.arena?.rivals ?? []).filter((r) => !r.exited);
+  const [to, setTo] = useState('');
+  const [price, setPrice] = useState(() => (o ? Math.round((o.payment * 0.85) / 10000) * 100 : 0));
   if (!o) return null;
   const block = subcontractBlock(s, o);
+  const target = rivals.find((r) => r.id === to) ?? rivals[0];
+  const offer = async () => {
+    if (!target) return;
+    const r = await sendCommand({ type: 'offerHandover', orderId: o.id, companyId: target.id, price: price * 100 });
+    if (r.ok) {
+      toast('success', `Auftrag ${target.name} angeboten – Antwort binnen 2 Spielstunden`);
+      onClose();
+    }
+  };
   const quotes = block ? [] : subcontractQuotes(s, o);
   const chosen = quotes.find((q) => q.partnerId === pick) ?? quotes[0];
   const submit = async () => {
@@ -41,7 +53,37 @@ function SubcontractDialog({ orderId, onClose }: { orderId: string; onClose: () 
         behältst die Differenz. Kein eigener LKW nötig. Zustellungen durch Partner machen Kunden aber weniger zufrieden als deine eigenen, und eine Verspätung schadet deinem Ruf.
         Die Vertragsstrafe trägt der Partner.
       </p>
-      {block ? <Empty>{block}</Empty> : (
+      {o.handover && (
+        <div className="row mb" style={{ gap: 8 }}>
+          <Badge kind="info">Angeboten an {o.handover.toName}</Badge>
+          <span className="dim small"><Money value={o.handover.price} /> · Antwort bis {formatDateTime(o.handover.expires)}</span>
+          <button className="btn small" onClick={() => sendCommand({ type: 'cancelHandover', orderId: o.id })}>Zurückziehen</button>
+        </div>
+      )}
+      {!block && !o.handover && rivals.length > 0 && (
+        <div className="card-inset mb">
+          <b>An eine Mitbewerber-Firma anbieten</b>
+          <p className="dim small" style={{ margin: '4px 0 8px' }}>
+            Die Firma fährt den Auftrag selbst und bekommt deinen Preis; dir bleibt die Differenz zum Kundenpreis. Sie hat 2 Spielstunden Zeit zuzusagen.
+            Verspätungsstrafen trägt sie, die Zufriedenheit des Kunden trifft euch beide.
+          </p>
+          <div className="row wrap" style={{ gap: 8, alignItems: 'flex-end' }}>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Firma</label>
+              <select className="input" value={target?.id ?? ''} onChange={(e) => setTo(e.target.value)}>
+                {rivals.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Preis (€)</label>
+              <input className="input" type="number" style={{ width: 110 }} min={Math.ceil(o.payment / 200)} max={Math.floor(o.payment / 100)} value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+            </div>
+            <span className="dim small">dir bleiben <b className="pos"><Money value={o.payment - price * 100} /></b></span>
+            <button className="btn primary small" disabled={!target} onClick={offer}><Handshake size={13} />Anbieten</button>
+          </div>
+        </div>
+      )}
+      {block ? <Empty>{block}</Empty> : o.handover ? null : (
         <div className="sub-quotes">
           {quotes.map((q) => (
             <label key={q.partnerId} className={`sub-quote${chosen?.partnerId === q.partnerId ? ' active' : ''}`}>
@@ -53,6 +95,38 @@ function SubcontractDialog({ orderId, onClose }: { orderId: string; onClose: () 
         </div>
       )}
     </Modal>
+  );
+}
+
+/** Wettbewerbswelt: Aufträge, die Mitbewerber-Firmen dir anbieten */
+function IncomingHandovers() {
+  const s = useGame();
+  const list = s.arena?.incoming ?? [];
+  if (!list.length) return null;
+  return (
+    <Card title="Angebote von Mitbewerbern" className="mb">
+      <div className="table-wrap" style={{ border: 'none' }}>
+        <table className="table">
+          <tbody>
+            {list.map((o) => (
+              <tr key={o.id}>
+                <td><b>{cityName(o.fromCityId)} → {cityName(o.toCityId)}</b><div className="dim">{cargoName(o.cargoId)} · {o.weightT} t · {km(o.distanceKm)}</div></td>
+                <td>von <b>{o.handover?.fromName}</b><div className="dim small">Antwort bis {o.handover ? formatDateTime(o.handover.expires) : '–'}</div></td>
+                <td className="nowrap">Abholung bis {formatDateTime(o.pickupEnd)}</td>
+                <td className="nowrap">Lieferung bis {formatDateTime(o.deliveryEnd)}</td>
+                <td className="num"><Money value={o.payment} /></td>
+                <td className="num">
+                  <div className="row" style={{ justifyContent: 'flex-end' }}>
+                    <button className="btn small primary" onClick={async () => (await sendCommand({ type: 'acceptHandover', orderId: o.id })).ok && toast('success', 'Auftrag übernommen – jetzt disponieren')}>Übernehmen</button>
+                    <button className="btn small" onClick={() => sendCommand({ type: 'declineHandover', orderId: o.id })}>Ablehnen</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 
@@ -335,6 +409,7 @@ export function OrdersPage() {
       </Card>
 
       <PremiumCard orders={premiums} />
+      <IncomingHandovers />
 
       {mine.length > 0 && (
         <Card title="Eigene Aufträge" className="mb">
@@ -345,7 +420,7 @@ export function OrdersPage() {
                   <tr key={o.id} onContextMenu={(e) => openMenu(e, orderMenu(o), `${cityName(o.fromCityId)} → ${cityName(o.toCityId)}`)}>
                     <td><b>{cityName(o.fromCityId)} → {cityName(o.toCityId)}</b><div className="dim">{cargoName(o.cargoId)}</div></td>
                     <td>
-                      <Badge kind={o.status === 'accepted' ? 'warning' : 'info'}>{o.subcontract ? 'beim Partner' : ORDER_STATUS_LABEL[o.status]}</Badge>
+                      <Badge kind={o.status === 'accepted' ? 'warning' : 'info'}>{o.subcontract ? 'beim Partner' : o.handover ? `angeboten an ${o.handover.toName}` : ORDER_STATUS_LABEL[o.status]}</Badge>
                       {o.subcontract && <div className="dim small">{o.subcontract.name} · +<Money value={o.payment - o.subcontract.price} /></div>}
                     </td>
                     <td className="nowrap">Abholung bis {formatDateTime(o.pickupEnd)}</td>

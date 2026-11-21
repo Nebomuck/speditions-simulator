@@ -10,20 +10,23 @@ import type { Customer, GameState, Id, Order } from './types.ts';
 /** Felder der gemeinsamen Welt */
 export const WORLD_KEYS = [
   'format', 'version', 'seed', 'rng', 'nextId', 'time', 'speed', 'paused', 'difficulty', 'pauseOnDecision', 'pausedForDecision',
-  'market', 'economy', 'weather', 'disruptions', 'competitors', 'events', 'news', 'vehicleOffers', 'orders', 'tenders',
+  'market', 'economy', 'weather', 'disruptions', 'competitors', 'events', 'vehicleOffers', 'orders', 'tenders',
+  'competition', 'timeVote', 'worldChat',
 ] as const satisfies readonly (keyof GameState)[];
 
 /** Felder einer Firma */
 export const COMPANY_KEYS = [
   'company', 'players', 'customers', 'drivers', 'applicants', 'vehicles', 'trailers', 'trips', 'invoices', 'ledger', 'log', 'chat', 'stats', 'today',
-  'contracts', 'autoDispatch', 'team', 'decisions', 'scenario', 'quarter', 'quarterHistory', 'progress', 'exit',
+  'contracts', 'autoDispatch', 'team', 'decisions', 'scenario', 'quarter', 'quarterHistory', 'progress', 'exit', 'news',
 ] as const satisfies readonly (keyof GameState)[];
 
 type WorldKey = (typeof WORLD_KEYS)[number];
 type CompanyKey = (typeof COMPANY_KEYS)[number];
 
 // Vollständigkeit zur Übersetzungszeit: jedes Feld von GameState gehört genau einer Seite an
-type Missing = Exclude<keyof GameState, WorldKey | CompanyKey>;
+type Missing = Exclude<keyof GameState, WorldKey | CompanyKey | ViewOnlyKey>;
+/** nur in der Übertragung an Spieler, nie im Zustand */
+type ViewOnlyKey = 'arena';
 type Both = Extract<WorldKey, CompanyKey>;
 const exhaustive: [Missing, Both] extends [never, never] ? true : { missing: Missing; both: Both } = true;
 void exhaustive;

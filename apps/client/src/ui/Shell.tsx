@@ -79,6 +79,8 @@ export function TopBar() {
             disabled={!canControl}
             className={!s.paused && s.speed === sp ? 'active' : ''}
             onClick={async () => {
+              // Wettbewerbswelt: Tempo und Fortsetzen als eine Abstimmung
+              if (s.arena) return void sendCommand({ type: 'setSpeed', speed: sp, ...(s.paused ? { resume: true } : {}) }, { quiet: true });
               await sendCommand({ type: 'setSpeed', speed: sp }, { quiet: true });
               if (s.paused) sendCommand({ type: 'setPaused', paused: false }, { quiet: true });
             }}
@@ -87,6 +89,7 @@ export function TopBar() {
           </button>
         ))}
       </div>
+      {s.timeVote && s.arena && <TimeVoteChip />}
       <div className="spacer" />
       {host?.mode === 'remote' && (
         <div className="top-stat" title="Multiplayer-Verbindung">
@@ -122,6 +125,34 @@ export function Toasts() {
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.level}`}>{t.text}</div>
       ))}
+    </div>
+  );
+}
+
+/** Wettbewerbswelt: laufende Abstimmung über Pause oder Tempo */
+function TimeVoteChip() {
+  const s = useGame();
+  const v = s.timeVote!;
+  const arena = s.arena!;
+  const me = s.players[getUi().playerId];
+  const mine = v.by.includes(arena.companyId);
+  const need = Math.floor(arena.activeCompanies / 2) + 1;
+  const what = [v.paused === true ? 'Pause' : v.paused === false ? 'Fortsetzen' : '', v.speed ? `Tempo ${v.speed}×` : ''].filter(Boolean).join(' mit ');
+  const agree = () =>
+    v.speed !== undefined
+      ? sendCommand({ type: 'setSpeed', speed: v.speed, ...(v.paused === false ? { resume: true } : {}) }, { quiet: true })
+      : sendCommand({ type: 'setPaused', paused: !!v.paused }, { quiet: true });
+  return (
+    <div className="vote-chip" title={`Vorschlag von ${v.proposer} (${v.company}) – nötig: ${need} von ${arena.activeCompanies} Firmen`}>
+      <span>Abstimmung: <b>{what}</b> ({v.by.length}/{need})</span>
+      {mine ? (
+        <small className="dim">wartet auf Mitbewerber</small>
+      ) : me?.permissions.includes('admin') ? (
+        <>
+          <button className="btn small primary" onClick={agree}>Zustimmen</button>
+          <button className="btn small" onClick={() => sendCommand({ type: 'rejectTimeVote' }, { quiet: true })}>Ablehnen</button>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import {
   ArrowLeft, ChevronDown, ChevronUp, Dices, Download, Flag, Globe, LogIn, Map, Network, Pencil, Play, Plus, RefreshCw, Server, Trash2, Truck, Upload, User, Users, Wallet,
 } from 'lucide-react';
 import {
-  BACKGROUNDS, CITIES, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, SCENARIOS, SCENARIO_IDS, formatDateTime, formatMoney,
+  BACKGROUNDS, CITIES, CITY_BY_ID, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, SCENARIOS, SCENARIO_IDS, formatDateTime, formatMoney,
   type AvatarLook, type CharacterBackground, type Difficulty, type DifficultyId, type ScenarioId,
 } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
@@ -14,7 +14,9 @@ import { currentLegacy } from '../game/legacy.ts';
 import { appVersion, checkForUpdate, installUpdate, type Update } from '../game/updater.ts';
 import { checkOnline, connect, ensureLocalServer, forgetSession, isDesktop, joinWithCode, loadSessions, normalizeServerUrl, parseInvite, resume, type MpSession } from '../game/multiplayer.ts';
 import type { SaveMeta } from '../game/protocol.ts';
-import { localStorageSet, receiveSnapshot, setUi, toast } from '../game/store.ts';
+import { getUi, localStorageSet, receiveSnapshot, setUi, toast, useUi } from '../game/store.ts';
+
+const getUiChoose = () => getUi().mpChoose;
 import { Avatar, Modal } from '../ui/components.tsx';
 import { CharacterEditor, DEFAULT_LOOK, randomLook } from '../ui/CharacterEditor.tsx';
 import { countryName } from '../ui/format.ts';
@@ -207,6 +209,13 @@ export function Welcome() {
   });
   const [externalServer, setExternalServer] = useState('');
   const [code, setCode] = useState('');
+  /** Wettbewerbswelt: weitere Spieler gründen eigene Firmen in derselben Welt */
+  const [competition, setCompetition] = useState(false);
+  const choose = useUi((u) => u.mpChoose);
+  // Firmenwahl gilt nur für den laufenden Beitritt
+  useEffect(() => {
+    if (view !== 'join' && getUiChoose()) setUi({ mpChoose: null });
+  }, [view]);
   const desktop = isDesktop();
   const [version, setVersion] = useState<string | null>(null);
   const [update, setUpdate] = useState<Update | null>(null);
@@ -309,7 +318,7 @@ export function Welcome() {
     try {
       const external = externalServer.trim();
       const url = external ? normalizeServerUrl(external) : await ensureLocalServer();
-      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario, name: player, character }, !external);
+      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario, name: player, character, ...(competition ? { competition: true } : {}) }, !external);
     } catch (e) {
       toast('danger', `Server konnte nicht gestartet werden: ${(e as Error).message ?? e}`);
       setUi({ connection: '' });
@@ -326,7 +335,7 @@ export function Welcome() {
       return;
     }
     localStorageSet('spedsim.joinAddr', serverAddr);
-    joinWithCode(url, code.trim(), player, character);
+    joinWithCode(url, code.trim(), player, character, choose ? { companyName: company, hqCityId: hq } : undefined);
   }
 
   async function resumeSession(s: MpSession) {
@@ -525,12 +534,36 @@ export function Welcome() {
                     </div>
                     <div className="field">
                       <label>Einladungscode</label>
-                      <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="z. B. K7Q-2MX" />
+                      <input className="input" value={code} onChange={(e) => (setCode(e.target.value.toUpperCase()), choose && setUi({ mpChoose: null }))} placeholder="z. B. K7Q-2MX" />
                     </div>
                     <p className="dim" style={{ fontSize: 12.5 }}>
                       Die Einladung bekommst du vom Host (Team &amp; Kommunikation → „Internet-Einladung kopieren“). Bist du der Firma schon einmal beigetreten,
                       spielst du mit einer neuen Einladung als derselbe Spieler weiter.
                     </p>
+                    {choose && (
+                      <>
+                        <h4 className="start-section">Eigene Firma in „{choose.world}“</h4>
+                        <p className="dim" style={{ fontSize: 12.5 }}>
+                          Das ist eine Wettbewerbswelt: Mit diesem Code gründest du eine eigene Spedition und konkurrierst um dieselben Aufträge.
+                          Bereits dabei: {choose.companies.map((x) => `${x.name} (${CITY_BY_ID[x.hqCityId]?.name ?? x.hqCityId})`).join(', ')}.
+                          Um einer dieser Firmen als Mitspieler beizutreten, brauchst du deren Team-Code.
+                        </p>
+                        <div className="row" style={{ gap: 10 }}>
+                          <div className="field" style={{ flex: 1 }}>
+                            <label>Firmenname</label>
+                            <input className="input" value={company} onChange={(e) => setCompany(e.target.value)} />
+                          </div>
+                          <div className="field" style={{ flex: 1 }}>
+                            <label>Firmensitz</label>
+                            <select className="input" value={hq} onChange={(e) => setHq(e.target.value)}>
+                              {cities.map((c) => (
+                                <option key={c.id} value={c.id}>{countryName(c.country)} – {c.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </section>
@@ -594,6 +627,15 @@ export function Welcome() {
                     </label>
                   )}
                   {view === 'host' && (
+                    <label className="legacy-note">
+                      <input type="checkbox" checked={competition} onChange={(e) => setCompetition(e.target.checked)} />
+                      <span>
+                        <b>Wettbewerbswelt:</b> Mitspieler können mit dem Welt-Code eigene Speditionen gründen und um dieselben Aufträge konkurrieren.
+                        Pause und Zeitraffer laufen dann per Abstimmung der Firmen. Für dein eigenes Team bekommst du einen eigenen Team-Code.
+                      </span>
+                    </label>
+                  )}
+                  {view === 'host' && (
                     <details className="mb">
                       <summary className="dim" style={{ cursor: 'pointer', fontSize: 12.5 }}>Erweitert: auf einem externen Server gründen</summary>
                       <div className="field mt">
@@ -617,7 +659,7 @@ export function Welcome() {
                 </button>
               )}
               {view === 'join' && (
-                <button className="btn primary" disabled={!code.trim() || !player.trim()} onClick={joinNew}><LogIn size={15} />Beitreten</button>
+                <button className="btn primary" disabled={!code.trim() || !player.trim() || (!!choose && !company.trim())} onClick={joinNew}><LogIn size={15} />{choose ? 'Firma gründen & beitreten' : 'Beitreten'}</button>
               )}
             </div>
           </div>
