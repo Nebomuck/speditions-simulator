@@ -30,6 +30,7 @@ export * from './premium.ts';
 export * from './traits.ts';
 export * from './goals.ts';
 export * from './scenarios.ts';
+export * from './campaign.ts';
 export * from './progress.ts';
 export * from './partners.ts';
 export * from './news.ts';

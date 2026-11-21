@@ -55,6 +55,28 @@ Aufträge sind nicht zufällig. Sie entstehen so:
 
 Die Börse hält etwa 320 offene Angebote. Angebote verfallen, neue entstehen stündlich.
 
+### Karriere-Kampagne (Paket E4)
+
+- **Spielart „Karriere“:** nur Einzelspiel, ersetzt das Szenario. Fünf Kapitel mit Einführung, Zielen und Frist:
+
+| Kapitel | Frist | Ziele | Freischaltung |
+|---|---|---|---|
+| 1 Ein LKW, ein Traum | 120 Tage | 15 Lieferungen seit Kapitelbeginn, 2 LKW, Kontostand > 0 | – |
+| 2 Stammkunden | 180 Tage | 2 in diesem Kapitel begonnene Rahmenverträge, Ruf 60, ein Disponent | Ausschreibungen, KI-Disposition |
+| 3 Über die Grenze | 240 Tage | Standort im Ausland, 30 % Auslandsumsatz (grenzüberschreitende Fahrten der letzten 30 Tage), 10 LKW | Niederlassungen im Ausland |
+| 4 Logistikdienstleister | 300 Tage | 2 aktive Lagerverträge, 40 zugestellte Container-Aufträge (auch Leerrückgaben und Gestellungen) | Lagerhallen, Containerverkehr |
+| 5 Marktführer | 540 Tage | Platz 1 der Rangliste, Unternehmensstufe 6 | – |
+
+- **Ziele** werden täglich geprüft. Ein erreichtes Ziel bleibt erreicht. Sind alle erreicht, ist das Kapitel geschafft (+3 Ruf).
+- **Sterne:** ≤ halbe Frist 3, ≤ Frist 2, danach 1. Kein Scheitern.
+- **Sperren** gelten für Befehle: Gebote, KI-Disposition außer „manuell“, Niederlassungen im Ausland, Bau der Lagerhalle und alle Befehle mit Container-Aufträgen.
+- **Mentorin:** Kapiteleinführung, Abschluss, Tipp nach 40 % der Frist, Hinweis nach Fristablauf. Kapitel 2 beginnt mit einem Vertragsangebot des besten Stammkunden.
+- **Rivale:** die nächstgelegene Konkurrenzspedition, umbenannt in „Krämer & Söhne Transporte“ (Inhaber Viktor Krämer).
+  - LKW zu Kapitelbeginn mindestens 4/9/16/28/45; aus Schwierigkeiten wird er dabei befreit.
+  - Wirbt er einen Kunden ab, meldet er sich (einmal je Kapitel).
+  - Ab Kapitel 5 Übernahme möglich: bis 20 LKW, Preisfaktor 1,5.
+- **Speicherpunkt** je Kapitelbeginn; beste Sterne je Kapitel im Browser (Startbildschirm).
+
 ### Häfen und Container (Paket E3)
 
 - **Terminals:** 14 große Häfen haben ein Containerterminal (Hamburg, Bremerhaven, Rotterdam, Antwerpen, Le Havre, Felixstowe, Danzig, Genua, Triest, Koper, Barcelona, Valencia, Algeciras, Piräus).

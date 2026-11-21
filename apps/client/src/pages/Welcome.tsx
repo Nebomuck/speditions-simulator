@@ -6,7 +6,7 @@ import {
   ArrowLeft, ChevronDown, ChevronUp, Dices, Download, Flag, Globe, LogIn, Map, Network, Pencil, Play, Plus, RefreshCw, Server, Trash2, Truck, Upload, User, Users, Wallet,
 } from 'lucide-react';
 import {
-  BACKGROUNDS, CITIES, CITY_BY_ID, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, SCENARIOS, SCENARIO_IDS, formatDateTime, formatMoney,
+  BACKGROUNDS, CHAPTERS, CITIES, CITY_BY_ID, CUSTOM_LIMITS, DIFFICULTIES, DIFFICULTY_LABEL, SCENARIOS, SCENARIO_IDS, formatDateTime, formatMoney,
   type AvatarLook, type CharacterBackground, type Difficulty, type DifficultyId, type ScenarioId,
 } from '@spedsim/core';
 import { LocalHost } from '../game/host.ts';
@@ -22,6 +22,7 @@ import { CharacterEditor, DEFAULT_LOOK, randomLook } from '../ui/CharacterEditor
 import { countryName } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
 import { CompanyLogo } from '../ui/CompanyLogo.tsx';
+import { careerBest, starText } from '../ui/Career.tsx';
 
 const DIFF_TEXT: Record<Exclude<DifficultyId, 'custom'>, string> = {
   easy: 'Mehr Startkapital, höhere Margen, weniger Pannen',
@@ -130,6 +131,7 @@ function CompanyCard({ c, online, busy, onPlay, onLoad, onDelete, onDeleteSave }
           <div className="co-tags">
             <span className={`co-kind ${mp ? 'mp' : 'sp'}`}>{mp ? 'Multiplayer' : 'Einzelspieler'}</span>
             {c.kind === 'mp' && <span className="co-sub">{c.session.hosted ? 'gehostet auf diesem PC' : 'beigetreten'}</span>}
+            {meta?.career && <span className="co-sub"><Flag size={11} /> Karriere · Kapitel {meta.career}</span>}
             {meta?.scenario && meta.scenario !== 'free' && <span className="co-sub"><Flag size={11} /> {SCENARIOS[meta.scenario as ScenarioId]?.name ?? meta.scenario}</span>}
             {meta?.difficulty && <span className="co-sub">{DIFFICULTY_LABEL[meta.difficulty as DifficultyId] ?? meta.difficulty}</span>}
           </div>
@@ -188,7 +190,9 @@ export function Welcome() {
   const [player, setPlayer] = useState('Alex Mustermann');
   const [hq, setHq] = useState('leipzig');
   const [difficulty, setDifficulty] = useState<DifficultyId>('normal');
-  const [scenario, setScenario] = useState<ScenarioId>('free');
+  const [scenario, setScenario] = useState<ScenarioId | 'career'>('free');
+  const career = scenario === 'career' && view === 'new';
+  const best = useMemo(() => careerBest(), []);
   const legacy = useMemo(() => currentLegacy(), []);
   const [useLegacy, setUseLegacy] = useState(true);
   const [custom, setCustom] = useState<Partial<Difficulty>>({ ...DIFFICULTIES.normal });
@@ -281,7 +285,7 @@ export function Welcome() {
     setBusy(true);
     try {
       const host = getLocalHost();
-      await host.newGame({ companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario, legacy: useLegacy && legacy.exits.length ? { capital: legacy.capital, reputation: legacy.reputation, exits: legacy.exits.length } : undefined, founder: { name: player, character: { name: player, age, avatar, background } } });
+      await host.newGame({ companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario: scenario === 'career' ? undefined : scenario, career: scenario === 'career' || undefined, legacy: useLegacy && legacy.exits.length ? { capital: legacy.capital, reputation: legacy.reputation, exits: legacy.exits.length } : undefined, founder: { name: player, character: { name: player, age, avatar, background } } });
       setUi({ host, page: 'dashboard' });
     } catch (e) {
       toast('danger', (e as Error).message);
@@ -318,7 +322,7 @@ export function Welcome() {
     try {
       const external = externalServer.trim();
       const url = external ? normalizeServerUrl(external) : await ensureLocalServer();
-      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario, name: player, character, ...(competition ? { competition: true } : {}) }, !external);
+      connect(url, { t: 'create', companyName: company, hqCityId: hq, difficulty, customDifficulty: difficulty === 'custom' ? custom : undefined, scenario: scenario === 'career' ? undefined : scenario, name: player, character, ...(competition ? { competition: true } : {}) }, !external);
     } catch (e) {
       toast('danger', `Server konnte nicht gestartet werden: ${(e as Error).message ?? e}`);
       setUi({ connection: '' });
@@ -604,7 +608,8 @@ export function Welcome() {
                   </div>
                   <div className="field">
                     <label>Spielart</label>
-                    <select className="input" value={scenario} onChange={(e) => setScenario(e.target.value as ScenarioId)}>
+                    <select className="input" value={scenario === 'career' && view !== 'new' ? 'free' : scenario} onChange={(e) => setScenario(e.target.value as ScenarioId | 'career')}>
+                      {view === 'new' && <option value="career">Karriere (5 Kapitel mit Geschichte)</option>}
                       {SCENARIO_IDS.map((id) => (
                         <option key={id} value={id}>
                           {SCENARIOS[id].name}
@@ -612,10 +617,19 @@ export function Welcome() {
                         </option>
                       ))}
                     </select>
-                    <p className="dim scenario-text">
-                      {SCENARIOS[scenario].intro}
-                      {scenario !== 'free' && <><br /><b>Ziel:</b> {SCENARIOS[scenario].goal}</>}
-                    </p>
+                    {career ? (
+                      <div className="dim scenario-text">
+                        Vom einzelnen LKW zum Marktführer – mit Mentorin Margarete Holm und dem Rivalen Viktor Krämer. Jedes Kapitel hat Ziele und eine Frist, schnelles Erreichen bringt bis zu drei Sterne. Ausschreibungen, Ausland, Lager und Container werden nach und nach freigeschaltet. Zu Beginn jedes Kapitels entsteht ein Speicherpunkt zum Wiederholen.
+                        <div className="career-chapters">
+                          {CHAPTERS.map((ch) => <span key={ch.n} className={best[ch.n] ? 'done' : ''} title={ch.title}>{ch.n} {best[ch.n] ? starText(best[ch.n]) : ch.title}</span>)}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="dim scenario-text">
+                        {SCENARIOS[scenario === 'career' ? 'free' : scenario].intro}
+                        {scenario !== 'free' && scenario !== 'career' && <><br /><b>Ziel:</b> {SCENARIOS[scenario].goal}</>}
+                      </p>
+                    )}
                   </div>
                   {view === 'new' && legacy.exits.length > 0 && (
                     <label className="legacy-note">

@@ -3,6 +3,7 @@
 // Im Multiplayer führt ausschließlich der Server Befehle aus (serverautoritativ) – dadurch sind
 // Doppelbelegungen und widersprüchliche Aktionen ausgeschlossen, da Befehle sequenziell verarbeitet werden.
 
+import { campaignCommandLock, readCampaignMessages } from './campaign.ts';
 import { sanitizeAvatar, type AvatarLook } from './avatar.ts';
 import { onContainerAccepted, streetTurn } from './containers.ts';
 import { claimOrder, companyIdOf, isMultiCompany, orderVisible, restoreState, tagClaimedOrders } from './shard.ts';
@@ -127,7 +128,8 @@ export type Command =
   | { type: 'setLivery'; livery: Partial<Livery> }
   | { type: 'startCampaign'; country: string }
   | { type: 'attendFair'; fairId: string }
-  | { type: 'setOnlinePresence'; on: boolean };
+  | { type: 'setOnlinePresence'; on: boolean }
+  | { type: 'readCampaignMessage'; id?: Id };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -180,6 +182,7 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   repayLoan: 'loans',
   factorInvoices: 'finance',
   chat: null,
+  readCampaignMessage: null,
   worldChat: null,
   offerHandover: 'dispatch',
   cancelHandover: 'dispatch',
@@ -300,6 +303,8 @@ function applyCommandChecked(state: GameState, ctx: SimContext, actorId: Id, cmd
   const loc = commandLocation(state, cmd);
   if (loc === null && actor.locationIds?.length) return fail('Keine Berechtigung: Du verwaltest nur zugewiesene Niederlassungen.');
   if (loc && !mayManageLocation(actor, loc)) return fail('Keine Berechtigung: Dieser Standort ist dir nicht zugewiesen.');
+  const locked = campaignCommandLock(state, cmd as unknown as { type: string; [k: string]: unknown });
+  if (locked) return fail(locked);
   if (actor.spendLimit === undefined || !SPENDING.has(cmd.type)) return execute(state, ctx, actor, cmd);
 
   // Ausgabenlimit: Befehl ausführen und zurückrollen, wenn er mehr kostet als erlaubt
@@ -733,6 +738,9 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       rejectTimeVote(state);
       return { ok: true };
     }
+    case 'readCampaignMessage':
+      readCampaignMessages(state, cmd.id);
+      return { ok: true };
     case 'chat': {
       const text = String(cmd.text ?? '').trim().slice(0, 500);
       if (!text) return fail('Leere Nachricht.');

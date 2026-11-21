@@ -739,3 +739,17 @@ svg.brand-logo { border-radius: 0; }
 .row-own td { background: color-mix(in srgb, var(--accent, #38bdf8) 10%, transparent); }
 .rank-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .card-inset { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border, rgba(148,163,184,.25)); }
+
+/* ---------- Karriere-Kampagne (Paket E4) ---------- */
+.career-chapters { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.career-chapters span { font-size: 11.5px; padding: 2px 8px; border-radius: 10px; background: var(--panel-2); color: var(--text-2); border: 1px solid var(--border); }
+.career-chapters span.done { color: var(--warning); }
+.career-chapters span.current { border-color: var(--accent); color: var(--text); }
+.career-lock { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 7px 10px; border-radius: 8px; background: var(--panel-2); border: 1px dashed var(--border-strong); font-size: 12.5px; color: var(--text-2); }
+.career-msg-backdrop { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.35); padding: 16px; }
+.career-msg { width: 480px; max-width: 100%; background: var(--panel); border: 1px solid var(--border-strong); border-top: 3px solid var(--accent); border-radius: 12px; box-shadow: var(--shadow); padding: 14px 16px; animation: pop 0.2s ease-out; }
+.career-msg.rival { border-top-color: var(--danger); }
+.career-msg-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 6px; }
+.career-msg-head .dim { font-size: 12px; }
+.career-msg p { font-size: 13.5px; line-height: 1.5; color: var(--text-2); margin: 8px 0; white-space: pre-line; }
+.career-msg .row { gap: 8px; margin-top: 10px; }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Bot, Check, X, Settings2 } from 'lucide-react';
 import {
   CARGOS, COUNTRY_NAMES, CHAIN_MIN_SKILL, REACT_MIN_SKILL, VEHICLES_PER_DISPATCHER, dispatchers, managedVehicles, type DispatchMode, type DispatchRules,
+  campaignLock,
 } from '@spedsim/core';
 import { sendCommand, setUi, useGame } from '../game/store.ts';
 import { Badge, Modal, Money } from '../ui/components.tsx';
@@ -31,7 +32,7 @@ export function AutoDispatchBar() {
         <b>KI-Disposition</b>
         <div className="seg" style={{ display: 'inline-flex' }}>
           {(Object.keys(MODE_LABEL) as DispatchMode[]).map((m) => (
-            <button key={m} className={ad.mode === m ? 'active' : ''} disabled={m !== 'manual' && staff.length === 0} onClick={() => sendCommand({ type: 'setAutoDispatch', mode: m })}>
+            <button key={m} className={ad.mode === m ? 'active' : ''} disabled={m !== 'manual' && (staff.length === 0 || !!campaignLock(s, 'autodispatch'))} title={m !== 'manual' ? campaignLock(s, 'autodispatch') : undefined} onClick={() => sendCommand({ type: 'setAutoDispatch', mode: m })}>
               {MODE_LABEL[m]}
             </button>
           ))}

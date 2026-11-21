@@ -19,6 +19,7 @@ import { defaultEvents } from './events.ts';
 import { startQuarter } from './goals.ts';
 import { defaultProgress } from './progress.ts';
 import { applyScenario, isScenarioId } from './scenarios.ts';
+import { startCareer } from './campaign.ts';
 import { newId } from './rng.ts';
 import { defaultNews } from './news.ts';
 import { toDate } from './time.ts';
@@ -65,6 +66,8 @@ export interface NewGameOptions {
   founder: { id?: Id; name: string; character?: Partial<Character> };
   /** Szenario mit eigenem Ziel (fehlt: freies Spiel) */
   scenario?: ScenarioId;
+  /** Karriere-Kampagne (nur Einzelspiel, ersetzt das Szenario) */
+  career?: boolean;
   /** Neustart-Bonus aus früheren Firmenverkäufen (siehe legacyBonus) */
   legacy?: { capital: number; reputation: number; exits: number };
   /** Gründung in einer laufenden Welt: Uhrzeit, ID-Zähler und Zufallsstand der Welt übernehmen */
@@ -196,10 +199,11 @@ export function createNewGame(ctx: SimContext, opts: NewGameOptions): GameState 
     state.vehicleOffers[o.id] = o;
   }
   // Szenario vor dem Markt anwenden: Fuhrpark und Auflieger bestimmen die passenden Angebote
-  if (isScenarioId(opts.scenario)) applyScenario(state, opts.scenario);
+  if (isScenarioId(opts.scenario) && !opts.career) applyScenario(state, opts.scenario);
   startQuarter(state);
   updateWeather(state, ctx);
   seedCompetitors(state);
+  if (opts.career) startCareer(state);
   updateOrderMarket(state, ctx, true);
 
   addLog(state, {

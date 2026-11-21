@@ -8,6 +8,7 @@ import { dailyTenders, hourlyTenders } from './tenders.ts';
 import { dailyPremium, hourlyPremium } from './premium.ts';
 import { dailyGoals } from './goals.ts';
 import { dailyScenario } from './scenarios.ts';
+import { dailyCampaign } from './campaign.ts';
 import { dailyProgress } from './progress.ts';
 import { hourlyTeam } from './team.ts';
 import { hourlyPartners } from './partners.ts';
@@ -152,13 +153,14 @@ const DAILY: Step[] = [
   { scope: 'world', run: (state) => {
     if (dayOfMonth(state.time) === 1) monthlyCompetition(state);
   } },
-  { scope: 'company', run: (state) => {
+  { scope: 'company', run: (state, ctx) => {
     if (state.company.account.balance < -25_000_00) {
       addLog(state, { level: 'danger', category: 'finance', text: `Liquidität kritisch: Kontostand ${formatMoney(state.company.account.balance)}. Ausgaben reduzieren oder Forderungen eintreiben!` });
     }
     // Quartalsziele, Szenario, Erfolge (nach Monatsabrechnung und Tagesstatistik)
     dailyGoals(state);
     dailyScenario(state);
+    dailyCampaign(state, ctx);
     dailyProgress(state);
   } },
   { scope: 'company', run: (s) => dailyNews(s) }, // jede Firma liest ihre eigene Ausgabe (mit ihrer Firmenwoche)

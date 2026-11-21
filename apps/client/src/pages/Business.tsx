@@ -6,6 +6,7 @@ import {
   BRANCH_SETUP_COST, CARGO_BY_ID, TRUCK_BY_ID, CITIES, COMPANY_LEVELS, DEPARTMENTS, STAFF_GRADES, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, VEHICLES_PER_DISPATCHER,
   BID_RANGE, GUARANTEE_BONUS, reputationFactor, MIN_PER_DAY, WIN_BACK_COST, activeCompetitors, formatDateTime, formatDuration, nearCompetitor, tenderCostEstimate, tenderVolume, STRATEGY_LABEL, CITY_BY_ID, capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, stageOf, storageContracts, winBackChance, formatMoney,
   type Contract, type Tender, type Department, type FacilityKind, type Location, type StaffGrade,
+  campaignLock,
 } from '@spedsim/core';
 import { sendCommand, setUi, useGame, useUi } from '../game/store.ts';
 import { StoragePanel, hallSummary } from './Storage.tsx';
@@ -14,6 +15,7 @@ import { Avatar } from '../ui/Portrait.tsx';
 import { cityLabel, cityName, countryName, km, tons, trailerName, QUAL_LABEL } from '../ui/format.ts';
 import { askConfirm } from '../ui/confirm.tsx';
 import { LiveryCard, MarketingCard } from '../ui/Branding.tsx';
+import { CareerLock } from '../ui/Career.tsx';
 
 const INDUSTRY: Record<string, string> = {
   port: 'Hafen', chemical: 'Chemie', automotive: 'Automobil', food: 'Lebensmittel', agriculture: 'Landwirtschaft', steel: 'Stahl',
@@ -190,7 +192,7 @@ function LocationCard({ loc: l }: { loc: Location }) {
         {(Object.keys(FACILITY_DEFS) as FacilityKind[]).map((k) => {
           const f = FACILITY_DEFS[k];
           const built = l.facilities?.includes(k);
-          const reason = level < f.minLevel ? `ab Stufe ${f.minLevel}` : LOCATION_ORDER.indexOf(l.kind) < LOCATION_ORDER.indexOf(f.minKind) ? 'braucht Betriebshof' : '';
+          const reason = k === 'warehouse' && campaignLock(s, 'warehouse') ? 'Karriere: ab Kapitel 4' : level < f.minLevel ? `ab Stufe ${f.minLevel}` : LOCATION_ORDER.indexOf(l.kind) < LOCATION_ORDER.indexOf(f.minKind) ? 'braucht Betriebshof' : '';
           const Icon = FACILITY_ICON[k];
           return (
             <div key={k} className="list-item" style={{ alignItems: 'center' }}>
@@ -287,6 +289,7 @@ function NewBranch() {
         <dt>Miete</dt><dd><Money value={def.rent} />/Monat</dd>
         <dt>Kapazität</dt><dd>{def.parking} LKW · {def.trailerParking} Auflieger · {def.staff} Büroplätze</dd>
       </dl>
+      <CareerLock feature="abroad" />
       <button className="btn primary mt" disabled={!cityId || full} onClick={() => sendCommand({ type: 'openBranch', cityId, kind }).then((r) => r.ok && setCityId(''))}>
         <MapPin size={14} /> {full ? `Auf Stufe ${s.company.level ?? 1} keine weiteren Standorte` : 'Niederlassung eröffnen'}
       </button>
@@ -370,6 +373,7 @@ function Tenders() {
       sub="Große Verlader vergeben Rahmenverträge über 3–6 Monate an das beste Gebot. Die Konkurrenz bietet verdeckt mit – entscheidend ist der Preis je Tour, ein guter Ruf wiegt etwas auf."
       className="mb"
     >
+      <CareerLock feature="tenders" />
       {open.length === 0 && <Empty>Gerade keine Ausschreibung. Neue erscheinen alle paar Tage, sobald die Firma zwei Fahrzeuge hat – mit Vertriebsmitarbeitern öfter.</Empty>}
       <div className="grid grid-2">
         {open.map((t) => <TenderCard key={t.id} t={t} />)}

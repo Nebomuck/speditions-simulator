@@ -29,6 +29,7 @@ import { NewsPopup } from './ui/News.tsx';
 import { ErrorBoundary } from './ui/ErrorBoundary.tsx';
 import { Resizer } from './ui/Resizer.tsx';
 import { startBackground, stopBackground } from './ui/sound.ts';
+import { CampaignMessageCard } from './ui/Career.tsx';
 
 const PAGES = {
   dashboard: Dashboard,
@@ -111,6 +112,7 @@ export function App() {
       <DispatchDialog />
       <Tutorial />
       <DecisionCard />
+      <CampaignMessageCard />
       <NewsPopup />
       <ExitScreen />
       <HelpDialog />

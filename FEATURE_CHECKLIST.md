@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 21.11.2026 · Version 0.23.0
+Stand: 21.11.2026 · Version 0.24.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -196,6 +196,7 @@ Stand: 21.11.2026 · Version 0.23.0
 | Alternative Antriebe | Getestet (CO₂-Maut, Energiepreise je Antrieb, Ladestopps unterwegs, Ladepark am Standort) |
 | Grüne Kunden | Getestet (feste Zuordnung, Anteil, Dispositionsprüfung mit Fahrzeug und Fuhrparkanteil) |
 | Kombinierter Verkehr | Getestet (Bahnkanten nur auf Wunsch, Fahrpreis, Ruhe auf dem Zug, kein Diesel); im Browser geprüft: Angebot im Dialog, Karte |
+| Karriere-Kampagne (E4) | Getestet (Start mit Rivale und Nachrichten, Sterne nach Zeit, fünf Kapitel bis zum Ende, Ziele rasten ein, Tipp und Fristhinweis, Sperren per Befehl, Container-Zähler, Übernahme des Rivalen ab Kapitel 5, Teilung in Welt und Firma); im Browser geprüft (Gründung als Karriere, Nachrichten-Dialog, Kapitelkarte, Sperrhinweis, Speicherpunkt); Bot-Lauf über 8 Startwerte (Kapitel 1 in 19–34 Tagen) |
 | Häfen & Container (E3) | Getestet (14 Terminals mit Wartezeit 0,5–6 h und Ereignissen, deterministisch ohne Simulationszufall; Börse: Import nur ab Terminal mit 2-h-Slot, Export nur zum Terminal; Leerrückgabe mit Gratistagen, Standgeld und verlorenem Container; Gestellung vor dem Export, verpasstes Schiff; Street-Turn; echte Fahrt mit Wartezeit am Tor und Slot-Umbuchung); im Browser geprüft (Reiter Häfen, Karte mit Ampel); Bot-Vergleich über 8 Startwerte (Bot ohne Containerchassis: etwas weniger passende Aufträge) |
 | Lager & Kontraktlogistik (E2) | Getestet (Angebot, Annahme, Lagergeld; Einlagerungen als Komplettladungen, Auslagerungen als Teilladungen; verpasste Touren, Kündigung durch den Kunden; automatische Vergabe an Subunternehmer; Lagerpersonal, Durchsatz und Überlastung; Hallenausbau; Umschlag über das Lager; Startvertrag für Bestandshallen, Spielstand-Version 14); Bot-Lauf mit Lagervertrag über 60 Tage ohne verpasste Tour; im Browser geprüft (Reiter Lager, Angebot annehmen, Personal); ohne Lagerhalle Vergleichslauf gegen 0.21.0 unverändert |
 | Auswertung und Planungshilfen (E1) | Getestet (Nachkalkulation je Fahrt mit Deckungsbeitrag, Summen aller Berichte stimmen überein, Liquiditätsprognose mit Fixkosten am Monatsersten und Warnung, Engpass-Warnungen, CSV mit Semikolon und Dezimalkomma); im Browser mit 40 Tagen Bot-Spielstand geprüft (Berichte, Fahrten, Prognose, Dashboard-Warnung, CSV-Download); Vergleichslauf gegen 0.20.0 unverändert |

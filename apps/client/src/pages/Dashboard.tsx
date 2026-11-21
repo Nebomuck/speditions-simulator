@@ -6,6 +6,7 @@ import { MapView } from '../ui/MapView.tsx';
 import { NextAchievements, QuarterCard, ScenarioCard } from '../ui/Goals.tsx';
 import { NewsCard } from '../ui/News.tsx';
 import { Warnings } from './Analysis.tsx';
+import { CareerCard } from '../ui/Career.tsx';
 
 export function Dashboard() {
   const s = useGame();
@@ -37,8 +38,9 @@ export function Dashboard() {
       <Warnings className="mt" />
       <div className="grid mt goals-grid">
         <QuarterCard s={s} />
+        <CareerCard s={s} />
         <ScenarioCard s={s} />
-        <NextAchievements s={s} count={s.scenario ? 3 : 4} />
+        <NextAchievements s={s} count={s.scenario || s.campaign ? 3 : 4} />
       </div>
       <div className="grid mt" style={{ gridTemplateColumns: '1.3fr 1fr' }}>
         <Card title="Live-Karte" actions={<button className="btn small" onClick={() => navigate('map')}>Vollbild</button>}>

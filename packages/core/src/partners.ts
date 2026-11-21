@@ -2,6 +2,7 @@
 // Partner aus der Frachtenbörse) und angeschlagene oder kleine Konkurrenten mit Fuhrpark, Fahrern und
 // Kunden übernehmen.
 
+import { rivalForSale } from './campaign.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { onContainerDelivery } from './containers.ts';
 import { onStorageDelivery } from './storage.ts';
@@ -161,8 +162,10 @@ export interface AcquisitionOffer {
 export function acquisitionOffer(state: GameState, c: Competitor): AcquisitionOffer | undefined {
   if (c.status === 'bankrupt' || c.status === 'acquired') return undefined;
   const trouble = c.status === 'trouble';
-  if (!trouble && c.trucks > ACQUIRE_SMALL_TRUCKS) return undefined;
-  const trucks = Math.min(ACQUIRE_MAX_TRUCKS, c.trucks);
+  // Karriere: Krämer verkauft ab Kapitel 5 – auch eine große Firma, aber nicht billig
+  const rival = rivalForSale(state, c.id);
+  if (!trouble && !rival && c.trucks > ACQUIRE_SMALL_TRUCKS) return undefined;
+  const trucks = Math.min(rival ? 20 : ACQUIRE_MAX_TRUCKS, c.trucks);
   const customers = Object.values(state.customers).filter((cu) => cu.lostTo === c.id).length;
   // Betriebshof nur, wenn die Unternehmensstufe noch einen Standort erlaubt
   const newLocation = !state.company.locations.some((l) => l.cityId === c.hqCityId) && state.company.locations.length < levelDef(state.company.level).maxLocations;
@@ -171,11 +174,11 @@ export function acquisitionOffer(state: GameState, c: Competitor): AcquisitionOf
   const parkingShort = Math.max(0, trucks - free);
   // bezahlt werden nur die LKW, die du auch übernimmst
   const taken = trucks - parkingShort;
-  const factor = trouble ? 0.75 : 1.3;
+  const factor = trouble ? 0.75 : rival ? 1.5 : 1.3;
   const price = Math.round((taken * TRUCK_PRICE * factor + customers * CUSTOMER_PRICE) / 100_00) * 100_00;
   return {
     competitorId: c.id, name: c.name, trucks, customers, drivers: taken, price, newLocation, parkingShort,
-    reason: trouble ? 'In Schwierigkeiten – der Inhaber verkauft günstig.' : 'Kleiner Betrieb, der Inhaber sucht einen Nachfolger. Gesunde Firmen haben ihren Preis.',
+    reason: trouble ? 'In Schwierigkeiten – der Inhaber verkauft günstig.' : rival ? `${c.owner ?? 'Der Inhaber'} denkt ans Aufhören und verkauft – zu seinem Preis.` : 'Kleiner Betrieb, der Inhaber sucht einen Nachfolger. Gesunde Firmen haben ihren Preis.',
   };
 }
 

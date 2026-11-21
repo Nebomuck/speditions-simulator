@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.24.0 – 21.11.2026
+
+Paket E „Logistikdienstleister“, Schritt E4 „Karriere-Kampagne“:
+
+- **Neue Spielart „Karriere“** im Gründungsdialog (nur Einzelspiel): fünf Kapitel vom einzelnen LKW zum Marktführer.
+  1. Ein LKW, ein Traum (120 Tage): 15 Lieferungen, zweiter LKW, Kontostand positiv.
+  2. Stammkunden (180 Tage): 2 Rahmenverträge, Ruf 60, erster Disponent.
+  3. Über die Grenze (240 Tage): Niederlassung im Ausland, 30 % Auslandsumsatz in 30 Tagen, 10 LKW.
+  4. Logistikdienstleister (300 Tage): Lagerhalle mit 2 Lagerverträgen, 40 Container-Touren.
+  5. Marktführer (540 Tage): Platz 1 der Rangliste, Unternehmensstufe 6.
+- **Sterne:** Bis zur halben Frist gibt es drei Sterne, bis zur Frist zwei, danach einen. Es gibt kein Scheitern: Ein Kapitel zählt weiter, bis es geschafft ist.
+- **Freischaltung:** Ausschreibungen und KI-Disposition ab Kapitel 2, Niederlassungen im Ausland ab Kapitel 3, Lagerhallen und Containerverkehr ab Kapitel 4. Gesperrte Bereiche zeigen einen Hinweis.
+- **Mentorin Margarete Holm** führt in jedes Kapitel ein, meldet erreichte Kapitel und gibt nach 40 % der Frist einen Tipp zum ersten offenen Ziel. Zu Beginn von Kapitel 2 bietet ein Stammkunde einen Rahmenvertrag an.
+- **Rivale Viktor Krämer** („Krämer & Söhne Transporte“) aus der Nähe des Firmensitzes wächst mit jedem Kapitel und meldet sich, wenn er dir einen Kunden abwirbt. Ab Kapitel 5 steht er zum Verkauf (bis 20 LKW, zu seinem Preis).
+- **Oberfläche:** Kapitelkarte im Dashboard mit Zielen, Frist und Sternen; Nachrichten von Mentorin und Rivale als Dialog.
+- **Speicherpunkte:** Zu Beginn jedes Kapitels entsteht ein Spielstand „Karriere Kapitel N – Firma“. Damit lässt sich ein Kapitel wiederholen; weitergespielt wird unter dem Firmennamen, der Speicherpunkt bleibt unverändert. Der Startbildschirm zeigt das laufende Kapitel und die besten Sterne je Kapitel.
+
 ## 0.23.0 – 21.11.2026
 
 Paket E „Logistikdienstleister“, Schritt E3 „Häfen & Container“:

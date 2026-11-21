@@ -3,6 +3,7 @@
 // verkleinern sich bei Verlust und können in Konkurs gehen. Unzufriedene Kunden wechseln zu ihnen –
 // mit Vertriebsarbeit lassen sie sich zurückgewinnen.
 
+import { onCampaignCustomerLost } from './campaign.ts';
 import { CITIES, CITY_BY_ID, type CityDef } from './data/cities.ts';
 import { companyViews, isMultiCompany, worldOf } from './shard.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
@@ -213,6 +214,7 @@ export function dailyCustomerChurn(state: GameState): void {
     if (!rival) continue;
     cu.lostTo = rival.id;
     cu.lostAt = state.time;
+    onCampaignCustomerLost(state, rival.id, cu.name);
     addLog(state, { level: 'warning', category: 'market', text: `${cu.name} wechselt zu ${rival.name} – zu unzufrieden mit deinem Service (${Math.round(cu.satisfaction)} %). Rückgewinnung unter „Kunden & Verträge“.` });
   }
 }

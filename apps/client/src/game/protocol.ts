@@ -14,6 +14,8 @@ export interface SaveMeta {
   vehicles?: number;
   level?: number;
   scenario?: string;
+  /** Karriere: laufendes Kapitel */
+  career?: number;
   difficulty?: string;
   founder?: string;
   /** Firmenlackierung für das Logo auf der Startseite */

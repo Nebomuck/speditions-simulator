@@ -6,6 +6,7 @@
 // Der Terminalzustand ist eine reine Funktion aus Weltsamen, Ort und Zeit: Er belegt keinen Speicher und verbraucht
 // keine Zufallszahlen der Simulation. So bleibt der Spielablauf für Firmen ohne Containerverkehr unverändert.
 
+import { onCampaignContainer } from './campaign.ts';
 import type { SimContext } from './context.ts';
 import { CARGO_BY_ID } from './data/catalog.ts';
 import { CITY_BY_ID } from './data/cities.ts';
@@ -271,6 +272,7 @@ export function onTerminalGate(order: Order, t: GameTime): void {
 export function onContainerDelivery(state: GameState, order: Order, lateMin: number): void {
   const c = order.container;
   if (!c) return;
+  onCampaignContainer(state);
   const cust = state.customers[order.customerId];
   if (c.phase === 'export' && lateMin > 0) {
     const fee = Math.round((order.payment * MISSED_SHIP_SHARE) / 100) * 100;

@@ -172,6 +172,16 @@ Neue Spielart „Karriere“ im Gründungsdialog. Nur im Einzelspiel (im Multipl
 - **Begleiter:** eine Mentorfigur (frühere Speditionsinhaberin), die in Kapitelübergängen und bei Zielen Tipps gibt. Auftritt im bestehenden Telefon- und Entscheidungskartensystem.
 - **Fortschritt:** Erreichte Kapitel und Sterne stehen im Startbildschirm. Ein abgeschlossenes Kapitel lässt sich als neues Spiel mit dem Stand des Kapitelbeginns wiederholen.
 
+**Stand E4 (umgesetzt):**
+- `campaign.ts`: Kapitel, Ziele, Sterne, Sperren, Mentorin und Rivale. Zustand `campaign` an der Firma (Spielstand-Version bleibt 14, nur ein optionales Feld).
+- Die Karriere ist kein Szenario, sondern die Option `career` beim Spielstart. Im Multiplayer gibt es sie nicht.
+- Sperren wirken auf Befehle (`campaignCommandLock`), die Oberfläche zeigt Hinweise.
+- Abweichungen vom Konzept:
+  - Nachrichten von Mentorin und Rivale erscheinen als eigener Dialog statt im Telefon- und Entscheidungskartensystem: Sie sind Erzählung ohne Wahl.
+  - Der Rivale bietet in Ausschreibungen wie jede andere Konkurrenzspedition mit, ohne Sonderregel.
+  - Wiederholen über Speicherpunkte zu Kapitelbeginn statt über einen eigenen Startknopf.
+- **Bot-Lauf** über 8 Startwerte × 240 Tage: Kapitel 1 in 19–34 Tagen (3 Sterne). In Kapitel 2 bleibt der Bot hängen, weil er keine Rahmenverträge annimmt. Angebote kommen aber (5–7 in 100 Tagen).
+
 ## Technik
 
 - **Spielstand-Version 14:**

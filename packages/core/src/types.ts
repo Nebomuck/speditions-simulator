@@ -850,6 +850,9 @@ export interface Competitor {
   strategy: CompetitorStrategy;
   founded: GameTime;
   status: 'active' | 'trouble' | 'bankrupt' | 'acquired';
+  /** Karriere: der Rivale mit Inhaber */
+  rival?: boolean;
+  owner?: string;
   /** von dir übernommen */
   acquiredAt?: GameTime;
   /** Wettbewerbswelt: übernehmende Firma */
@@ -942,6 +945,37 @@ export interface PremiumInfo {
 }
 
 export type ScenarioId = 'free' | 'restart' | 'family' | 'reefer' | 'tycoon';
+
+/** Nachricht der Mentorin oder des Rivalen in der Karriere */
+export interface CampaignMessage {
+  id: Id;
+  from: 'mentor' | 'rival';
+  title: string;
+  text: string;
+  t: GameTime;
+  read?: boolean;
+}
+
+/** Karriere-Kampagne (Paket E4) */
+export interface CampaignState {
+  /** laufendes Kapitel (1–5) */
+  chapter: number;
+  chapterStart: GameTime;
+  deadline: GameTime;
+  results: { chapter: number; stars: number; days: number }[];
+  /** erreichte Ziele des laufenden Kapitels (bleiben erreicht) */
+  met: string[];
+  messages: CampaignMessage[];
+  /** Zählerstände zu Kapitelbeginn */
+  base: Record<string, number>;
+  /** Zähler im Kapitel (z. B. Container-Touren) */
+  counts: Record<string, number>;
+  /** einmalige Ereignisse im Kapitel (Tipp, Frist, Geschichte) */
+  flags: string[];
+  rivalId?: Id;
+  done?: boolean;
+  finishedAt?: GameTime;
+}
 
 export interface ScenarioState {
   id: ScenarioId;
@@ -1090,6 +1124,8 @@ export interface GameState {
   tenders: Record<Id, Tender>;
   /** Szenario mit eigenem Ziel (fehlt: freies Spiel) */
   scenario?: ScenarioState;
+  /** Karriere-Kampagne (fehlt: keine Karriere) */
+  campaign?: CampaignState;
   /** Quartalsziele der Hausbank */
   quarter?: QuarterState;
   quarterHistory: QuarterResult[];

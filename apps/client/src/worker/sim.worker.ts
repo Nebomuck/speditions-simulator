@@ -13,6 +13,8 @@ let session: GameSession | null = null;
 let currentSaveName = '';
 let lastAutosaveDay = -1;
 let autosaveSlot = 0;
+let lastChapter = 0;
+const checkpointName = (company: string, chapter: number) => `Karriere Kapitel ${chapter} – ${company}`;
 let lastTick = performance.now();
 let lastSnapshot = 0;
 let lastRevision = -1;
@@ -39,7 +41,7 @@ async function save(name: string, auto: boolean) {
   const s = session.state;
   const meta: SaveMeta = {
     name, savedAt: new Date().toISOString(), company: s.company.name, time: s.time, balance: s.company.account.balance, auto,
-    seed: s.seed, vehicles: Object.keys(s.vehicles).length, level: s.company.level, scenario: s.scenario?.id, difficulty: s.difficulty.id,
+    seed: s.seed, vehicles: Object.keys(s.vehicles).length, level: s.company.level, scenario: s.scenario?.id, career: s.campaign && !s.campaign.done ? s.campaign.chapter : undefined, difficulty: s.difficulty.id,
     founder: Object.values(s.players).find((p) => p.isFounder)?.name, livery: s.company.livery,
   };
   await writeSave(meta, serializeSave(s, name));
@@ -58,6 +60,12 @@ function loop() {
       // Notfall-Spielstand vom Zeitpunkt des Fehlers (die rotierenden Autosaves bleiben unangetastet)
       save(`Notfall – ${session.state.company.name}`, true).catch(() => {});
     }
+    // Karriere: Speicherpunkt zu Beginn jedes Kapitels (zum Wiederholen)
+    const chapter = session.state.campaign && !session.state.campaign.done ? session.state.campaign.chapter : 0;
+    if (chapter && chapter !== lastChapter) {
+      lastChapter = chapter;
+      save(checkpointName(session.state.company.name, chapter), false).catch(() => {});
+    }
     const day = dayIndex(session.state.time);
     if (lastAutosaveDay === -1) lastAutosaveDay = day;
     if (day !== lastAutosaveDay) {
@@ -75,7 +83,9 @@ setInterval(loop, 50);
 
 function start(s: GameSession, name: string) {
   session = s;
-  currentSaveName = name;
+  // ein Speicherpunkt bleibt unverändert: weitergespielt wird unter dem Firmennamen
+  currentSaveName = /^Karriere Kapitel \d – /.test(name) ? s.state.company.name : name;
+  lastChapter = s.state.campaign && !s.state.campaign.done ? s.state.campaign.chapter : 0;
   lastAutosaveDay = -1;
   lastRevision = -1;
   snapshot(true);
@@ -87,6 +97,7 @@ async function handle(req: HostRequest): Promise<HostResponse> {
       const state = createNewGame(ctx, req.options);
       start(new GameSession(state, ctx), state.company.name);
       await save(state.company.name, false);
+      if (state.campaign) await save(checkpointName(state.company.name, 1), false);
       return { ok: true };
     }
     case 'load': {

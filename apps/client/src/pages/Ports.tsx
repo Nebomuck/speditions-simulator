@@ -7,6 +7,7 @@ import {
 import { sendCommand, setUi, toast, useGame } from '../game/store.ts';
 import { Badge, Bar, Card, Empty, Money } from '../ui/components.tsx';
 import { cityName } from '../ui/format.ts';
+import { CareerLock } from '../ui/Career.tsx';
 
 const LEVEL = { green: 'success', yellow: 'warning', red: 'danger' } as const;
 const LEVEL_TEXT = { green: 'frei', yellow: 'voll', red: 'überlastet' } as const;
@@ -22,6 +23,7 @@ export function PortsPanel() {
   const terms = allTerminals(s);
   return (
     <>
+      <CareerLock feature="containers" />
       <Card title={<><Anchor size={16} /> Containerterminals</>} sub="Wartezeit am Tor nach Auslastung, Wochentag und Tageszeit. Großschiffe, Streiks und Winterstürme verlängern sie. Containeraufträge ab Terminal haben ein Zeitfenster (Slot) von 2 Stunden." className="mt">
         <div className="table-wrap" style={{ border: 'none' }}>
           <table className="table">

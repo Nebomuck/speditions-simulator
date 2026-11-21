@@ -285,6 +285,19 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'career',
+    title: 'Karriere',
+    page: 'dashboard',
+    keywords: 'karriere kampagne kapitel sterne mentorin holm rivale krämer frist freischaltung speicherpunkt wiederholen geschichte',
+    body: [
+      'Die Karriere ist eine Spielart für das Einzelspiel: fünf Kapitel vom einzelnen LKW zum Marktführer. Jedes Kapitel hat Ziele und eine Frist. Das Dashboard zeigt das laufende Kapitel mit Fortschritt.',
+      '• Sterne: Bis zur halben Frist gibt es drei Sterne, bis zur Frist zwei, danach einen. Ein Kapitel kann nicht scheitern – es zählt weiter, bis es geschafft ist.',
+      '• Freischaltung: Ausschreibungen und KI-Disposition ab Kapitel 2, Niederlassungen im Ausland ab Kapitel 3, Lagerhallen und Container ab Kapitel 4.',
+      '• Mentorin Margarete Holm erklärt jedes Kapitel und gibt Tipps. Rivale Viktor Krämer wächst mit und wirbt Kunden ab – im letzten Kapitel kannst du seine Firma kaufen.',
+      '• Zu Beginn jedes Kapitels entsteht ein Speicherpunkt. Lade ihn, um ein Kapitel zu wiederholen und mehr Sterne zu holen.',
+    ],
+  },
+  {
     id: 'containers',
     title: 'Häfen und Container',
     page: 'market',
