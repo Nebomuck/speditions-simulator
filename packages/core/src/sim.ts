@@ -2,6 +2,7 @@
 // werden an Zeitgrenzen ausgelöst. Wird identisch im Einzelspieler-Worker und auf dem Server ausgeführt.
 
 import { dailyLife, hourlyLife } from './life.ts';
+import { dailyContainers, hourlyContainers } from './containers.ts';
 import { dailyDecisions, hourlyDecisions } from './decisions.ts';
 import { dailyTenders, hourlyTenders } from './tenders.ts';
 import { dailyPremium, hourlyPremium } from './premium.ts';
@@ -83,6 +84,7 @@ const HOURLY: Step[] = [
   { scope: 'company', run: (s) => hourlyPersonnel(s) },
   { scope: 'company', run: (s) => hourlyContracts(s) },
   { scope: 'company', run: (s, ctx) => hourlyStorage(s, ctx) },
+  { scope: 'company', run: (s, ctx) => hourlyContainers(s, ctx) },
   { scope: 'company', run: (s) => hourlyCompany(s) },
   { scope: 'company', run: (s) => hourlyTeam(s) },
   { scope: 'company', run: (s) => hourlyPartners(s) },
@@ -130,6 +132,7 @@ const DAILY: Step[] = [
   { scope: 'company', run: (s) => dailyPersonnel(s) },
   { scope: 'company', run: (s, ctx) => dailyContracts(s, ctx) },
   { scope: 'company', run: (s, ctx) => dailyStorage(s, ctx) },
+  { scope: 'company', run: (s) => dailyContainers(s) },
   { scope: 'world', run: (s, ctx) => dailyTenders(s, ctx) }, // gemischt: Zuschlag an die Firma
   { scope: 'world', run: (s, ctx) => dailyPremium(s, ctx) },
   // Unternehmensstufe, Lagerauslastung, Lebenssimulation, Kurzzeitmiete

@@ -55,6 +55,26 @@ Aufträge sind nicht zufällig. Sie entstehen so:
 
 Die Börse hält etwa 320 offene Angebote. Angebote verfallen, neue entstehen stündlich.
 
+### Häfen und Container (Paket E3)
+
+- **Terminals:** 14 große Häfen haben ein Containerterminal (Hamburg, Bremerhaven, Rotterdam, Antwerpen, Le Havre, Felixstowe, Danzig, Genua, Triest, Koper, Barcelona, Valencia, Algeciras, Piräus).
+  - **Auslastung:** 0,45–0,85 nach Tageswert, Terminalgröße, Wochentag (Montag und Freitag voller, Wochenende leerer) und Tageszeit.
+  - **Wartezeit am Tor:** 30 min + (Auslastung − 0,55) × 6 h, gedeckelt auf 6 h. Ampel: grün unter 1,5 h, gelb ab 1,5 h, rot ab 3 h.
+  - **Ereignisse:** Großschiff (2 Tage, +2 h), Streik (3 Tage, +5 h), Wintersturm (Oktober bis März, 1 Tag, +3 h).
+  - Der Terminalzustand wird aus Weltsamen, Ort und Zeit berechnet. Er braucht keinen Speicher und verbraucht keinen Simulationszufall.
+- **Seecontainer (Import):** kommen nur aus Terminals. Der Abholslot ist 2 h lang.
+  - Zu früh: warten. Zu spät: nächster freier Slot (volle 2 h + 2 h), 60 € Umbuchung.
+  - Am Terminal kommt die Wartezeit am Tor dazu.
+- **Leerrückgabe:** entsteht nach der Zustellung als angenommener Auftrag der Firma, Vergütung 40 % der Rate.
+  - 5 Gratistage, danach 75 € Standgeld je Tag.
+  - Nach 21 Tagen Überziehung: 2.800 € für den Container, −12 Zufriedenheit.
+- **Exportcontainer:** gehen nur zu Terminals.
+  - Nach der Annahme entsteht die Gestellung (Leercontainer vom Terminal zum Verlader, rechtzeitig zum Ladebeginn).
+  - Disponierbar ist der Export erst, wenn der Leercontainer unterwegs oder angekommen ist.
+  - Liefertermin = Annahmeschluss; es zählt die Ankunft am Tor. Verpasstes Schiff: +35 % der Vergütung Strafe, −10 Zufriedenheit.
+- **Street-Turn:** Leerrückgabe direkt zu einem angenommenen Export im Umkreis von 150 km. Die Gestellung entfällt, 90 € Prämie.
+- **Subunternehmer** übernehmen bei Container-Aufträgen den ganzen Kreislauf.
+
 ## 6. Disposition
 
 Eine Fahrt besteht aus Fahrer, Zugmaschine und Auflieger, die am selben Ort stehen müssen. Sie läuft in Phasen: Leerfahrt zur Ladestelle → ggf. Warten auf das Ladefenster → Beladung → Lastfahrt → Entladung.

@@ -63,7 +63,8 @@ describe('Welt und Firmen-Shards (Paket D, Schritt D1)', () => {
 
   it('Delta-Synchronisation (Server) funktioniert auf der Ansicht', () => {
     const s = newGame();
-    let client = applyPatch({}, diffState({}, playerView(s, 'p1')));
+    // wie über das Netz: der Client bekommt eine Kopie, keine geteilten Objekte
+    let client = applyPatch({}, structuredClone(diffState({}, playerView(s, 'p1'))));
     expect(JSON.stringify(client)).toBe(JSON.stringify(flatten(s)));
     const sent = structuredClone(playerView(s, 'p1'));
     tickMinutes(s, ctx, 6 * 60);

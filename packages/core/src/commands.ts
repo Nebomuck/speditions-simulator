@@ -4,6 +4,7 @@
 // Doppelbelegungen und widersprüchliche Aktionen ausgeschlossen, da Befehle sequenziell verarbeitet werden.
 
 import { sanitizeAvatar, type AvatarLook } from './avatar.ts';
+import { onContainerAccepted, streetTurn } from './containers.ts';
 import { claimOrder, companyIdOf, isMultiCompany, orderVisible, restoreState, tagClaimedOrders } from './shard.ts';
 import { postWorldChat, rejectTimeVote, voteTime } from './arena.ts';
 import { acceptHandover, cancelHandover, declineHandover, offerHandover } from './handover.ts';
@@ -81,6 +82,7 @@ export type Command =
   | { type: 'setWarehouseStaff'; locationId: Id; workers: number; lead: boolean }
   | { type: 'upgradeWarehouse'; locationId: Id }
   | { type: 'crossDock'; orderId: Id }
+  | { type: 'streetTurn'; returnId: Id; exportId: Id }
   | { type: 'setStorageAutoSubcontract'; contractId: Id; on: boolean }
   | { type: 'sendVacation'; driverId: Id; days: number }
   | { type: 'sendDriver'; driverId: Id; toCityId: string }
@@ -152,6 +154,7 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   setWarehouseStaff: 'personnel',
   upgradeWarehouse: 'expansion',
   crossDock: 'dispatch',
+  streetTurn: 'dispatch',
   setStorageAutoSubcontract: 'dispatch',
   sendVacation: 'personnel',
   trainDriver: 'personnel',
@@ -337,6 +340,7 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       if (!o || o.status !== 'offered') return fail('Auftrag ist nicht mehr verfügbar.');
       if (state.time >= o.offerExpires) return fail('Angebot ist abgelaufen.');
       claimOrder(state, o);
+      onContainerAccepted(state, ctx, o);
       addLog(state, { level: 'info', category: 'order', text: `Auftrag angenommen: ${CITY_BY_ID[o.fromCityId].name} → ${CITY_BY_ID[o.toCityId].name} (${formatMoney(o.payment)}).`, ref: { kind: 'order', id: o.id } });
       return { ok: true };
     }
@@ -671,6 +675,10 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     }
     case 'setStorageAutoSubcontract': {
       const r = setStorageAutoSubcontract(state, cmd.contractId, cmd.on);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'streetTurn': {
+      const r = streetTurn(state, ctx, cmd.returnId, cmd.exportId);
       return r.ok ? { ok: true } : fail(r.error);
     }
     case 'crossDock': {

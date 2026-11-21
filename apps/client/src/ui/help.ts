@@ -285,6 +285,19 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'containers',
+    title: 'Häfen und Container',
+    page: 'market',
+    keywords: 'hafen container terminal slot zeitfenster leercontainer standgeld detention gratistage export import annahmeschluss schiff street-turn reederei',
+    body: [
+      'Seecontainer kommen aus 14 Containerterminals, Exportcontainer gehen dorthin. Dafür braucht es ein Containerchassis. Lage und Wartezeit am Tor stehen unter Markt & Wettbewerb → Häfen und auf der Karte (Ampel).',
+      '• Import: Der volle Container wird in einem Slot von 2 Stunden abgeholt. Wer zu spät kommt, wartet auf den nächsten Slot und zahlt eine Umbuchung.',
+      '• Nach der Zustellung muss der Leercontainer binnen 5 Tagen zurück zum Terminal. Die Rückgabe erscheint automatisch als Auftrag. Danach kostet jeder Tag Standgeld.',
+      '• Export: Nach der Annahme muss zuerst ein Leercontainer vom Terminal zum Verlader (Gestellung). Danach wird der volle Container vor dem Annahmeschluss zum Terminal gebracht. Wer zu spät kommt, verpasst das Schiff und zahlt eine hohe Strafe.',
+      '• Street-Turn: Ein Leercontainer kann direkt zu einem Exporteur in der Nähe fahren, statt leer zum Terminal. Das spart Leerfahrten und bringt eine Prämie.',
+    ],
+  },
+  {
     id: 'market',
     title: 'Markt, Konjunktur und Konkurrenz',
     page: 'market',

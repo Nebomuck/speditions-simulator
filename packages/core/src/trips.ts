@@ -2,6 +2,7 @@
 // unter Berücksichtigung von Straßentyp, Verkehr, Lenk-/Ruhezeiten, Tankstopps, Be-/Entladung und Pannen.
 
 import { fleetBreakdownFactor, fleetWearFactor } from './company.ts';
+import { SLOT_MIN, SLOT_REBOOK_FEE, TERMINAL_BY_CITY, isTerminal, onContainerDelivery, onTerminalGate, terminalWait } from './containers.ts';
 import { onStorageDelivery } from './storage.ts';
 import { recordTrip } from './analytics.ts';
 import { CITY_BY_ID } from './data/cities.ts';
@@ -363,6 +364,21 @@ function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
     return;
   }
   const order = state.orders[stop.orderId];
+  if (stop.kind === 'pickup' && order.container && isTerminal(order.fromCityId)) {
+    // Containerterminal: Slot und Wartezeit am Tor
+    const gate = terminalWait(state, order.fromCityId);
+    let until = Math.max(state.time, order.pickupStart);
+    if (state.time > order.pickupEnd) {
+      until = Math.ceil(state.time / SLOT_MIN) * SLOT_MIN + SLOT_MIN;
+      book(state, 'company', -SLOT_REBOOK_FEE, 'penalty', `Slot verpasst: Umbuchung ${TERMINAL_BY_CITY[order.fromCityId].name}`);
+      addLog(state, { level: 'warning', category: 'trip', text: `Slot am ${TERMINAL_BY_CITY[order.fromCityId].name} verpasst – neuer Slot ab ${formatDateTime(until)}, Umbuchung ${formatMoney(SLOT_REBOOK_FEE)}.`, ref: { kind: 'trip', id: trip.id } });
+    }
+    trip.phase = 'loading';
+    trip.activity = 'waiting';
+    trip.activityLeft = Math.max(1, until - state.time + gate);
+    tlog(state, trip, `Ankunft ${TERMINAL_BY_CITY[order.fromCityId].name} – Wartezeit am Tor ca. ${formatDuration(gate)}${until > state.time ? `, Slot ab ${formatDateTime(until)}` : ''}`);
+    return;
+  }
   if (stop.kind === 'pickup') {
     tlog(state, trip, `Ankunft Ladestelle ${CITY_BY_ID[order.fromCityId].name}`);
     if (state.time < order.pickupStart) {
@@ -382,6 +398,13 @@ function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
   const problem = rand.chance(state, 0.025 * ef);
   const delay = problem ? rand.int(state, 120, 300) : rand.chance(state, 0.1 * ef) ? rand.int(state, 20, 90) : 0;
   trip.activityLeft = Math.round(CARGO_BY_ID[order.cargoId].loadMin * UNLOAD_MIN_FACTOR) + delay + traitHandlingMin(state.drivers[trip.driverId]);
+  if (order.container && isTerminal(order.toCityId)) {
+    // Abgabe am Terminal: es zählt die Ankunft am Tor, dann Wartezeit
+    onTerminalGate(order, state.time);
+    const gate = terminalWait(state, order.toCityId);
+    trip.activityLeft += gate;
+    tlog(state, trip, `Ankunft ${TERMINAL_BY_CITY[order.toCityId].name} – Wartezeit am Tor ca. ${formatDuration(gate)}`);
+  }
   tlog(state, trip, `Ankunft Empfänger ${CITY_BY_ID[order.toCityId].name} – Entladung${delay ? ` (${problem ? 'Problem an der Lieferstelle' : 'verzögert'}, +${formatDuration(delay)})` : ''}`);
   if (delay >= 60)
     addLog(state, {
@@ -395,7 +418,7 @@ function onLegEnd(state: GameState, ctx: SimContext, trip: Trip) {
 function completeDelivery(state: GameState, trip: Trip, order: Order) {
   const customer = state.customers[order.customerId];
   const driver = state.drivers[trip.driverId];
-  const lateMin = Math.max(0, state.time - order.deliveryEnd);
+  const lateMin = Math.max(0, (order.container?.gateIn ?? state.time) - order.deliveryEnd);
   const penalty = penaltyFor(order, lateMin);
   order.status = 'delivered';
   order.deliveredAt = state.time;
@@ -422,6 +445,7 @@ function completeDelivery(state: GameState, trip: Trip, order: Order) {
   createInvoice(state, order, order.payment - penalty);
   onContractDelivery(state, order, lateMin);
   onStorageDelivery(state, order, lateMin);
+  onContainerDelivery(state, order, lateMin);
   onPremiumDelivery(state, order, lateMin);
   onDelivery(state, order, lateMin);
   addLog(state, {

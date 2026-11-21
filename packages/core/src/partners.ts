@@ -3,6 +3,7 @@
 // Kunden übernehmen.
 
 import { CITY_BY_ID } from './data/cities.ts';
+import { onContainerDelivery } from './containers.ts';
 import { onStorageDelivery } from './storage.ts';
 import { claimOrder, companyIdOf, isMultiCompany, offerPayment, orderVisible } from './shard.ts';
 import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
@@ -120,6 +121,7 @@ export function hourlyPartners(state: GameState): void {
     }
     onContractDelivery(state, o, lateMin);
     onStorageDelivery(state, o, lateMin);
+    onContainerDelivery(state, o, lateMin);
     addLog(state, {
       level: lateMin > 0 ? 'warning' : 'success',
       category: 'order',

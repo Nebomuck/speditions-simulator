@@ -124,14 +124,16 @@ export const CARGOS: CargoDef[] = [
   { id: 'grain', name: 'Getreide (Schüttgut)', trailer: 'tipper', qualifications: [], ratePerKm: 152, baseFee: 60_00, weight: [22, 27], loadMin: 40, producers: ['agriculture'], consumers: ['food', 'port'], freq: 1.1, season: harvest },
   { id: 'gravel', name: 'Kies & Sand', trailer: 'tipper', qualifications: [], ratePerKm: 145, baseFee: 50_00, weight: [24, 27], loadMin: 30, producers: ['construction'], consumers: ['construction'], freq: 0.7, season: building },
   { id: 'woodchips', name: 'Holzhackschnitzel', trailer: 'walkingfloor', qualifications: [], ratePerKm: 160, baseFee: 60_00, weight: [18, 24], loadMin: 45, producers: ['timber', 'agriculture'], consumers: ['chemical', 'construction'], freq: 0.8 },
-  { id: 'container', name: 'Seecontainer', trailer: 'container', qualifications: [], ratePerKm: 170, baseFee: 120_00, weight: [10, 28], loadMin: 40, producers: ['port'], consumers: ['logistics', 'retail', 'automotive', 'electronics'], freq: 2 },
-  { id: 'container_export', name: 'Exportcontainer', trailer: 'container', qualifications: [], ratePerKm: 165, baseFee: 110_00, weight: [10, 28], loadMin: 40, producers: ['automotive', 'machinery', 'chemical'], consumers: ['port'], freq: 1.3 },
+  { id: 'container', name: 'Seecontainer', trailer: 'container', qualifications: [], ratePerKm: 170, baseFee: 120_00, weight: [10, 28], loadMin: 40, producers: ['port'], consumers: ['logistics', 'retail', 'automotive', 'electronics'], freq: 2.3 },
+  { id: 'container_export', name: 'Exportcontainer', trailer: 'container', qualifications: [], ratePerKm: 165, baseFee: 110_00, weight: [10, 28], loadMin: 40, producers: ['automotive', 'machinery', 'chemical'], consumers: ['port'], freq: 1.5 },
   { id: 'cars', name: 'Neufahrzeuge', trailer: 'cartransporter', qualifications: [], ratePerKm: 215, baseFee: 150_00, weight: [12, 18], loadMin: 90, producers: ['automotive'], consumers: ['retail', 'port'], freq: 0.9 },
   { id: 'chemicals', name: 'Chemikalien (Gefahrgut)', trailer: 'tanker', qualifications: ['ADR'], ratePerKm: 238, baseFee: 160_00, weight: [18, 26], loadMin: 75, producers: ['chemical'], consumers: ['chemical', 'pharma', 'machinery'], freq: 1.1 },
   { id: 'fuel', name: 'Mineralöl (Gefahrgut)', trailer: 'tanker', qualifications: ['ADR'], ratePerKm: 230, baseFee: 150_00, weight: [20, 26], loadMin: 60, producers: ['port', 'chemical'], consumers: ['logistics', 'retail'], freq: 0.7 },
   { id: 'machines', name: 'Industriemaschinen (Schwertransport)', trailer: 'lowbed', qualifications: ['heavy'], ratePerKm: 285, baseFee: 250_00, weight: [25, 40], loadMin: 120, producers: ['machinery', 'steel'], consumers: ['construction', 'automotive', 'port'], freq: 0.5 },
   { id: 'autoparts', name: 'Autoteile (Just-in-time)', trailer: 'box', qualifications: [], ratePerKm: 185, baseFee: 90_00, weight: [6, 18], loadMin: 45, producers: ['automotive', 'electronics', 'steel'], consumers: ['automotive'], freq: 1.6 },
   { id: 'electronics', name: 'Elektronik', trailer: 'box', qualifications: [], ratePerKm: 190, baseFee: 100_00, weight: [4, 14], loadMin: 50, producers: ['electronics'], consumers: ['retail', 'logistics'], freq: 1.1, season: christmas },
+  // Leercontainer (Rückgabe, Gestellung): nur aus dem Containerkreislauf, nie in der Börse
+  { id: 'container_empty', name: 'Leercontainer', trailer: 'container', qualifications: [], ratePerKm: 120, baseFee: 60_00, weight: [3, 4], loadMin: 20, producers: [], consumers: [], freq: 0 },
 ];
 
 export const CARGO_BY_ID: Record<string, CargoDef> = Object.fromEntries(CARGOS.map((x) => [x.id, x]));

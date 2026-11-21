@@ -135,6 +135,22 @@ Einzelspiel, kooperativer Multiplayer und Wettbewerbswelt bleiben spielbar. Alte
 
 **Börse:** Containeraufträge kommen häufiger und als Kreislauf (Import, Leer, Export). Container-Kunden (Reedereien und Spediteure) sind eigene Kunden mit Zahlungsmoral.
 
+**Stand E3 (umgesetzt):**
+- `containers.ts`: Terminalzustand als reine Funktion aus Weltsamen, Ort und Zeit. Kein Weltfeld nötig, keine Zufallszahlen der Simulation; in der Wettbewerbswelt sehen alle Firmen dieselbe Lage.
+- Containerkreislauf am Auftrag (`container`: Phase, Terminal, Gratistage, Standgeld, Gestellung, Street-Turn). Neue Ladungsart „Leercontainer“ (nie in der Börse).
+- Abweichungen vom Konzept:
+  - Kein eigenes Depot: Das Terminal ist zugleich Leercontainer-Depot.
+  - Container-Kunden sind die Hafenkunden (Branche Hafen) mit eigener Zahlungsmoral.
+  - Der Slot gilt für die Abholung am Terminal. Bei der Abgabe zählt der Annahmeschluss mit der Ankunft am Tor.
+- Spielstand-Version bleibt 14 (nur optionale Felder).
+- **Vergleichslauf** über 8 Startwerte × 90 Tage, Bot ohne Containerchassis:
+  - vorher 58,8 Lieferungen und 904 € Konto im Mittel, nachher 53 Lieferungen und 656 € (mit stärker erhöhter Containerhäufigkeit).
+  - Die Häufigkeit wurde danach auf 2,3 (Import) und 1,5 (Export) zurückgenommen.
+- **Abschlusstest:** Der Bot erreicht Stufe 4 jetzt an Tag 655 statt 509, bei mehr Lieferungen (1.754 statt 1.367 bis zum Ende).
+  - Er eröffnet die dritte Niederlassung später, weil sein Kontostand länger unter 60.000 € bleibt.
+  - Die Grenze des Tests wurde von 600 auf 720 Tage angehoben.
+- **Weitere Testanpassungen:** Stichproben in zwei statistischen Tests vergrößert. Der Delta-Test kopiert den ersten Zustand wie eine echte Verbindung, denn geteilte Objekte zeigten sonst veraltete Störungen.
+
 ## E4 – Karriere-Kampagne
 
 Neue Spielart „Karriere“ im Gründungsdialog. Nur im Einzelspiel (im Multiplayer ohne Kapitel).

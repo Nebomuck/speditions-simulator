@@ -544,6 +544,29 @@ export interface Order {
     /** Umschlag: angelegter Weiterlauf */
     nextId?: Id;
   };
+  /** Containerkreislauf am Terminal (Paket E3) */
+  container?: {
+    /** import: voll vom Terminal zum Empfänger · return: leer zurück · position: leer zum Verlader · export: voll zum Terminal */
+    phase: 'import' | 'return' | 'position' | 'export';
+    /** Terminal (Stadt) */
+    terminal: string;
+    /** Leerrückgabe: Ende der Gratistage */
+    freeUntil?: GameTime;
+    /** bisher gezahltes Standgeld */
+    detention?: Money;
+    /** Auftrag, aus dem dieser entstanden ist (Import bzw. Export) */
+    parentId?: Id;
+    /** Import: angelegte Leerrückgabe */
+    linkedId?: Id;
+    /** Export: Gestellung bzw. umgeleitete Leerrückgabe */
+    positionId?: Id;
+    /** Export: Leercontainer steht beim Verlader */
+    ready?: boolean;
+    /** Leerrückgabe per Street-Turn zu diesem Export umgeleitet */
+    streetTurn?: Id;
+    /** Ankunft am Terminaltor */
+    gateIn?: GameTime;
+  };
   status: OrderStatus;
   /** von einem Konkurrenten übernommen (Status „expired“) */
   takenBy?: Id;

@@ -4,6 +4,7 @@
 // Marktnachfrage beeinflussen das Volumen.
 
 import { negotiationBonus } from './life.ts';
+import { TERMINAL_CITIES, isTerminal, tagContainerOrder } from './containers.ts';
 import { companyIdOf, companyViews, isMultiCompany, worldOf } from './shard.ts';
 import { meetingBonus } from './team.ts';
 import { regionFactor } from './economy.ts';
@@ -58,8 +59,8 @@ function activeCities(state: GameState): Set<string> {
 }
 
 /** Zielort nach Gravitationsmodell: Städte mit passender Branche, gewichtet nach Größe und Entfernung. */
-export function pickDestination(state: GameState, ctx: SimContext, origin: CityDef, cargo: CargoDef, maxKm: number, minKm = 60): CityDef | undefined {
-  const dests = CITIES.filter((c) => c.id !== origin.id && ctx.net.hasCity(c.id));
+export function pickDestination(state: GameState, ctx: SimContext, origin: CityDef, cargo: CargoDef, maxKm: number, minKm = 60, only?: Set<string>): CityDef | undefined {
+  const dests = CITIES.filter((c) => c.id !== origin.id && ctx.net.hasCity(c.id) && (!only || only.has(c.id)));
   return rand.weighted(state, dests, (c) => {
     const match = c.industries.filter((i) => cargo.consumers.includes(i)).length;
     if (match === 0 && !(cargo.consumers.includes('retail') && c.pop > 800)) return 0;
@@ -82,7 +83,8 @@ export function baseRate(state: GameState, cargo: CargoDef, km: number): number 
 /** Erzeugt einen wirtschaftlich plausiblen Auftrag. Liefert null, wenn kein sinnvoller Auftrag entsteht. */
 export function generateOrder(state: GameState, ctx: SimContext, opts: { local?: boolean } = {}): Order | null {
   const cargo = rand.weighted(state, CARGOS, (c) => cargoWeight(state, c))!;
-  let origins = CITIES.filter((c) => c.industries.some((i) => cargo.producers.includes(i)) && ctx.net.hasCity(c.id));
+  // Seecontainer (Import) kommen nur aus den Containerterminals
+  let origins = CITIES.filter((c) => c.industries.some((i) => cargo.producers.includes(i)) && ctx.net.hasCity(c.id) && (cargo.id !== 'container' || isTerminal(c.id)));
   if (opts.local) {
     // Ein Ort je Fahrzeug, Fahrtziel und Standort – gleich gewichtet, damit auch LKW fern der Heimat Anschlussladungen finden
     const anchor = CITY_BY_ID[rand.pick(state, [...activeCities(state)])];
@@ -94,7 +96,7 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
   const origin = rand.weighted(state, origins, (c) => Math.pow(c.pop, 0.55) * (hasFacility(state, c.id, 'warehouse') ? 4 : 1) * regionFactor(state, c.country) ** 1.5 * marketingOriginFactor(state, c.country));
   if (!origin) return null;
   const partial = PARTIAL_TRAILERS.includes(cargo.trailer) && rand.chance(state, PARTIAL_SHARE);
-  const dest = pickDestination(state, ctx, origin, cargo, partial ? PARTIAL_MAX_KM : 2300);
+  const dest = pickDestination(state, ctx, origin, cargo, partial ? PARTIAL_MAX_KM : 2300, 60, cargo.id === 'container_export' ? TERMINAL_CITIES : undefined);
   if (!dest) return null;
   const route = ctx.net.route(origin.id, dest.id);
   if (!route) return null;
@@ -162,6 +164,7 @@ export function generateOrder(state: GameState, ctx: SimContext, opts: { local?:
     offerExpires: Math.min(pickupStart, state.time + Math.round(rand.int(state, 4, 30) * 60 * (marketingOriginFactor(state, origin.country) > 1 ? 1.5 : 1))),
     created: state.time,
   };
+  tagContainerOrder(order);
   state.orders[id] = order;
   return order;
 }

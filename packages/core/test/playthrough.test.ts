@@ -44,7 +44,7 @@ describe('Abschlusstest: Spielablauf von der Gründung bis Stufe 4', () => {
     const reached: Record<number, number> = {};
     let problem: string | null = null;
     let day = 0;
-    for (; day < 600 && (s.company.level ?? 1) < 4 && !problem; day++) {
+    for (; day < 720 && (s.company.level ?? 1) < 4 && !problem; day++) {
       bot.day(() => {
         problem ??= violation(s);
       });
@@ -60,9 +60,9 @@ describe('Abschlusstest: Spielablauf von der Gründung bis Stufe 4', () => {
     console.log(`Stufen erreicht (Spieltag): ${JSON.stringify(reached)} · ${Object.keys(s.vehicles).length} LKW, ${s.company.locations.length} Standorte, ${s.company.totals.deliveries} Lieferungen`);
     expect(problem).toBeNull();
     expect(s.company.level).toBeGreaterThanOrEqual(4);
-    expect(day).toBeLessThan(600);
+    expect(day).toBeLessThan(720);
     expect(s.company.totals.deliveries).toBeGreaterThanOrEqual(400);
     // über 80 % der Lieferungen pünktlich
     expect(s.company.totals.lateDeliveries / s.company.totals.deliveries).toBeLessThan(0.2);
-  }, 400_000);
+  }, 520_000);
 });

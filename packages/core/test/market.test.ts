@@ -43,7 +43,7 @@ describe('Gemeinsame Börse und Kunden (Paket D, Schritt D3)', () => {
     b.customers[cid].satisfaction = 100;
     b.customers[cid].deliveries = 20;
     let found = 0;
-    for (let i = 0; i < 400 && found < 3; i++) {
+    for (let i = 0; i < 3000 && found < 3; i++) {
       const o = generateOrder(a, ctx);
       if (!o || o.customerId !== cid) continue;
       found++;

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.23.0 – 21.11.2026
+
+Paket E „Logistikdienstleister“, Schritt E3 „Häfen & Container“:
+
+- **14 Containerterminals:** Hamburg, Bremerhaven, Rotterdam, Antwerpen, Le Havre, Felixstowe, Danzig, Genua, Triest, Koper, Barcelona, Valencia, Algeciras und Piräus.
+  - Jedes Terminal hat eine Wartezeit am Tor (30 Minuten bis 6 Stunden) nach Auslastung, Wochentag und Tageszeit.
+  - Großschiffe, Streiks und Winterstürme verlängern sie.
+  - Auf der Karte erscheinen die Terminals mit Ampel; ein Klick zeigt Wartezeit und Ereignis.
+- **Zeitfenster:** Seecontainer ab Terminal haben einen Slot von 2 Stunden. Wer zu früh kommt, wartet. Wer zu spät kommt, bekommt den nächsten freien Slot und zahlt 60 € Umbuchung.
+- **Import-Kreislauf:** Nach der Zustellung eines Seecontainers entsteht automatisch die Leerrückgabe zum Terminal.
+  - 5 Gratistage, danach 75 € Standgeld je Tag.
+  - Nach 21 Tagen Überziehung stellt die Reederei den Container in Rechnung (2.800 €).
+- **Export-Kreislauf:** Ein angenommener Exportcontainer braucht zuerst einen Leercontainer beim Verlader (Gestellung vom Terminal).
+  - Erst danach lässt sich der Export disponieren.
+  - Der Liefertermin ist der Annahmeschluss des Schiffs: Wer zu spät kommt, verpasst das Schiff und zahlt 35 % der Vergütung zusätzlich.
+- **Street-Turn:** Ein Leercontainer kann statt zurück zum Terminal direkt zu einem Exporteur im Umkreis von 150 km. Die Gestellung entfällt, die Reederei zahlt 90 € Prämie.
+- **Börse:** Seecontainer kommen nur noch aus den Containerterminals, Exportcontainer gehen nur zu ihnen. Beide sind etwas häufiger als bisher.
+- **Oberfläche:** neuer Reiter „Häfen“ unter Markt & Wettbewerb, mit allen Terminals (Lage, Wartezeit, Ereignis) und den eigenen offenen Containern (Gratistage, Standgeld, Street-Turn).
+- **Karte:** Eigene Einrichtungen (Werkstatt, Tankstelle, Lager) sind jetzt immer sichtbar, nicht erst mit dem Filter „Rastplätze & Werkstätten“.
+
 ## 0.22.0 – 21.11.2026
 
 Paket E „Logistikdienstleister“, Schritt E2 „Lager & Kontraktlogistik“:

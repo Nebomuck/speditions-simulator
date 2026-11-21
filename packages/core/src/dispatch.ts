@@ -1,6 +1,7 @@
 // DispatchSystem: Planung, Kalkulation und Konfliktprüfung von Fahrten.
 
 import { effectiveEco } from './traits.ts';
+import { containerBlock } from './containers.ts';
 import { offerPayment } from './shard.ts';
 import { premiumBlock } from './premium.ts';
 import { CITY_BY_ID } from './data/cities.ts';
@@ -248,6 +249,8 @@ export function validateDispatch(state: GameState, ctx: SimContext, input: Dispa
   if (order.status === 'offered' && state.time >= order.offerExpires) err('order_expired', 'Angebot ist abgelaufen.');
   const block = premiumBlock(order);
   if (block) err('permit', block);
+  const cblock = containerBlock(state, order);
+  if (cblock) err('container', cblock);
   if (order.green && !greenOk(state, vehicle)) err('green_vehicle', `${GREEN_TEXT} LKW ${vehicle.plate} fährt mit Diesel.`);
   if (solo && trailer) err('solo_trailer', `${model!.name} hat einen festen Aufbau und zieht keinen Auflieger.`);
   if (!opts.queued) {
@@ -639,6 +642,7 @@ export function planCoLoad(state: GameState, ctx: SimContext, vehicleId: Id, ord
   }
   if (order.premium) {
     err('premium', 'Premium-Aufträge fahren nur als eigene Tour, nicht als Beiladung.');
+  if (order && containerBlock(state, order)) err('container', containerBlock(state, order)!);
     return { issues, plan: null };
   }
   if (order.green && !greenOk(state, vehicle)) {

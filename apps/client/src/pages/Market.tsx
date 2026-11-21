@@ -1,7 +1,7 @@
 // Markt & Wettbewerb: Konjunktur, regionale Nachfrage, Wetter und Fahrverbote je Land, KI-Konkurrenz, Ereignisse.
 
 import { useState } from 'react';
-import { Building2, Newspaper, TrendingUp, Map as MapIcon, Swords, Trophy, Zap, Sun, CloudRain, CloudFog, Snowflake, ThermometerSnowflake, Wind, ThermometerSun, Ban } from 'lucide-react';
+import { Anchor, Building2, Newspaper, TrendingUp, Map as MapIcon, Swords, Trophy, Zap, Sun, CloudRain, CloudFog, Snowflake, ThermometerSnowflake, Wind, ThermometerSun, Ban } from 'lucide-react';
 import {
   BAN_RULES, CITY_BY_ID, COUNTRIES, PHASE_LABEL, STRATEGY_LABEL, WEATHER, acquisitionOffer, activeCompetitors, type Competitor, banUntil, competitionPressure, competitorShare, formatDateTime,
   ranking, regionFactor, weatherIn, type GameState, type WeatherKind, type WorldEvent,
@@ -9,10 +9,11 @@ import {
 import { sendCommand, setUi, toast, useGame, useUi } from '../game/store.ts';
 import { askConfirm } from '../ui/confirm.tsx';
 import { NewsArchive } from '../ui/News.tsx';
+import { PortsPanel } from './Ports.tsx';
 import { Badge, Bar, Card, Empty, LineChart, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { cityName, countryName } from '../ui/format.ts';
 
-type Tab = 'overview' | 'news' | 'regions' | 'competition' | 'ranking' | 'events';
+type Tab = 'overview' | 'news' | 'regions' | 'ports' | 'competition' | 'ranking' | 'events';
 
 export const WEATHER_ICON: Record<WeatherKind, typeof Sun> = { clear: Sun, rain: CloudRain, fog: CloudFog, snow: Snowflake, ice: ThermometerSnowflake, storm: Wind, heat: ThermometerSun };
 
@@ -27,6 +28,7 @@ export function MarketPage() {
     { id: 'overview', label: 'Überblick', icon: TrendingUp },
     { id: 'news', label: 'Branchenblatt', icon: Newspaper },
     { id: 'regions', label: 'Regionen & Wetter', icon: MapIcon },
+    { id: 'ports', label: 'Häfen', icon: Anchor },
     { id: 'competition', label: 'Konkurrenz', icon: Swords },
     { id: 'ranking', label: 'Rangliste', icon: Trophy },
     { id: 'events', label: 'Ereignisse', icon: Zap },
@@ -42,6 +44,7 @@ export function MarketPage() {
       {tab === 'overview' && <Overview />}
       {tab === 'news' && <NewsArchive />}
       {tab === 'regions' && <Regions />}
+      {tab === 'ports' && <PortsPanel />}
       {tab === 'competition' && <Competition />}
       {tab === 'ranking' && <Ranking />}
       {tab === 'events' && <Events />}

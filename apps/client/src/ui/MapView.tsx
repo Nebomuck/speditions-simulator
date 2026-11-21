@@ -8,7 +8,7 @@
 import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CITIES, CITY_BY_ID, FACILITY_DEFS, disruptionLabel, formatDateTime, vehicleMarker, isTripLate, type GameState } from '@spedsim/core';
+import { CITIES, CITY_BY_ID, FACILITY_DEFS, disruptionLabel, formatDateTime, formatDuration, terminalStatus, vehicleMarker, isTripLate, type GameState } from '@spedsim/core';
 import { getUi, setUi, useUi, world } from '../game/store.ts';
 import { MAP_ICON_URLS, profileKey } from './VehicleImage.tsx';
 
@@ -172,6 +172,14 @@ function poiGeoJSON(state: GameState | null): GeoJSON.FeatureCollection {
       const dx = kind === 'own-workshop' ? 0.06 : kind === 'own-fuel' ? -0.06 : 0;
       features.push({ type: 'Feature', properties: { kind, text: `${FACILITY_DEFS[k].name} · ${c.name}` }, geometry: { type: 'Point', coordinates: [c.lon + dx, c.lat - 0.05] } });
     }
+    // Containerterminals mit Ampel nach Wartezeit am Tor
+    const term = state ? terminalStatus(state, c.id) : undefined;
+    if (term)
+      features.push({
+        type: 'Feature',
+        properties: { kind: `term-${term.level}`, text: `${term.def.name}\nWartezeit am Tor ca. ${formatDuration(term.waitMin)}${term.event ? ` · ${term.event.text}` : ''}` },
+        geometry: { type: 'Point', coordinates: [c.lon - 0.1, c.lat + 0.07] },
+      });
     if (c.pop >= 150 && !fac.includes('workshop'))
       features.push({ type: 'Feature', properties: { kind: 'workshop', text: `LKW-Werkstatt ${c.name}\nWartung und Reparatur` }, geometry: { type: 'Point', coordinates: [c.lon + 0.06, c.lat - 0.05] } });
   }
@@ -272,10 +280,11 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
       const zoom = await (map.getSource('vehicles') as GeoJSONSource).getClusterExpansionZoom(id);
       map.easeTo({ center: f.geometry.coordinates as [number, number], zoom: zoom + 0.3, duration: 500 });
     });
-    map.on('click', 'poi', (e) => {
-      const text = e.features?.[0]?.properties?.text as string | undefined;
-      if (text) new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setText(text.replace('\n', ' · ')).addTo(map);
-    });
+    for (const l of ['poi', 'poi-own'])
+      map.on('click', l, (e) => {
+        const text = e.features?.[0]?.properties?.text as string | undefined;
+        if (text) new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setText(text.replace('\n', ' · ')).addTo(map);
+      });
     map.on('click', 'cities-own', (e) => {
       const name = e.features?.[0]?.properties?.name;
       if (name) new maplibregl.Popup({ closeButton: false }).setLngLat(e.lngLat).setHTML(`<b>${name}</b><br/>Eigener Standort`).addTo(map);
@@ -361,7 +370,8 @@ export function MapView({ mini = false, filter = 'all', driverId = '', poi = fal
     (map.getSource('preview') as GeoJSONSource | undefined)?.setData(previewGeoJSON(st, getUi().focusOrderId));
     (map.getSource('disruptions') as GeoJSONSource | undefined)?.setData(disruptionsGeoJSON(st));
     (map.getSource('poi') as GeoJSONSource | undefined)?.setData(poiGeoJSON(st));
-    for (const l of ['poi', 'poi-own']) if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', filterRef.current.poi ? 'visible' : 'none');
+    // Rastplätze und fremde Werkstätten nur mit Filter; eigene Einrichtungen und Containerterminals immer
+    if (map.getLayer('poi')) map.setLayoutProperty('poi', 'visibility', filterRef.current.poi ? 'visible' : 'none');
   }
 
   // Routen/Städte bei neuen Schnappschüssen aktualisieren (nicht pro Frame)
@@ -432,6 +442,9 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     ['poi-own-workshop', 'W', '#f59e0b', false],
     ['poi-own-fuel', 'T', '#f59e0b', false],
     ['poi-own-warehouse', 'L', '#f59e0b', false],
+    ['poi-term-green', 'C', '#16a34a', true],
+    ['poi-term-yellow', 'C', '#d97706', true],
+    ['poi-term-red', 'C', '#dc2626', true],
   ] as const)
     if (!map.hasImage(id)) map.addImage(id, poiImage(letter, color, square), { pixelRatio: 2 });
   loadVehicleIcons(map);
@@ -535,7 +548,7 @@ function installLayers(map: maplibregl.Map, theme: 'dark' | 'light') {
     type: 'symbol',
     source: 'poi',
     filter: ['!', ['in', ['get', 'kind'], ['literal', ['rest', 'workshop']]]],
-    layout: { ...poiLayout, 'icon-allow-overlap': true },
+    layout: { ...poiLayout, visibility: 'visible', 'icon-allow-overlap': true },
   });
   map.addLayer({
     id: 'cities',

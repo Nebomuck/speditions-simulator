@@ -52,7 +52,7 @@ interface UiState {
   /** geöffnete Ausgabe des Branchenblatts (Popup) */
   newsOpen?: number | null;
   /** offener Reiter unter Markt & Wettbewerb */
-  marketTab?: 'overview' | 'news' | 'regions' | 'competition' | 'ranking' | 'events';
+  marketTab?: 'overview' | 'news' | 'regions' | 'ports' | 'competition' | 'ranking' | 'events';
   /** geöffneter Hilfeartikel (F1) oder null */
   help: string | null;
   /** Erste-Schritte-Liste eingeblendet */

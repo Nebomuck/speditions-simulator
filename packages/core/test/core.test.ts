@@ -49,9 +49,10 @@ describe('Transporttest', () => {
     expect(d.status).toBe('on_trip');
     expect(v.status).toBe('on_trip');
 
-    // Position bewegt sich entlang der Route
+    // Position bewegt sich entlang der Route (ab der Abfahrt; Beladung kann sich zufällig verzögern)
+    await runUntil(s, () => s.trips[v.tripId!]?.phase === 'to_delivery', 600);
     const p0 = vehicleMarker(s, ctx, v.id).pos;
-    await runUntil(s, () => false, 120);
+    await runUntil(s, () => false, 90);
     const p1 = vehicleMarker(s, ctx, v.id).pos;
     expect(haversineKm(p0, p1)).toBeGreaterThan(5);
 
@@ -1513,7 +1514,7 @@ describe('Erweiterte Simulation (Phase 10)', () => {
 
     const share = (st: GameState) => {
       let pl = 0;
-      for (let i = 0; i < 400; i++) {
+      for (let i = 0; i < 3000; i++) {
         const o = generateOrder(st, ctx);
         if (o && CITY_BY_ID[o.fromCityId].country === 'PL') pl++;
       }

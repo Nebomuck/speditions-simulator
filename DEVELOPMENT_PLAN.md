@@ -25,7 +25,7 @@ Spielspaß-Paket 2 (unveröffentlicht) ist umgesetzt: Premium-Aufträge (Schwert
 
 Spielspaß-Paket 3 (0.16.x) ist umgesetzt: Subunternehmer, Übernahmen, Branchenblatt (als Zeitungs-Popup), Firmenverkauf mit Neustart-Bonus.
 
-Ausbau-Paket A (0.17.0), B (0.18.0), C (0.19.0) und D (0.20.0) sind veröffentlicht. Paket E ist in Arbeit: E1 ist als 0.21.0 veröffentlicht, E2 ist als 0.22.0 veröffentlicht, als Nächstes folgt E3.
+Ausbau-Paket A (0.17.0), B (0.18.0), C (0.19.0) und D (0.20.0) sind veröffentlicht. Paket E ist in Arbeit: E1 ist als 0.21.0 veröffentlicht, E2 ist als 0.22.0 veröffentlicht, E3 ist als 0.23.0 veröffentlicht, als Nächstes folgt E4.
 
 ### Ausbau-Plan (beschlossen am 20.11.2026)
 
@@ -82,9 +82,9 @@ Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nu
 **Paket E – Logistikdienstleister (ab 0.21.0)** – Konzept: [KONZEPT_PAKET_E.md](KONZEPT_PAKET_E.md), Release je Schritt
 10. **E1 Analyse & Planungshilfen (0.21.0):** Nachkalkulation je Fahrt, Berichte nach Kunde, Fahrzeug, Fahrer und Strecke, Liquiditätsprognose, Engpass-Warnungen, CSV-Export. ✅ umgesetzt (`analytics.ts`, Seite „Auswertung“, Tests in `analytics.test.ts`).
 11. **E2 Lager & Kontraktlogistik (0.22.0):** Lagerverträge mit Ein- und Auslagerungstouren, Umschlag über das Lager, Lagerpersonal, Hallenausbau. ✅ umgesetzt (`storage.ts`, Reiter „Lager“, Tests in `storage.test.ts`).
-12. **E3 Häfen & Container (0.23.0):** Terminals mit Zeitfenstern und Wartezeiten, Import-, Leer- und Exportkreislauf mit Standgeld und Annahmeschluss.
+12. **E3 Häfen & Container (0.23.0):** Terminals mit Zeitfenstern und Wartezeiten, Import-, Leer- und Exportkreislauf mit Standgeld und Annahmeschluss. ✅ umgesetzt (`containers.ts`, Reiter „Häfen“, Tests in `containers.test.ts`).
 13. **E4 Karriere-Kampagne (0.24.0):** fünf Kapitel mit Geschichte, Zielen, Sternen, Rivale und Mentorin, Freischaltung der Systeme je Kapitel.
-   - Als Nächstes: E3.
+   - Als Nächstes: E4.
 
 ## Arbeitsweise
 
@@ -96,6 +96,6 @@ Bestand vorab geprüft: Fähren gibt es im Routing. Beim Tanken gab es bisher nu
 
 Wird die Entwicklung unterbrochen, beginnt die nächste Sitzung so:
 
-1. `npm install`, dann `npm test` (erwartet: 214/214 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
+1. `npm install`, dann `npm test` (erwartet: 220/220 bestanden; der Abschlusstest `playthrough.test.ts` dauert etwa 70 s)
 2. FEATURE_CHECKLIST.md und den Abschnitt „Nächste Schritte“ oben lesen
 3. Alle Phasen sind abgeschlossen. Städte ergänzen in `data/cities.ts`, danach `npm run roadnet` (behält alle bisherigen Kanten, K=5 Nachbarn, OSRM-Antworten werden zwischengespeichert). Balancing prüfen mit `node packages/core/test/measure-balance.ts [Tage] [easy|normal|realistic] [Seed]` (Spieler-Bot aus `test/bot.ts`), Welt mit `measure-world.ts`, Störungen mit `measure-disruptions.ts`; stündliche/tägliche/monatliche Hooks in `sim.ts`, Ereignisregeln in `events.ts`, Konkurrenz in `competition.ts`. Einstiegspunkte: `packages/core/src/dispatch.ts` (Planung, Warteschlange `queueJob`/`startNextQueued`, `vehicleSchedule`), `trips.ts` (Ausführung), `apps/client/src/pages/Dispatch.tsx` und `Calendar.tsx` (Oberfläche).
