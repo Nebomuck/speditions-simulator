@@ -21,6 +21,7 @@ import { updateOrderMarket } from './orders.ts';
 import { rand } from './rng.ts';
 import { dayIndex, dayOfMonth, holidayName, minuteOfDay, month } from './time.ts';
 import { pruneTrips, tickTrip } from './trips.ts';
+import { pruneRecords } from './analytics.ts';
 import { companyDisruptions, expireDisruptions } from './disruptions.ts';
 import { dailyContracts, hourlyContracts } from './contracts.ts';
 import { dailyPersonnel, hourlyPersonnel } from './personnel.ts';
@@ -158,6 +159,7 @@ const DAILY: Step[] = [
   { scope: 'company', run: (s) => {
     dailyMarketing(s);
     pruneTrips(s);
+    pruneRecords(s);
   } },
 ];
 

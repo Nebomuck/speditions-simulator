@@ -2,6 +2,7 @@
 // unter Berücksichtigung von Straßentyp, Verkehr, Lenk-/Ruhezeiten, Tankstopps, Be-/Entladung und Pannen.
 
 import { fleetBreakdownFactor, fleetWearFactor } from './company.ts';
+import { recordTrip } from './analytics.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
@@ -191,7 +192,9 @@ export function tickTrip(state: GameState, ctx: SimContext, trip: Trip): void {
   if (trip.coDriverId && state.drivers[trip.coDriverId]) hosRide(state.drivers[trip.coDriverId].hos, 1);
 
   const loadFrac = leg.loaded ? tripLoadFraction(state, trip) : 0;
-  vehicle.fuelL = Math.max(0, vehicle.fuelL - km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver)) * equipFuelFactor(vehicle));
+  const used = km * consumptionPerKm(vehicle.modelId, loadFrac, effectiveEco(driver)) * equipFuelFactor(vehicle);
+  vehicle.fuelL = Math.max(0, vehicle.fuelL - used);
+  trip.fuelUsed = (trip.fuelUsed ?? 0) + used;
   vehicle.odometerKm += km;
   driver.kmDriven += km;
   if (leg.loaded) trip.kmLoaded += km;
@@ -441,6 +444,7 @@ function finishTrip(state: GameState, ctx: SimContext, trip: Trip) {
   trip.costs.toll = toll;
   state.company.totals.kmLoaded += trip.kmLoaded;
   state.company.totals.kmEmpty += trip.kmEmpty;
+  recordTrip(state, trip);
   if (!trip.stops) {
     addLog(state, { level: 'info', category: 'trip', text: `Überführung nach ${CITY_BY_ID[dest].name} abgeschlossen.`, ref: { kind: 'trip', id: trip.id } });
   }

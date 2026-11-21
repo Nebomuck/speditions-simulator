@@ -1,4 +1,4 @@
-import { Pause, Play, LayoutDashboard, Map, CalendarRange, ClipboardList, Users, Truck, Wallet, Handshake, Building2, Home, MessagesSquare, BarChart3, Settings, Wifi, TrendingUp, CircleHelp } from 'lucide-react';
+import { Pause, Play, LayoutDashboard, Map, CalendarRange, ClipboardList, Users, Truck, Wallet, Handshake, Building2, Home, MessagesSquare, BarChart3, Settings, Wifi, TrendingUp, CircleHelp, PieChart } from 'lucide-react';
 import { SPEEDS, formatTime, formatDate, WEEKDAY_NAMES, weekday, holidayName, season, SEASON_NAMES, unreadMessages, openTasksFor, pendingInvitesFor } from '@spedsim/core';
 import { getUi, navigate, sendCommand, setUi, useGame, useUi, type Page } from '../game/store.ts';
 import { helpForPage } from './help.ts';
@@ -19,6 +19,7 @@ const NAV: { page: Page; label: string; icon: typeof Map }[] = [
   { page: 'private', label: 'Privatleben', icon: Home },
   { page: 'multiplayer', label: 'Team & Kommunikation', icon: MessagesSquare },
   { page: 'stats', label: 'Statistiken', icon: BarChart3 },
+  { page: 'analysis', label: 'Auswertung', icon: PieChart },
   { page: 'settings', label: 'Einstellungen', icon: Settings },
 ];
 

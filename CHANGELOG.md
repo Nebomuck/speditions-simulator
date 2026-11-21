@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.21.0 – 21.11.2026
+
+Paket E „Logistikdienstleister“, Schritt E1 „Analyse & Planungshilfen“:
+
+- **Neue Seite „Auswertung“** mit Zeiträumen von 30, 90 und 365 Tagen:
+  - **Nachkalkulation je Fahrt:** Erlös nach Vertragsstrafe, Kraftstoff bzw. Energie, Maut und Bahn, anteiliger Fahrerlohn und Fahrzeugkosten, Deckungsbeitrag und Vergleich mit der Schätzung aus der Disposition.
+  - **Berichte** nach Kunde (mit Zahlungsdauer), Fahrzeug (Auslastung, Kosten je km), Fahrer und Strecke (Deckungsbeitrag je km), sortiert nach Deckungsbeitrag.
+  - **Liquiditätsprognose** für 30 Tage: Fixkosten zum Monatsersten, offene Rechnungen nach Zahlungsmoral, laufendes Geschäft; mit Verlaufskurve und Warnung vor dem Minus.
+  - **CSV-Export** der Berichte, der Fahrten und des Buchungsjournals (Semikolon, Dezimalkomma, öffnet direkt in Excel).
+- **Engpass-Warnungen im Dashboard:** mehr Fahrzeuge als einsatzfähige Fahrer, fällige Wartungen, Fahrer kurz vor der Wochenhöchstlenkzeit, Aufträge ohne passenden Auflieger, schwache Auslastung, drohendes Minus. Jede Warnung führt zur passenden Seite.
+
 ## 0.20.0 – 21.11.2026
 
 Paket D „Wettbewerb“:

@@ -5,6 +5,7 @@ import { Badge, Card, Money, PageHeader, Stat } from '../ui/components.tsx';
 import { MapView } from '../ui/MapView.tsx';
 import { NextAchievements, QuarterCard, ScenarioCard } from '../ui/Goals.tsx';
 import { NewsCard } from '../ui/News.tsx';
+import { Warnings } from './Analysis.tsx';
 
 export function Dashboard() {
   const s = useGame();
@@ -33,6 +34,7 @@ export function Dashboard() {
         <Stat icon={<Smile size={15} />} label="Kundenzufriedenheit" value={customers.length ? `${Math.round(avgSat)} %` : '–'} hint={`Reputation ${Math.round(s.company.reputation)} / 100`} />
         <Stat icon={<Receipt size={15} />} label="Angenommene Aufträge" value={accepted.length} hint={accepted.length ? 'warten auf Disposition' : 'Auftragsbörse prüfen'} />
       </div>
+      <Warnings className="mt" />
       <div className="grid mt goals-grid">
         <QuarterCard s={s} />
         <ScenarioCard s={s} />

@@ -332,6 +332,7 @@ export function createTrip(state: GameState, ctx: SimContext, input: DispatchInp
     kmEmpty: 0,
     kmLoaded: 0,
     plannedArrival: estimate.deliveryEta,
+    plannedProfit: estimate.profit,
     log: [{ t: state.time, text: 'Fahrt disponiert' }],
   };
   state.trips[id] = trip;

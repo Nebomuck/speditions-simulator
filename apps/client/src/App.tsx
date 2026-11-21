@@ -14,6 +14,7 @@ import { MarketPage } from './pages/Market.tsx';
 import { PrivatePage } from './pages/Private.tsx';
 import { TeamPage } from './pages/Team.tsx';
 import { StatsPage } from './pages/Stats.tsx';
+import { AnalysisPage } from './pages/Analysis.tsx';
 import { SettingsPage } from './pages/Settings.tsx';
 import { Sidebar, Toasts, TopBar } from './ui/Shell.tsx';
 import { DispatchDialog } from './ui/DispatchDialog.tsx';
@@ -43,6 +44,7 @@ const PAGES = {
   private: PrivatePage,
   multiplayer: TeamPage,
   stats: StatsPage,
+  analysis: AnalysisPage,
   settings: SettingsPage,
 };
 

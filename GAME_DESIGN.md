@@ -128,6 +128,12 @@ Fahrer haben Name, Alter, Heimatort, Erfahrung, Führerscheinklassen, Qualifikat
 - **Rechnungen:** Nach jeder Lieferung entsteht eine Forderung mit dem Zahlungsziel des Kunden (14–60 Tage). Wann und ob gezahlt wird, hängt von der Zahlungsmoral ab: pünktlich, verspätet (+2–35 Tage, dazu Mahnungen) oder Ausfall (Abschreibung nach 60 Tagen). Gewinn heißt daher noch lange nicht Liquidität.
 - **Laufende Kosten (monatlich):** Löhne + 21 % Arbeitgeberanteil, Miete, Versicherung je Fahrzeug und Auflieger, Leasing, Geschäftsführergehalt, Verwaltung.
 - **Variable Kosten:** Diesel (beim Tanken), Maut (je Land, bei Fahrtende abgerechnet), Werkstatt, Pannen, Strafen.
+- **Auswertung (Paket E1):** Jede abgeschlossene Fahrt bekommt eine Nachkalkulation:
+  - Erlös nach Vertragsstrafe; Kraftstoff bzw. Energie zum Landespreis; Maut und Bahn.
+  - Fahrerlohn anteilig mit Arbeitgeberanteil; Fahrzeugkosten aus Versicherung, Leasing bzw. Abschreibung (72 Monate) plus 6 ct/km Verschleiß.
+  - Gespeichert werden die letzten 400 Tage. Daraus entstehen Berichte nach Kunde, Fahrzeug, Fahrer und Strecke.
+  - Die Liquiditätsprognose rechnet 30 Tage voraus: Fixkosten am Monatsersten, offene Rechnungen gewichtet mit der Zahlungsmoral, laufendes Geschäft der letzten 30 Tage (Kosten sofort, Erlöse nach dem mittleren Zahlungsziel).
+  - Engpass-Warnungen im Dashboard: Fahrer, Wartung, Wochenlenkzeit, Auflieger, Auslastung, Liquidität.
 - **Dieselpreis:** Random Walk um 1,55 €/l netto. **Nachfrageindex** = Saison × Konjunktur (siehe Abschnitt 17).
 
 ## 11. Kunden

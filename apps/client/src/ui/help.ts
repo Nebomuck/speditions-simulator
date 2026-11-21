@@ -261,6 +261,20 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'analysis',
+    title: 'Auswertung und Liquiditätsprognose',
+    page: 'analysis',
+    keywords: 'auswertung analyse deckungsbeitrag nachkalkulation rentabilität bericht prognose liquidität csv export excel engpass warnung',
+    body: [
+      'Die Auswertung zeigt, womit du Geld verdienst. Jede abgeschlossene Fahrt bekommt eine Nachkalkulation: Erlös, Kraftstoff, Maut und Bahn, anteiliger Fahrerlohn und Fahrzeugkosten. Was übrig bleibt, ist der Deckungsbeitrag, vor Miete, Büro und anderen Fixkosten.',
+      '• Berichte nach Kunde, Fahrzeug, Fahrer und Strecke für 30, 90 oder 365 Tage zeigen die besten und schlechtesten Posten.',
+      '• „Geplant“ ist der Gewinn, den die Disposition beim Planen geschätzt hat. Große Abweichungen deuten auf Umwege, Staus oder Verspätungen.',
+      '• Die Liquiditätsprognose rechnet 30 Tage voraus: Fixkosten zum Monatsersten, offene Rechnungen nach Zahlungsmoral der Kunden und dein laufendes Geschäft.',
+      '• Engpass-Warnungen erscheinen im Dashboard, etwa bei fehlenden Fahrern, fälliger Wartung oder drohendem Minus.',
+      '• Berichte, Fahrten und Buchungsjournal lassen sich als CSV-Datei für Excel speichern.',
+    ],
+  },
+  {
     id: 'achievements',
     title: 'Erfolge und Rekorde',
     page: 'stats',

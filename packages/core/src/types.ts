@@ -622,6 +622,10 @@ export interface Trip {
   kmLoaded: number;
   /** geschätzte Ankunft am Ziel bei Dispositionszeitpunkt */
   plannedArrival: GameTime;
+  /** geplanter Gewinn bei der Disposition (für die Nachkalkulation) */
+  plannedProfit?: Money;
+  /** verbrauchter Kraftstoff bzw. Strom auf dieser Fahrt (l, kg bzw. kWh) */
+  fuelUsed?: number;
   log: { t: GameTime; text: string }[];
 }
 
@@ -1013,6 +1017,8 @@ export interface GameState {
   news?: import('./news.ts').NewsState;
   /** Firma verkauft: Spiel beendet */
   exit?: CompanyExit;
+  /** Nachkalkulation abgeschlossener Fahrten (Auswertung) */
+  tripRecords?: import('./analytics.ts').TripRecord[];
   /** Wettbewerbswelt: weitere Firmen dürfen gegründet werden (Welt) */
   competition?: boolean;
   /** laufende Abstimmung über Pause oder Zeitraffer (Welt mit mehreren Firmen) */

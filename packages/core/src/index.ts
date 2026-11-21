@@ -43,6 +43,7 @@ export * from './shard.ts';
 export * from './arena.ts';
 export * from './ranking.ts';
 export * from './handover.ts';
+export * from './analytics.ts';
 export * from './trips.ts';
 export * from './sim.ts';
 export * from './commands.ts';
