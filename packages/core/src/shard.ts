@@ -17,7 +17,7 @@ export const WORLD_KEYS = [
 /** Felder einer Firma */
 export const COMPANY_KEYS = [
   'company', 'players', 'customers', 'drivers', 'applicants', 'vehicles', 'trailers', 'trips', 'invoices', 'ledger', 'log', 'chat', 'stats', 'today',
-  'contracts', 'autoDispatch', 'team', 'decisions', 'scenario', 'quarter', 'quarterHistory', 'progress', 'exit', 'news', 'tripRecords',
+  'contracts', 'autoDispatch', 'team', 'decisions', 'scenario', 'quarter', 'quarterHistory', 'progress', 'exit', 'news', 'tripRecords', 'storageContracts',
 ] as const satisfies readonly (keyof GameState)[];
 
 type WorldKey = (typeof WORLD_KEYS)[number];

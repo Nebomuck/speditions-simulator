@@ -25,7 +25,7 @@ import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, ScenarioId, TeamRole } from './types.ts';
 import { MAIN_COMPANY, companyView, freshRelation, splitState, worldOf, type WorldState } from './shard.ts';
 
-export const STATE_VERSION = 13;
+export const STATE_VERSION = 14;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.08, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },

@@ -94,8 +94,56 @@ export interface Location {
   since: GameTime;
   /** eigene Einrichtungen am Standort (Werkstatt, Tankstelle, Lager) */
   facilities: FacilityKind[];
-  /** Auslastung der Lagerhalle 0–1 */
+  /** Auslastung der Lagerhalle 0–1 (bis 0.21.0, wird beim ersten Tageswechsel in einen Startvertrag umgewandelt) */
   warehouseUtil?: number;
+  /** Lagerhalle: Ausbaustufe, Personal, Umschlag (Paket E2) */
+  warehouse?: WarehouseState;
+}
+
+export interface WarehouseState {
+  /** Palettenplätze (Ausbaustufe) */
+  slots: number;
+  /** Lagerarbeiter */
+  workers: number;
+  /** Lagerleitung besetzt */
+  lead: boolean;
+  /** heute umgeschlagene Paletten (Zustellungen ins und ab Lager) */
+  handled: number;
+  /** erwarteter Umschlag je Werktag aus den laufenden Verträgen */
+  demand: number;
+}
+
+/** Lagervertrag: Palettenplätze für einen Kunden, mit Ein- und Auslagerungstouren */
+export interface StorageContract {
+  id: Id;
+  customerId: Id;
+  /** Standort mit der Lagerhalle */
+  locationId: Id;
+  cargoId: string;
+  /** Werk des Kunden (Einlagerung von hier) */
+  fromCityId: string;
+  pallets: number;
+  months: number;
+  /** Lagergeld je Platz und Monat */
+  ratePerPallet: Money;
+  /** Umschlaggebühr je Palette (Ein- und Auslagerung) */
+  handlingFee: Money;
+  /** Umschlag je Monat im Verhältnis zur Platzzahl */
+  turnover: number;
+  /** Bestand im Lager (Paletten) */
+  stock: number;
+  status: 'offered' | 'active' | 'completed' | 'cancelled' | 'expired' | 'lost';
+  offerExpires: GameTime;
+  start?: GameTime;
+  end?: GameTime;
+  scheduledThrough?: number;
+  /** Bruchteile noch nicht angelegter Touren */
+  acc: { in: number; out: number };
+  stats: { inbound: number; outbound: number; missed: number; late: number; shortages: number; delivered: number; subcontracted?: number };
+  /** Touren, die niemand fährt, rechtzeitig an Subunternehmer geben */
+  autoSubcontract?: boolean;
+  /** aus der früheren pauschalen Auslastung entstanden */
+  starter?: boolean;
 }
 
 export type LocationKind = 'office_small' | 'office_yard' | 'depot';
@@ -485,6 +533,17 @@ export interface Order {
   quotes?: Record<Id, Money>;
   /** Tour aus einem Rahmenvertrag */
   contractId?: Id;
+  /** Lagertour: Einlagerung, Auslagerung oder Umschlag (Vorlauf ins Lager, Weiterlauf ab Lager) */
+  storage?: {
+    flow: 'in' | 'out' | 'xin' | 'xout';
+    locationId: Id;
+    pallets: number;
+    contractId?: Id;
+    /** Umschlag: eigentlicher Empfänger, Termin und Vergütung des Weiterlaufs */
+    final?: { cityId: string; deliveryEnd: GameTime; payment: Money; km: number };
+    /** Umschlag: angelegter Weiterlauf */
+    nextId?: Id;
+  };
   status: OrderStatus;
   /** von einem Konkurrenten übernommen (Status „expired“) */
   takenBy?: Id;
@@ -1019,6 +1078,8 @@ export interface GameState {
   exit?: CompanyExit;
   /** Nachkalkulation abgeschlossener Fahrten (Auswertung) */
   tripRecords?: import('./analytics.ts').TripRecord[];
+  /** Lagerverträge (Paket E2) */
+  storageContracts?: Record<Id, StorageContract>;
   /** Wettbewerbswelt: weitere Firmen dürfen gegründet werden (Welt) */
   competition?: boolean;
   /** laufende Abstimmung über Pause oder Zeitraffer (Welt mit mehreren Firmen) */

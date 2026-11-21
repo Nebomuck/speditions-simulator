@@ -3,6 +3,7 @@
 // Spielstand – nur `recordTrip` und `pruneRecords` schreiben (in `state.tripRecords`).
 
 import { CITY_BY_ID } from './data/cities.ts';
+import { throughput } from './storage.ts';
 import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import { TEAM_ALLOWANCE_PER_DAY, penaltyFor } from './dispatch.ts';
 import { EMPLOYER_COST_FACTOR, monthlyFixedCosts } from './finance.ts';
@@ -296,7 +297,7 @@ export interface Bottleneck {
   level: 'warning' | 'danger' | 'info';
   text: string;
   /** Seite zum Beheben */
-  page: 'personnel' | 'fleet' | 'dispatch' | 'finance' | 'orders' | 'analysis';
+  page: 'personnel' | 'fleet' | 'dispatch' | 'finance' | 'orders' | 'analysis' | 'locations';
 }
 
 export function bottlenecks(state: GameState): Bottleneck[] {
@@ -317,6 +318,12 @@ export function bottlenecks(state: GameState): Bottleneck[] {
   const me = companyIdOf(state);
   const ownStuck = Object.values(state.orders).filter((o) => o.status === 'accepted' && orderOwner(o) === me && !o.subcontract && !o.handover && !types.has(o.trailerType));
   if (ownStuck.length) out.push({ id: 'trailer', level: 'warning', text: `${ownStuck.length} ${ownStuck.length === 1 ? 'angenommener Auftrag braucht' : 'angenommene Aufträge brauchen'} einen Auflieger, den du nicht hast (${[...new Set(ownStuck.map((o) => TRAILER_BY_TYPE[o.trailerType]?.name ?? o.trailerType))].join(', ')}).`, page: 'orders' });
+  // Lager: Umschlag über der Leistung der Halle
+  for (const l of state.company.locations) {
+    const w = l.warehouse;
+    if (!w || !l.facilities?.includes('warehouse') || w.demand <= throughput(l)) continue;
+    out.push({ id: `warehouse-${l.id}`, level: w.demand > throughput(l) * 1.3 ? 'danger' : 'warning', text: `Lager ${CITY_BY_ID[l.cityId]?.name ?? ''} überlastet: ${w.demand} Paletten am Tag bei ${throughput(l)} Leistung. Lagerpersonal einstellen.`, page: 'locations' });
+  }
   // Auslastung der letzten 14 Tage
   if (vehicles.length && state.time - (state.company.founded ?? 0) > 14 * MIN_PER_DAY) {
     const hours = recordsSince(state, 14).reduce((a, r) => a + (r.t - r.start) / 60, 0);

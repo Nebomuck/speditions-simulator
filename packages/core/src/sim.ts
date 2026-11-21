@@ -24,6 +24,7 @@ import { pruneTrips, tickTrip } from './trips.ts';
 import { pruneRecords } from './analytics.ts';
 import { companyDisruptions, expireDisruptions } from './disruptions.ts';
 import { dailyContracts, hourlyContracts } from './contracts.ts';
+import { dailyStorage, hourlyStorage } from './storage.ts';
 import { dailyPersonnel, hourlyPersonnel } from './personnel.ts';
 import { dailyCompany, hourlyCompany, monthlyCompany } from './company.ts';
 import { runAutoDispatch } from './autodispatch.ts';
@@ -81,6 +82,7 @@ const HOURLY: Step[] = [
   { scope: 'company', run: (s, ctx) => hourlyLife(s, ctx) },
   { scope: 'company', run: (s) => hourlyPersonnel(s) },
   { scope: 'company', run: (s) => hourlyContracts(s) },
+  { scope: 'company', run: (s, ctx) => hourlyStorage(s, ctx) },
   { scope: 'company', run: (s) => hourlyCompany(s) },
   { scope: 'company', run: (s) => hourlyTeam(s) },
   { scope: 'company', run: (s) => hourlyPartners(s) },
@@ -127,6 +129,7 @@ const DAILY: Step[] = [
   // Personal (Zufriedenheit, Krankheit, Kündigungen) und Rahmenverträge
   { scope: 'company', run: (s) => dailyPersonnel(s) },
   { scope: 'company', run: (s, ctx) => dailyContracts(s, ctx) },
+  { scope: 'company', run: (s, ctx) => dailyStorage(s, ctx) },
   { scope: 'world', run: (s, ctx) => dailyTenders(s, ctx) }, // gemischt: Zuschlag an die Firma
   { scope: 'world', run: (s, ctx) => dailyPremium(s, ctx) },
   // Unternehmensstufe, Lagerauslastung, Lebenssimulation, Kurzzeitmiete

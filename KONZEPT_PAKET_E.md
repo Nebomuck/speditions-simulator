@@ -100,6 +100,16 @@ Einzelspiel, kooperativer Multiplayer und Wettbewerbswelt bleiben spielbar. Alte
 
 **Oberfläche:** Standorte → Reiter „Lager“ mit Belegung je Halle, Verträgen, Warenfluss der Woche, Personal und Erlösen.
 
+**Stand E2 (umgesetzt):**
+- `storage.ts`: Lagerverträge (`storageContracts`, firmenbezogen), Hallenzustand am Standort (`warehouse`: Ausbaustufe, Personal, Umschlag), Lagertouren am Auftrag (`storage`).
+- Abweichungen vom Konzept:
+  - Lagerpersonal wird je Halle als Anzahl geführt (keine eigene Büroabteilung, braucht keine Büroplätze).
+  - Ausschreibungen für Lagerverträge entfallen vorerst; Angebote kommen über den Vertrieb.
+- Neu gegenüber dem Konzept: automatische Vergabe nicht gefahrener Lagertouren an Subunternehmer (je Vertrag abschaltbar). Ohne sie verlor die KI-Disposition im Bot-Lauf Verträge binnen zwei Wochen.
+- Größe der Angebote nach Flotte (etwa 90 Plätze je Fahrzeug).
+- Bestandshallen: Startvertrag (6 Monate, Umschlag 0,5) beim ersten Tageswechsel, Spielstand-Version 14.
+- Vergleichslauf: Ohne Lagerhalle ist der Spielablauf gegenüber 0.21.0 unverändert (gleicher Fingerabdruck, abgesehen von der Versionsnummer).
+
 ## E3 – Häfen & Container
 
 **Terminals**

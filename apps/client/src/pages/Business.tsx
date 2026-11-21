@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react';
 import { PlugZap, Building2, ArrowUpCircle, FileSignature, ArrowRight, Award, Wrench, Fuel, Warehouse, MapPin, Briefcase, UserPlus, UserMinus, Gavel, Clock } from 'lucide-react';
 import {
   BRANCH_SETUP_COST, CARGO_BY_ID, TRUCK_BY_ID, CITIES, COMPANY_LEVELS, DEPARTMENTS, STAFF_GRADES, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, VEHICLES_PER_DISPATCHER,
-  BID_RANGE, GUARANTEE_BONUS, reputationFactor, MIN_PER_DAY, WIN_BACK_COST, activeCompetitors, formatDateTime, formatDuration, nearCompetitor, tenderCostEstimate, tenderVolume, STRATEGY_LABEL, CITY_BY_ID, capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, warehouseIncome, winBackChance, formatMoney,
+  BID_RANGE, GUARANTEE_BONUS, reputationFactor, MIN_PER_DAY, WIN_BACK_COST, activeCompetitors, formatDateTime, formatDuration, nearCompetitor, tenderCostEstimate, tenderVolume, STRATEGY_LABEL, CITY_BY_ID, capacity, contractVolume, contractWeekdays, dispatchShortfall, formatDate, levelProgress, seatsAt, staffSalary, staffSeats, stageOf, storageContracts, winBackChance, formatMoney,
   type Contract, type Tender, type Department, type FacilityKind, type Location, type StaffGrade,
 } from '@spedsim/core';
-import { sendCommand, useGame } from '../game/store.ts';
+import { sendCommand, setUi, useGame, useUi } from '../game/store.ts';
+import { StoragePanel, hallSummary } from './Storage.tsx';
 import { Badge, Bar, Card, Empty, Money, PageHeader, useSort } from '../ui/components.tsx';
 import { Avatar } from '../ui/Portrait.tsx';
 import { cityLabel, cityName, countryName, km, tons, trailerName, QUAL_LABEL } from '../ui/format.ts';
@@ -91,18 +92,28 @@ export function LocationsPage() {
   const s = useGame();
   const cap = capacity(s);
   const seats = staffSeats(s);
+  const tab = useUi((u) => u.locationsTab ?? 'sites');
+  const offers = storageContracts(s).filter((c) => c.status === 'offered' && c.offerExpires > s.time).length;
   return (
     <div className="page">
       <PageHeader
         title="Standorte & Unternehmensausbau"
         subtitle={`Stellplätze ${cap.vehicles}/${cap.parking} · Aufliegerplätze ${cap.trailers}/${cap.trailerParking} · Büroarbeitsplätze ${seats.used}/${seats.total}`}
       />
-      <LevelCard />
-      <div className="grid grid-2 mt">
-        {s.company.locations.map((l) => <LocationCard key={l.id} loc={l} />)}
-        <NewBranch />
+      <div className="tabs mb">
+        <button className={`tab ${tab === 'sites' ? 'active' : ''}`} onClick={() => setUi({ locationsTab: 'sites' })}><Building2 size={15} />Standorte</button>
+        <button className={`tab ${tab === 'storage' ? 'active' : ''}`} onClick={() => setUi({ locationsTab: 'storage' })}><Warehouse size={15} />Lager{offers ? <Badge kind="info">{offers}</Badge> : null}</button>
       </div>
-      <Departments />
+      {tab === 'storage' ? <StoragePanel /> : (
+        <>
+          <LevelCard />
+          <div className="grid grid-2 mt">
+            {s.company.locations.map((l) => <LocationCard key={l.id} loc={l} />)}
+            <NewBranch />
+          </div>
+          <Departments />
+        </>
+      )}
     </div>
   );
 }
@@ -187,14 +198,18 @@ function LocationCard({ loc: l }: { loc: Location }) {
               <div style={{ flex: 1 }}>
                 <b>{f.name}</b>
                 <div className="dim" style={{ fontSize: 12 }}>{f.text}</div>
-                {built && k === 'warehouse' && (
-                  <div className="row" style={{ fontSize: 12 }}>
-                    <Bar value={(l.warehouseUtil ?? 0) * 100} /> {Math.round((l.warehouseUtil ?? 0) * 100)} % belegt · Erlös ca. <Money value={warehouseIncome(l)} />/Monat
-                  </div>
-                )}
+                {built && k === 'warehouse' && (() => {
+                  const h = hallSummary(s, l);
+                  return (
+                    <div className="row" style={{ fontSize: 12 }}>
+                      <Bar value={(h.occ / h.slots) * 100} /> {h.occ.toLocaleString('de-DE')} von {h.slots.toLocaleString('de-DE')} Plätzen vermietet ·
+                      <button className="btn small" style={{ marginLeft: 6 }} onClick={() => setUi({ locationsTab: 'storage' })}>Lager verwalten</button>
+                    </div>
+                  );
+                })()}
               </div>
               {built ? (
-                <Badge kind="success">in Betrieb · <Money value={f.monthly} />/Monat</Badge>
+                <Badge kind="success">in Betrieb · <Money value={k === 'warehouse' ? stageOf(l).monthly : f.monthly} />/Monat</Badge>
               ) : (
                 <button
                   className="btn small"

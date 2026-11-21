@@ -149,7 +149,23 @@ Kleines Büro (2 Stellplätze, 1 Büroplatz) → Büro mit Betriebshof (8, 4) �
 - **Niederlassungen** in jeder Stadt des Netzes (Kaution + 6.000 € Einrichtung). Sie bringen Stellplätze, Büroplätze, Bewerber und Aufträge aus ihrer Region; neue Fahrzeuge und Auflieger werden an den gewählten Standort geliefert. Aufgeben kostet eine Monatsmiete.
 - **Eigene Werkstatt** (ab Stufe 2, Betriebshof, 85.000 €, 3.400 €/Monat): Wartung am Standort 35 % günstiger und 30 % schneller.
 - **Betriebstankstelle** (ab Stufe 2, 42.000 €, 520 €/Monat): Abfahrten am Standort tanken voll, 9 % unter Tankstellenpreis.
-- **Lagerhalle** (ab Stufe 3, 140.000 €, 3.900 €/Monat): 2.000 Palettenplätze zu 6,50 €/Monat; die Auslastung folgt Reputation und Vertrieb. Der Standort wird häufiger Ursprung von Aufträgen.
+- **Lagerhalle** (ab Stufe 3, 140.000 €, 3.900 €/Monat, Paket E2): 2.000 Palettenplätze. Der Standort wird häufiger Ursprung von Aufträgen.
+  - **Ausbau:** Logistikzentrum (5.000 Plätze, ab Stufe 4, 190.000 €, 8.200 €/Monat), Großlager (10.000 Plätze, ab Stufe 5, 340.000 €, 15.000 €/Monat).
+  - **Lagerverträge:** Kunden im Umkreis von 220 km bieten Verträge an. Die Größe richtet sich nach der Flotte (etwa 90 Plätze je Fahrzeug, Vertrieb +25 % je Kopf), höchstens 800 Plätze.
+    - Laufzeit 3–12 Monate. Lagergeld 5,50–7,80 € je Platz und Monat, Umschlaggebühr 2,50–4,00 € je Palette.
+    - Umschlag 0,6–1,2 Mal die Platzzahl je Monat.
+  - **Warenfluss:** Einlagerungen als Komplettladungen (33 Paletten) vom Werk ins Lager, solange Platz ist. Auslagerungen als Teilladungen (6–18 Paletten zu je 0,6 t) zu Empfängern bis 320 km.
+    - Touren entstehen am Vortag als angenommene Aufträge der Firma.
+    - Nicht gefahren: 30 % der Vergütung Strafe, −6 Zufriedenheit.
+    - Leerer Bestand: Fehlmenge (−4 Zufriedenheit).
+    - Kündigung durch den Kunden bei Zufriedenheit unter 20 und mindestens 5 Pannen (mindestens 20 % der Touren).
+    - Optional gehen Touren 3 Stunden vor Ladeschluss an Subunternehmer.
+  - **Durchsatz:** Grundbesetzung 40 Paletten je Werktag. Je Lagerarbeiter +45 (2.700 €, höchstens einer je 250 Plätze), Lagerleitung +20 % (4.300 €).
+    - Überlastung verschiebt die Ladefenster der Auslagerungen um bis zu 8 h, bei gleichem Liefertermin.
+    - Ab 30 % Überlastung drohen Fehlmengen; die Lagerleitung halbiert das Risiko.
+  - **Umschlag (Cross-Docking):** Angenommene Teilladungen mit Empfänger bis 250 km vom Lager, bei höchstens 35 % Umweg.
+    - Vorlauf ins Lager, 2 h Umschlag, Weiterlauf ab Lager (Vergütung nach km geteilt).
+    - Umschlaggebühr 3,20 € je Palette.
 - **Abteilungen:** Disposition (ein Disponent je 8 Fahrzeuge; bis 5 Fahrzeuge disponiert die Geschäftsführung selbst, darüber sinkt sonst die Fahrerzufriedenheit), Vertrieb (je Kopf +12 % Börsenangebote, +1,5 % Preis, +1 Vertragsangebot, max. 3), Buchhaltung (Ausfälle −45 % / −65 %, pünktlichere Zahlungen), Fuhrparkmanagement (−8 % Verschleiß, −30 % Pannen je Kopf, max. 2; schickt Fahrzeuge unter 60 % automatisch in die eigene Werkstatt). Fahrer ab Erfahrung 50 können ins Büro befördert werden (ohne Einstellungskosten, +8 % Gehalt).
 
 ## 13. Lebenssimulation

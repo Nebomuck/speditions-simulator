@@ -14,6 +14,8 @@ import { Badge, Card, Empty, Modal, Money, PageHeader } from '../ui/components.t
 import { Resizer } from '../ui/Resizer.tsx';
 import { activityLabel, cargoName, cityName, km, trailerName, tripLabel } from '../ui/format.ts';
 
+const STORAGE_FLOW = { in: 'Einlagerung', out: 'Auslagerung', xin: 'Vorlauf ins Lager', xout: 'Weiterlauf ab Lager' } as const;
+
 const HOURS = 72;
 
 export function DispatchPage() {
@@ -84,7 +86,7 @@ function Board() {
             <div className="route"><GripVertical size={14} className="dim" />{cityName(o.fromCityId)} <ArrowRight size={13} /> {cityName(o.toCityId)}</div>
             <div className="meta">
               <span>{cargoName(o.cargoId)}</span>
-              <span>{trailerName(o.trailerType)}{o.partial ? ` · Teilladung ${o.weightT.toLocaleString('de-DE')} t` : ''}{o.contractId ? ' · Vertragstour' : ''}</span>
+              <span>{trailerName(o.trailerType)}{o.partial ? ` · Teilladung ${o.weightT.toLocaleString('de-DE')} t` : ''}{o.contractId ? ' · Vertragstour' : ''}{o.storage ? ` · ${STORAGE_FLOW[o.storage.flow]}` : ''}</span>
               {o.premium && <span className="premium-tag">{o.premium.kind === 'heavy' ? `Schwertransport${o.premium.permit === 'pending' ? ' · Genehmigung beantragt' : o.premium.permit !== 'granted' ? ' · Genehmigung fehlt' : ''}` : 'Messe-Termin'}</span>}
               <span>{km(o.distanceKm)}</span>
               <span><Money value={o.payment} /></span>

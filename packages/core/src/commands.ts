@@ -13,6 +13,7 @@ import { LOCATION_DEFS, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { addCoLoad, createRelocation, createTrip, queueJob, removeCoLoad, unqueueJob, validateDispatch, type Issue } from './dispatch.ts';
 import { acceptContract, cancelContract } from './contracts.ts';
+import { acceptStorageContract, cancelStorageContract, crossDock, setStorageAutoSubcontract, setWarehouseStaff, upgradeWarehouse } from './storage.ts';
 import { VEHICLE_DOWN_PAYMENT, VEHICLE_LOAN_TERMS, addLog, annuity, book, factorInvoices, formatMoney, repayLoan, takeLoan, vehicleLoanRate, vehicleRentPerDay } from './finance.ts';
 import { plate, tradeInValue, vehicleMarketValue } from './generate.ts';
 import { sendDriver, sendOnVacation, setDriverSalary, startTraining, talkToDriver } from './personnel.ts';
@@ -75,6 +76,12 @@ export type Command =
   | { type: 'factorInvoices'; invoiceId?: Id }
   | { type: 'acceptContract'; contractId: Id }
   | { type: 'cancelContract'; contractId: Id }
+  | { type: 'acceptStorageContract'; contractId: Id }
+  | { type: 'cancelStorageContract'; contractId: Id }
+  | { type: 'setWarehouseStaff'; locationId: Id; workers: number; lead: boolean }
+  | { type: 'upgradeWarehouse'; locationId: Id }
+  | { type: 'crossDock'; orderId: Id }
+  | { type: 'setStorageAutoSubcontract'; contractId: Id; on: boolean }
   | { type: 'sendVacation'; driverId: Id; days: number }
   | { type: 'sendDriver'; driverId: Id; toCityId: string }
   | { type: 'trainDriver'; driverId: Id; course: TrainingCourse }
@@ -140,6 +147,12 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   sellVehicle: 'sellVehicles',
   acceptContract: 'dispatch',
   cancelContract: 'dispatch',
+  acceptStorageContract: 'expansion',
+  cancelStorageContract: 'expansion',
+  setWarehouseStaff: 'personnel',
+  upgradeWarehouse: 'expansion',
+  crossDock: 'dispatch',
+  setStorageAutoSubcontract: 'dispatch',
   sendVacation: 'personnel',
   trainDriver: 'personnel',
   setDriverSalary: 'personnel',
@@ -208,7 +221,7 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
 
 /** Befehle, die Geld vom Firmenkonto ausgeben können (unterliegen dem Ausgabenlimit eines Spielers) */
 const SPENDING: ReadonlySet<Command['type']> = new Set<Command['type']>([
-  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'winBackCustomer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff', 'acquireCompetitor', 'installEquipment', 'startCampaign', 'attendFair',
+  'buyUsedVehicle', 'buyNewVehicle', 'buyTrailer', 'winBackCustomer', 'upgradeLocation', 'openBranch', 'buildFacility', 'serviceVehicle', 'serviceFleet', 'payDividend', 'trainDriver', 'hireDriver', 'hireStaff', 'acquireCompetitor', 'installEquipment', 'startCampaign', 'attendFair', 'upgradeWarehouse', 'setWarehouseStaff',
 ]);
 
 /** Standort, den ein Befehl verwaltet (für die Beschränkung auf zugewiesene Niederlassungen); null = neuer Standort */
@@ -221,6 +234,8 @@ function commandLocation(state: GameState, cmd: Command): Id | undefined | null 
     case 'closeBranch':
     case 'buildFacility':
     case 'hireStaff':
+    case 'setWarehouseStaff':
+    case 'upgradeWarehouse':
       return cmd.locationId;
     case 'openBranch':
       return null;
@@ -636,6 +651,30 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
     }
     case 'cancelContract': {
       const r = cancelContract(state, cmd.contractId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'acceptStorageContract': {
+      const r = acceptStorageContract(state, cmd.contractId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'cancelStorageContract': {
+      const r = cancelStorageContract(state, cmd.contractId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'setWarehouseStaff': {
+      const r = setWarehouseStaff(state, cmd.locationId, cmd.workers, cmd.lead);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'upgradeWarehouse': {
+      const r = upgradeWarehouse(state, cmd.locationId);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'setStorageAutoSubcontract': {
+      const r = setStorageAutoSubcontract(state, cmd.contractId, cmd.on);
+      return r.ok ? { ok: true } : fail(r.error);
+    }
+    case 'crossDock': {
+      const r = crossDock(state, ctx, cmd.orderId);
       return r.ok ? { ok: true } : fail(r.error);
     }
     case 'sendDriver': {

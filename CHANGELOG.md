@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.22.0 – 21.11.2026
+
+Paket E „Logistikdienstleister“, Schritt E2 „Lager & Kontraktlogistik“:
+
+- **Lagerverträge statt pauschaler Auslastung:** Kunden aus der Region suchen Palettenplätze (100–800 Plätze, 3–12 Monate).
+  - Jeder Vertrag bringt Lagergeld je Platz und Monat sowie eine Umschlaggebühr je ein- und ausgelagerter Palette.
+  - Die Größe der Angebote richtet sich nach der Flotte; der Vertrieb bringt mehr und größere Angebote.
+- **Warenfluss:** Jeder Vertrag erzeugt eigene, bereits angenommene Touren.
+  - **Einlagerungen:** Komplettladungen vom Werk des Kunden ins Lager.
+  - **Auslagerungen:** Teilladungen vom Lager zu Empfängern im Umkreis von 320 km, die sich bündeln lassen.
+  - Diese Touren erscheinen nur bei der eigenen Firma, nicht in der Börse.
+  - Nicht gefahrene Touren kosten Strafe und Zufriedenheit. Leerer Bestand führt zu Fehlmengen. Zu viele Pannen: Der Kunde kündigt.
+  - Touren, die niemand fährt, gehen auf Wunsch 3 Stunden vor Ladeschluss automatisch an einen Subunternehmer (Standard: an).
+- **Lagerpersonal:** Lagerarbeiter (+45 Paletten am Tag je Kopf) und Lagerleitung (+20 % Durchsatz, halb so viele Fehlmengen).
+  - Die Grundbesetzung der Halle schafft 40 Paletten am Tag.
+  - Bei Überlastung starten Auslagerungen später, und es drohen Fehlmengen. Die Überlastung erscheint auch in den Engpass-Warnungen.
+- **Hallenausbau:** Lagerhalle (2.000 Plätze) → Logistikzentrum (5.000, ab Stufe 4) → Großlager (10.000, ab Stufe 5).
+- **Umschlag über das Lager (Cross-Docking):** Eine angenommene Teilladung mit Empfänger nahe einem eigenen Lager lässt sich per Rechtsklick „über eigenes Lager umschlagen“.
+  - Vorlauf ins Lager, nach 2 Stunden Umschlag der Weiterlauf als eigene Teilladung ab dem Lager.
+  - Die Vergütung wird nach Kilometern geteilt, dazu kommt eine Umschlaggebühr von 3,20 € je Palette.
+- **Oberfläche:** neuer Reiter „Lager“ unter Standorte & Ausbau, mit Belegung, Bestand, Durchsatz, Personal, Ausbau, Verträgen, Angeboten und dem Warenfluss der Woche.
+- **Spielstände:** Bestehende Lagerhallen bekommen beim ersten Tageswechsel einen Startvertrag in Höhe ihrer bisherigen Auslastung (Spielstand-Version 14).
+
 ## 0.21.0 – 21.11.2026
 
 Paket E „Logistikdienstleister“, Schritt E1 „Analyse & Planungshilfen“:

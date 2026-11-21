@@ -344,6 +344,21 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'storage',
+    title: 'Lager und Kontraktlogistik',
+    page: 'locations',
+    keywords: 'lager lagerhalle lagervertrag palette einlagerung auslagerung umschlag cross-docking kommissionierung lagerarbeiter lagerleitung logistikzentrum',
+    body: [
+      'Ab Unternehmensstufe 3 lässt sich an einem Standort mit Betriebshof eine Lagerhalle bauen. Kunden aus der Region mieten dort Palettenplätze (Standorte & Ausbau → Lager).',
+      '• Ein Lagervertrag bringt Lagergeld je Platz und Monat und eine Umschlaggebühr je Palette.',
+      '• Jeder Vertrag erzeugt Touren, die schon angenommen sind und in der Disposition erscheinen: Einlagerungen vom Werk des Kunden ins Lager (Komplettladungen) und Auslagerungen vom Lager in die Region (Teilladungen, gut zu bündeln).',
+      '• Nicht gefahrene Touren kosten Strafe und Zufriedenheit; ist der Bestand leer, weil Einlagerungen fehlten, gibt es Fehlmengen. Zu viele Pannen: Der Kunde kündigt. Auf Wunsch gehen Touren, die niemand fährt, rechtzeitig an einen Subunternehmer.',
+      '• Lagerarbeiter und eine Lagerleitung erhöhen den Durchsatz. Ist die Halle überlastet, starten Auslagerungen später, und es drohen Fehlmengen.',
+      '• Ausbau: Logistikzentrum (5.000 Plätze, ab Stufe 4) und Großlager (10.000 Plätze, ab Stufe 5).',
+      '• Umschlag: Eine angenommene Teilladung mit Empfänger nahe einem eigenen Lager lässt sich per Rechtsklick über das Lager führen. Erst der Vorlauf ins Lager, dann der Weiterlauf ab Lager. Dafür gibt es eine Umschlaggebühr.',
+    ],
+  },
+  {
     id: 'autodispatch',
     title: 'KI-Disponenten',
     keywords: 'disponent automatisch vollautomatisch teilautomatisch vorschlag regeln',

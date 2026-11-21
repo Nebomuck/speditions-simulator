@@ -170,7 +170,7 @@ function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: Sta
     const cust = state.customers[o.customerId];
     let score = rules.nearestFirst ? 100_000_00 - estimate.emptyKm * 1_00 * 100 + perceived / 100 : perceived;
     if (rules.regularsFirst && cust?.deliveries > 0) score += Math.abs(score) * 0.15 + 50_00;
-    if (o.contractId) score += 200_00;
+    if (o.contractId || o.storage) score += 200_00;
     if (committed) score += 1e12; // bereits zugesagte Aufträge haben Vorrang
     out.push({ order: o, input, queued, estimate, perceived, score });
   }

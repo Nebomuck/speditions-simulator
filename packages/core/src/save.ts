@@ -138,6 +138,12 @@ export const MIGRATIONS: Record<number, Migration> = {
     s.news ??= defaultNews();
     return s;
   },
+  // 0.22.0: Lagerverträge. Bestandshallen bekommen beim ersten Tageswechsel einen Startvertrag in Höhe ihrer Auslastung.
+  13: (s) => {
+    const company = s.company as { locations?: { facilities?: string[] }[] } | undefined;
+    if (company?.locations?.some((l) => l.facilities?.includes('warehouse'))) s.storageContracts ??= {};
+    return s;
+  },
 };
 
 export function deserializeSave(text: string): GameState {

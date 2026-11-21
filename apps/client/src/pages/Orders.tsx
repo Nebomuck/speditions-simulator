@@ -1,12 +1,12 @@
 // Auftragsbörse: dynamische Transportangebote mit Wirtschaftlichkeitsabschätzung.
 
 import { useMemo, useState } from 'react';
-import { ArrowRight, MapPin, Check, FileCheck, Handshake, Send, Share2, Star, X, Leaf } from 'lucide-react';
+import { ArrowRight, MapPin, Check, FileCheck, Handshake, Send, Share2, Star, X, Leaf, Warehouse } from 'lucide-react';
 import {
-  CARGOS, CITY_BY_ID, TRAILERS, TRUCK_BY_ID, GREEN_TEXT, estimateTrip, subcontractBlock, subcontractQuotes, loadSpace, formatDateTime, formatMoney, haversineKm, nearestCity, planCoLoad, planEnd, vehicleMarker,
+  CARGOS, CITY_BY_ID, TRAILERS, TRUCK_BY_ID, GREEN_TEXT, estimateTrip, crossDockBlock, crossDockPlan, subcontractBlock, subcontractQuotes, loadSpace, formatDateTime, formatMoney, haversineKm, nearestCity, planCoLoad, planEnd, vehicleMarker,
   type Customer, type GameState, type LonLat, type Order, type PlanStart, type TrailerType, type Vehicle,
 } from '@spedsim/core';
-import { sendCommand, setUi, toast, useGame, useUi, world } from '../game/store.ts';
+import { getUi, sendCommand, setUi, toast, useGame, useUi, world } from '../game/store.ts';
 import { Badge, Card, Empty, Modal, Money, PageHeader, useSort } from '../ui/components.tsx';
 import { MapView } from '../ui/MapView.tsx';
 import { cargoName, cityName, km, tons, ORDER_STATUS_LABEL, QUAL_LABEL, trailerName } from '../ui/format.ts';
@@ -130,6 +130,22 @@ function IncomingHandovers() {
   );
 }
 
+/** Teilladung über ein eigenes Lager führen: Vorlauf ins Lager, Weiterlauf ab Lager */
+async function askCrossDock(o: Order) {
+  const s = getUi().state!;
+  const { plan, error } = crossDockPlan(s, world, o.id);
+  if (!plan) {
+    toast('warning', error ?? 'Kein passendes Lager.');
+    return;
+  }
+  const ok = await askConfirm(
+    `Vorlauf ${cityName(o.fromCityId)} → Lager ${cityName(plan.viaCityId)} (${km(plan.km1)}, ${formatMoney(plan.pay1)}), danach Weiterlauf nach ${cityName(o.toCityId)} (${km(plan.km2)}, ${formatMoney(plan.pay2)}). ` +
+      `Umschlaggebühr ${formatMoney(plan.fee)} für ${plan.pallets} Paletten. Den Weiterlauf kannst du mit Auslagerungen aus dem Lager bündeln.`,
+    { title: 'Über das Lager umschlagen?', confirmLabel: 'Umschlagen' },
+  );
+  if (ok && (await sendCommand({ type: 'crossDock', orderId: o.id })).ok) toast('success', `Teilladung läuft über das Lager ${cityName(plan.viaCityId)}`);
+}
+
 /** Rechtsklick auf einen Auftrag */
 function orderMenu(o: Order): MenuItem[] {
   const items: MenuItem[] = [{ label: 'Disponieren …', icon: <Send size={14} />, disabled: o.status !== 'offered' && o.status !== 'accepted', onClick: () => setUi({ dispatchDraft: { orderId: o.id } }) }];
@@ -138,6 +154,7 @@ function orderMenu(o: Order): MenuItem[] {
   if (o.status === 'offered') items.push({ label: 'Annehmen (später disponieren)', icon: <Check size={14} />, onClick: () => sendCommand({ type: 'acceptOrder', orderId: o.id }) });
   items.push({ label: 'Route auf der Karte', icon: <MapPin size={14} />, onClick: () => setUi({ focusOrderId: o.id }) });
   if (o.status === 'accepted' && !o.premium) items.push({ label: 'An Subunternehmer abgeben …', icon: <Handshake size={14} />, onClick: () => setUi({ subcontractOrderId: o.id }) });
+  if (o.status === 'accepted' && o.partial && !crossDockBlock(getUi().state!, o)) items.push({ label: 'Über eigenes Lager umschlagen …', icon: <Warehouse size={14} />, onClick: () => askCrossDock(o) });
   if (o.status === 'accepted') items.push({ label: 'Stornieren …', icon: <X size={14} />, danger: true, sep: true, onClick: () => cancelOrder(o) });
   return items;
 }

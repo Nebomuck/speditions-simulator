@@ -2,10 +2,11 @@
 // Abteilungen mit Büropersonal, Unternehmensstufen und Flottenwartung.
 
 import { ceoManagedVehicles } from './life.ts';
+import { WAREHOUSE_STAGES, monthlyStorage, stageOf, warehouseStaffItems } from './storage.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import {
   BRANCH_SETUP_COST, COMPANY_LEVELS, DEPARTMENTS, DEPOT_MIN_LEVEL, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER,
-  STAFF_GRADES, STAFF_HIRING_COST, TRUCK_BY_ID, WAREHOUSE_RATE, WAREHOUSE_SLOTS, type CompanyLevelDef,
+  STAFF_GRADES, STAFF_HIRING_COST, TRUCK_BY_ID, type CompanyLevelDef,
 } from './data/catalog.ts';
 import type { SimContext } from './context.ts';
 import { addLog, book, formatMoney } from './finance.ts';
@@ -14,10 +15,10 @@ import { personName, wageLevel } from './generate.ts';
 import { newId, rand } from './rng.ts';
 import type { Department, FacilityKind, GameState, Id, Location, LocationKind, Money, StaffGrade, StaffMember, Trip, Vehicle } from './types.ts';
 
-type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
 const OVERDRAFT = -10_000_00;
-const canAfford = (state: GameState, amount: Money) => state.company.account.balance - amount >= OVERDRAFT;
+export const canAfford = (state: GameState, amount: Money) => state.company.account.balance - amount >= OVERDRAFT;
 
 export const VEHICLES_PER_DISPATCHER = 8;
 /** Fuhrparkmanagement: Fahrzeuge unter diesem Zustand gehen automatisch in die eigene Werkstatt */
@@ -72,7 +73,11 @@ export function staffSalary(dept: Department, location: Location, grade: StaffGr
 export function facilityItems(state: GameState): { label: string; amount: Money }[] {
   const items: { label: string; amount: Money }[] = [];
   for (const l of state.company.locations)
-    for (const f of l.facilities ?? []) items.push({ label: `Betrieb ${FACILITY_DEFS[f].name.split(' (')[0]} ${CITY_BY_ID[l.cityId].name}`, amount: FACILITY_DEFS[f].monthly });
+    for (const f of l.facilities ?? [])
+      items.push(f === 'warehouse'
+        ? { label: `Betrieb ${stageOf(l).name} ${CITY_BY_ID[l.cityId].name}`, amount: stageOf(l).monthly }
+        : { label: `Betrieb ${FACILITY_DEFS[f].name.split(' (')[0]} ${CITY_BY_ID[l.cityId].name}`, amount: FACILITY_DEFS[f].monthly });
+  items.push(...warehouseStaffItems(state));
   return items;
 }
 
@@ -80,6 +85,8 @@ export function facilityItems(state: GameState): { label: string; amount: Money 
 export function facilityValue(state: GameState): Money {
   let v = 0;
   for (const l of state.company.locations) for (const f of l.facilities ?? []) v += FACILITY_DEFS[f].cost * 0.5;
+  // Ausbaustufen der Lagerhallen
+  for (const l of state.company.locations) for (const st of WAREHOUSE_STAGES.slice(1)) if ((l.warehouse?.slots ?? 0) >= st.slots) v += st.cost * 0.5;
   return v;
 }
 
@@ -205,7 +212,7 @@ export function buildFacility(state: GameState, locationId: Id, kind: FacilityKi
   if (LOCATION_ORDER.indexOf(loc.kind) < LOCATION_ORDER.indexOf(def.minKind)) return { ok: false, error: `${def.name} braucht mindestens einen Standort „${LOCATION_DEFS[def.minKind].name}“.` };
   if (!canAfford(state, def.cost)) return { ok: false, error: 'Nicht genügend Geld.' };
   loc.facilities.push(kind);
-  if (kind === 'warehouse') loc.warehouseUtil = 0.15;
+  if (kind === 'warehouse') loc.warehouse = { slots: WAREHOUSE_STAGES[0].slots, workers: 0, lead: false, handled: 0, demand: 0 };
   book(state, 'company', -def.cost, 'maintenance', `${def.name} ${CITY_BY_ID[loc.cityId].name}`);
   addLog(state, { level: 'success', category: 'company', text: `${def.name} in ${CITY_BY_ID[loc.cityId].name} in Betrieb genommen (${formatMoney(def.cost)}, Betrieb ${formatMoney(def.monthly)}/Monat).` });
   return { ok: true };
@@ -345,24 +352,12 @@ export function hourlyCompany(state: GameState): void {
     if (v.status === 'idle' && v.condition < AUTO_SERVICE_BELOW && !v.queue?.length && hasFacility(state, v.cityId, 'workshop')) serviceVehicle(state, v, true);
 }
 
-/** Täglich: Unternehmensstufe, Lagerauslastung. */
+/** Täglich: Unternehmensstufe. (Lager: siehe storage.ts) */
 export function dailyCompany(state: GameState): void {
   updateCompanyLevel(state);
-  for (const l of state.company.locations) {
-    if (!l.facilities?.includes('warehouse')) continue;
-    const target = Math.max(0.15, Math.min(0.95, 0.3 + (state.company.reputation - 50) / 150 + 0.12 * deptCount(state, 'sales')));
-    l.warehouseUtil = (l.warehouseUtil ?? 0.15) + (target - (l.warehouseUtil ?? 0.15)) * 0.03;
-  }
 }
 
-export function warehouseIncome(l: Location): Money {
-  return l.facilities?.includes('warehouse') ? Math.round(WAREHOUSE_SLOTS * (l.warehouseUtil ?? 0) * WAREHOUSE_RATE) : 0;
-}
-
-/** Am Monatsersten: Lagererlöse buchen. */
+/** Am Monatsersten: Lagergeld der Lagerverträge buchen. */
 export function monthlyCompany(state: GameState): void {
-  for (const l of state.company.locations) {
-    const income = warehouseIncome(l);
-    if (income > 0) book(state, 'company', income, 'storage', `Lagerlogistik ${CITY_BY_ID[l.cityId].name} (${Math.round((l.warehouseUtil ?? 0) * 100)} % belegt)`);
-  }
+  monthlyStorage(state);
 }

@@ -5,7 +5,7 @@ import {
   TRUCK_BY_ID, estimateTrip, vehicleSchedule, STATE_VERSION, planCoLoad, ordersOnBoard, rerouteAffected, routeNow, tripEta, updateDisruptions, disruptionLabel,
   type Disruption, type Contract, generateContractOffer, marketSalary, COURSES, dailyPersonnel, tradeInValue, MIN_PER_DAY,
   type GameState, LOCATION_DEFS, BRANCH_SETUP_COST, capacity, monthlyFixedCosts, dailyCompany, monthlyCompany, serviceCost, dispatchShortfall,
-  satisfactionFactors, accountingRiskFactor, salesVolumeFactor, warehouseIncome, companyValue, runAutoDispatch, searchDepth,
+  satisfactionFactors, accountingRiskFactor, salesVolumeFactor, companyValue, runAutoDispatch, searchDepth,
   type LifeAction, dailyLife, ceoManagedVehicles, ACTIVITIES, isAway, negotiationBonus, HOMES, MOVING_COST, goalDone, privateWealth,
   monthlyPrivateCosts, LIVING_BASE, CHILD_COST, DIVIDEND_TAX,
   addPlayer, TEAM_ROLES, playerView, unreadMessages, openTasksFor, pendingInvitesFor, JOINT_ACTIVITIES, meetingBonus, hourlyTeam, voteCounts,
@@ -977,7 +977,7 @@ describe('Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilunge
     expect(salesVolumeFactor(s)).toBeCloseTo(1.12);
   });
 
-  it('Lagerhalle ab Stufe 3: Auslastung steigt, Lagererlöse werden monatlich gebucht', () => {
+  it('Lagerhalle ab Stufe 3: Halle mit 2.000 Plätzen, Erlöse nur aus Lagerverträgen', () => {
     const s = newGame();
     s.company.account.balance = 500_000_00;
     reachLevel2(s);
@@ -986,14 +986,12 @@ describe('Unternehmensausbau: Stufen, Niederlassungen, Einrichtungen, Abteilunge
     expect(applyCommand(s, ctx, 'p1', { type: 'buildFacility', locationId: hq.id, facility: 'warehouse' }).ok).toBe(false);
     s.company.level = 3;
     expect(applyCommand(s, ctx, 'p1', { type: 'buildFacility', locationId: hq.id, facility: 'warehouse' }).ok).toBe(true);
-    s.company.reputation = 70;
-    const u0 = hq.warehouseUtil!;
-    for (let i = 0; i < 30; i++) dailyCompany(s);
-    expect(hq.warehouseUtil!).toBeGreaterThan(u0);
-    const bal = s.company.account.balance;
+    expect(hq.warehouse?.slots).toBe(2000);
+    for (let i = 0; i < 3; i++) dailyCompany(s);
+    const n = s.ledger.length;
     monthlyCompany(s);
-    expect(s.company.account.balance - bal).toBe(warehouseIncome(hq));
-    expect(s.ledger.at(-1)!.category).toBe('storage');
+    // ohne Lagervertrag kein pauschaler Lagererlös mehr
+    expect(s.ledger.slice(n).filter((e) => e.category === 'storage')).toHaveLength(0);
     expect(companyValue(s, () => 0)).toBeGreaterThan(s.company.account.balance);
   });
 

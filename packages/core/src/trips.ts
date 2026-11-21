@@ -2,6 +2,7 @@
 // unter Berücksichtigung von Straßentyp, Verkehr, Lenk-/Ruhezeiten, Tankstopps, Be-/Entladung und Pannen.
 
 import { fleetBreakdownFactor, fleetWearFactor } from './company.ts';
+import { onStorageDelivery } from './storage.ts';
 import { recordTrip } from './analytics.ts';
 import { CITY_BY_ID } from './data/cities.ts';
 import { CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
@@ -420,6 +421,7 @@ function completeDelivery(state: GameState, trip: Trip, order: Order) {
   if (lateMin > 0 && traitCustomerBonus(driver, false)) adjustSatisfaction(customer, traitCustomerBonus(driver, false));
   createInvoice(state, order, order.payment - penalty);
   onContractDelivery(state, order, lateMin);
+  onStorageDelivery(state, order, lateMin);
   onPremiumDelivery(state, order, lateMin);
   onDelivery(state, order, lateMin);
   addLog(state, {

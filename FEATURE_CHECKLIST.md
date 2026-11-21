@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 21.11.2026 · Version 0.21.0
+Stand: 21.11.2026 · Version 0.22.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |
@@ -28,7 +28,7 @@ Stand: 21.11.2026 · Version 0.21.0
 | Firmenstandorte | Implementiert | orange markiert |
 | Werkstätten, Tankstellen, Rastplätze | Implementiert | POI-Ebene „Rastplätze & Werkstätten“, eigene Anlagen hervorgehoben |
 | Liefer-/Abholorte | Implementiert | Routenvorschau in der Börse |
-| Lagerhäuser/Logistikzentren | Getestet | Lagerhalle je Standort (ab Stufe 3): Lagererlöse nach Auslastung, zieht Aufträge an |
+| Lagerhäuser/Logistikzentren | Getestet | Lagerhalle je Standort (ab Stufe 3), Ausbau zum Logistikzentrum und Großlager; Erlöse aus Lagerverträgen (E2), zieht Aufträge an |
 | Verkehrsmeldungen & Ereignisse auf der Karte | Implementiert | Sperrungen (auch wetterbedingt) und Staus auf der Karte und in „Verkehrslage“; Wetter, Fahrverbote und Ereignisse unter „Markt & Wettbewerb“ |
 | Fahrerpositionen in Echtzeit | Implementiert | Interpolation pro Frame |
 | Aktuelle Fahrzeugrouten | Implementiert | beladen/leer/verspätet farbig |
@@ -196,6 +196,7 @@ Stand: 21.11.2026 · Version 0.21.0
 | Alternative Antriebe | Getestet (CO₂-Maut, Energiepreise je Antrieb, Ladestopps unterwegs, Ladepark am Standort) |
 | Grüne Kunden | Getestet (feste Zuordnung, Anteil, Dispositionsprüfung mit Fahrzeug und Fuhrparkanteil) |
 | Kombinierter Verkehr | Getestet (Bahnkanten nur auf Wunsch, Fahrpreis, Ruhe auf dem Zug, kein Diesel); im Browser geprüft: Angebot im Dialog, Karte |
+| Lager & Kontraktlogistik (E2) | Getestet (Angebot, Annahme, Lagergeld; Einlagerungen als Komplettladungen, Auslagerungen als Teilladungen; verpasste Touren, Kündigung durch den Kunden; automatische Vergabe an Subunternehmer; Lagerpersonal, Durchsatz und Überlastung; Hallenausbau; Umschlag über das Lager; Startvertrag für Bestandshallen, Spielstand-Version 14); Bot-Lauf mit Lagervertrag über 60 Tage ohne verpasste Tour; im Browser geprüft (Reiter Lager, Angebot annehmen, Personal); ohne Lagerhalle Vergleichslauf gegen 0.21.0 unverändert |
 | Auswertung und Planungshilfen (E1) | Getestet (Nachkalkulation je Fahrt mit Deckungsbeitrag, Summen aller Berichte stimmen überein, Liquiditätsprognose mit Fixkosten am Monatsersten und Warnung, Engpass-Warnungen, CSV mit Semikolon und Dezimalkomma); im Browser mit 40 Tagen Bot-Spielstand geprüft (Berichte, Fahrten, Prognose, Dashboard-Warnung, CSV-Download); Vergleichslauf gegen 0.20.0 unverändert |
 | KI je Firma, Balancing und Last (D6) | Getestet (Abwerben je Firma, vier Firmen mit Bots 5 Tage); Balancing 120 Tage mit 1, 2 und 4 Firmen (5–25 % weniger Umsatz je Firma durch geteilte Börse); Lasttest 4 Firmen etwa 0,5–1,3 s je Spieltag; Vergleichslauf gegen 0.19.0 bytegleich |
 | Wettbewerb zwischen Spielerfirmen (D5) | Getestet (Rangliste mit Spielern und KI, verdeckte Gebote je Firma mit Zuschlag und Sicht je Firma, Branchenblatt je Firma mit Rangliste, Auftrag anbieten/übernehmen/ablehnen/verfallen, Marge nach Zustellung, nicht gefahrene Übernahme kostet beide Ruf); im Browser mit zwei Firmen geprüft (Angebot, Übernahme, Rangliste); Vergleichslauf gegen 0.19.0 bytegleich |

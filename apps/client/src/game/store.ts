@@ -45,6 +45,8 @@ interface UiState {
   dispatchDraft: { orderId?: string; vehicleId?: string } | null;
   /** Auftrag, für den der Subunternehmer-Dialog offen ist */
   subcontractOrderId?: string | null;
+  /** Standorte: Reiter Standorte oder Lager */
+  locationsTab?: 'sites' | 'storage';
   /** Ausstattungsdialog für ein Fahrzeug */
   equipVehicleId?: string | null;
   /** geöffnete Ausgabe des Branchenblatts (Popup) */
