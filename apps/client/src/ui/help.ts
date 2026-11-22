@@ -181,7 +181,7 @@ export const HELP: HelpArticle[] = [
     keywords: 'kunde zufriedenheit stammkunde vertrag rahmenvertrag zurückgewinnen abwerben',
     body: [
       'Pünktliche Lieferungen machen Kunden zufriedener, Verspätungen und Stornos kosten Zufriedenheit und Ruf.',
-      '• Zufriedene Stammkunden zahlen bis zu 5 % mehr und bieten Rahmenverträge an: feste Strecke, feste Wochentage, fester Preis, Strafe bei Ausfall.',
+      '• Zufriedene Stammkunden zahlen bis zu 5 % mehr und bieten Rahmenverträge an: feste Strecke, feste Wochentage, fester Preis (über dem Börsenpreis, weil die Rückfahrt oft leer ist), Strafe bei Ausfall.',
       '• Unter 40 % Zufriedenheit kann ein Kunde ohne laufenden Vertrag zur Konkurrenz wechseln. Ein Vertriebsbesuch (1.500 €) holt ihn vielleicht zurück.',
     ],
   },
@@ -293,7 +293,7 @@ export const HELP: HelpArticle[] = [
       'Die Karriere ist eine Spielart für das Einzelspiel: fünf Kapitel vom einzelnen LKW zum Marktführer. Jedes Kapitel hat Ziele und eine Frist. Das Dashboard zeigt das laufende Kapitel mit Fortschritt.',
       '• Sterne: Bis zur halben Frist gibt es drei Sterne, bis zur Frist zwei, danach einen. Ein Kapitel kann nicht scheitern – es zählt weiter, bis es geschafft ist.',
       '• Freischaltung: Ausschreibungen und KI-Disposition ab Kapitel 2, Niederlassungen im Ausland ab Kapitel 3, Lagerhallen und Container ab Kapitel 4.',
-      '• Mentorin Margarete Holm erklärt jedes Kapitel und gibt Tipps. Rivale Viktor Krämer wächst mit und wirbt Kunden ab – im letzten Kapitel kannst du seine Firma kaufen.',
+      '• Mentorin Margarete Holm erklärt jedes Kapitel und gibt Tipps. Rivale Viktor Krämer wächst Kapitel für Kapitel mit und wirbt Kunden ab – im letzten Kapitel kannst du seine Firma kaufen.',
       '• Zu Beginn jedes Kapitels entsteht ein Speicherpunkt. Lade ihn, um ein Kapitel zu wiederholen und mehr Sterne zu holen.',
     ],
   },

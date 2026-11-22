@@ -142,6 +142,17 @@ const RIVAL_TRUCKS = [4, 9, 16, 28, 45];
 
 // ---------------------------------------------------------------- Abfragen
 
+/**
+ * Obergrenze für das natürliche Wachstum des Rivalen: Er wächst mit der Geschichte,
+ * in Kapitel n höchstens bis zur Startgröße von Kapitel n+1. Im letzten Kapitel und
+ * nach der Karriere wächst er frei wie jede andere Spedition.
+ */
+export function rivalTruckCap(state: GameState, competitorId: Id): number {
+  const c = state.campaign;
+  if (!c || c.done || competitorId !== c.rivalId || c.chapter >= RIVAL_TRUCKS.length) return Infinity;
+  return RIVAL_TRUCKS[c.chapter];
+}
+
 export const inCampaign = (state: GameState) => !!state.campaign && !state.campaign.done;
 
 /** Gesperrtes System in der Kampagne (undefined: frei) */

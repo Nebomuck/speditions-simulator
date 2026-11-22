@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   acquisitionOffer, applyCommand, campaignGoals, campaignLock, createNewGame, dailyCampaign, onCampaignContainer, splitState, starsFor, tickMinutes,
-  CHAPTERS, MIN_PER_DAY, RIVAL_COMPANY, type GameState,
+  CHAPTERS, MIN_PER_DAY, RIVAL_COMPANY, monthlyCompetition, rivalTruckCap, type GameState,
 } from '../src/index.ts';
 import { addOrder, ctx } from './helpers.ts';
 
@@ -94,6 +94,27 @@ describe('Karriere-Kampagne (Paket E, Schritt E4)', () => {
     expect(s.campaign!.chapter).toBe(4);
     expect(campaignLock(s, 'containers')).toBeUndefined();
     expect(campaignLock(s, 'warehouse')).toBeUndefined();
+  });
+
+  it('der Rivale wächst mit der Geschichte, aber nicht davon: höchstens bis zur Größe des nächsten Kapitels', () => {
+    const s = career();
+    const rival = s.competitors[s.campaign!.rivalId!];
+    expect(rivalTruckCap(s, rival.id)).toBe(9);
+    // satter Gewinn bei voller Auslastung: ohne Grenze kauft er jeden Monat zu
+    for (let m = 0; m < 24; m++) {
+      rival.cash = 10_000_000_00;
+      rival.month = { revenue: 1_000_000_00, costs: 0, orders: 100, hours: rival.trucks * 24 * 30 };
+      monthlyCompetition(s);
+    }
+    expect(rival.trucks).toBe(9);
+    // andere Speditionen sind nicht begrenzt
+    const other = Object.values(s.competitors).find((c) => c.id !== rival.id)!;
+    expect(rivalTruckCap(s, other.id)).toBe(Infinity);
+    finishChapter(s, 10);
+    expect(rivalTruckCap(s, rival.id)).toBe(16);
+    for (let i = 0; i < 3; i++) finishChapter(s, 10);
+    expect(s.campaign!.chapter).toBe(5);
+    expect(rivalTruckCap(s, rival.id)).toBe(Infinity);
   });
 
   it('Container-Touren zählen für Kapitel 4; Krämer steht ab Kapitel 5 zum Verkauf', () => {

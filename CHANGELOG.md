@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.26.0 – 22.11.2026
+
+Karriere geprüft (Bot-Läufe über alle Kapitel):
+
+- **Rivale wächst mit der Geschichte, nicht davon:** Viktor Krämers Spedition wächst in Kapitel 1–4 von selbst höchstens bis zur Startgröße des nächsten Kapitels (9/16/28/45 LKW), erst in Kapitel 5 frei.
+  - Vorher wuchs sie bei langsamem Spiel schon in Kapitel 3 auf über 100 LKW.
+- **Rahmenverträge und Ausschreibungen zahlen 15 % über dem Börsenpreis.** Feste Strecken haben oft eine leere Rückfahrt und keine Auswahl wie die Börse.
+  - Gemessen kamen Vertragstouren vorher auf 1,32 € Umsatz je km gegenüber 1,69 € in der Börse und brachten im Schnitt kaum Gewinn.
+- **KI-Disposition:**
+  - Die Vorausschau plant 2 h Puffer vor Ende des Ladefensters ein. Verpasste Vertragstouren im Vergleichslauf: 47 % → 42 %.
+  - Ein LKW ohne Fahrer strandet nicht mehr dauerhaft. Nach 24 h Standzeit holt der Disponent einen Fahrer auch über mehr als 1.200 km. Im Testlauf stand ein LKW sonst 112 Tage in Durrës.
+
 ## 0.25.0 – 22.11.2026
 
 Konsolidierung nach Paket E:

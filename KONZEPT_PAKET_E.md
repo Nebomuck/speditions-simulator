@@ -181,6 +181,12 @@ Neue Spielart „Karriere“ im Gründungsdialog. Nur im Einzelspiel (im Multipl
   - Der Rivale bietet in Ausschreibungen wie jede andere Konkurrenzspedition mit, ohne Sonderregel.
   - Wiederholen über Speicherpunkte zu Kapitelbeginn statt über einen eigenen Startknopf.
 - **Bot-Lauf** über 8 Startwerte × 240 Tage: Kapitel 1 in 19–34 Tagen (3 Sterne). In Kapitel 2 bleibt der Bot hängen, weil er keine Rahmenverträge annimmt. Angebote kommen aber (5–7 in 100 Tagen).
+- **Karriere geprüft** (nach 0.25.0, Bot mit Verträgen und Ausschreibungen, 4 Startwerte × bis 1.500 Tage):
+  - Kapitel 1: 24–30 Tage, immer 3 Sterne.
+  - Kapitel 2: 303–606 Tage (1 Stern). Zwei Rahmenverträge gleichzeitig und Ruf 60 schafft der Bot nur langsam, weil er rund 40 % der Vertragstouren verpasst.
+  - Kapitel 3: Der Bot kommt nicht über Stufe 1–2 hinaus. Eine Auslandsniederlassung braucht Stufe 2 (zweiter Standort), 10 LKW erreicht er nie. Die meisten Läufe enden zwischen Tag 450 und 820 in der Insolvenz.
+  - Bewertung: Der Bot zeigt die Grenzen des Vertragsgeschäfts mit 2 LKW, nicht die eines guten Spielers. Die Fristen bleiben vorerst, bis Spielerfahrungen vorliegen.
+  - Korrigiert: Rivale wächst je Kapitel nur bis zur nächsten Startgröße (vorher bis 108 LKW), Vertrags- und Ausschreibungspreise +15 %, KI-Disposition mit 2 h Puffer und Fahrer für gestrandete LKW.
 
 ## Technik
 

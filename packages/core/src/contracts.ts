@@ -22,6 +22,8 @@ const MISSED_AFTER_MIN = 6 * 60;
 const PICKUP_WINDOW_H = 4;
 /** Tage zwischen Vertragsschluss und erster Tour */
 export const CONTRACT_LEAD_DAYS = 3;
+/** Vertragstouren zahlen mehr als der Grundtarif (Leerrückfahrt, keine Auswahl) */
+export const CONTRACT_RATE_FACTOR = 1.15;
 
 export function contractWeekdays(c: Contract): string {
   return c.weekdays.map((d) => WEEKDAY_SHORT[d]).join(', ');
@@ -83,7 +85,8 @@ export function generateContractOffer(state: GameState, ctx: SimContext, renewal
   const perWeek = rand.weighted(state, [1, 2, 3], (n) => (n === 1 ? 3 : n === 2 ? 3 : 2))!;
   const patterns: Record<number, number[][]> = { 1: [[0], [1], [2], [3], [4]], 2: [[0, 3], [1, 4], [0, 2], [1, 3]], 3: [[0, 2, 4]] };
   const weekdays = rand.pick(state, patterns[perWeek]);
-  const factor = regular ? 1 + (customer!.satisfaction - 55) / 300 : 0.94;
+  // Aufschlag für feste Strecke: Die Rückfahrt ist oft leer und es gibt keine Auswahl wie in der Börse
+  const factor = CONTRACT_RATE_FACTOR * (regular ? 1 + (customer!.satisfaction - 55) / 300 : 0.94);
   const paymentPerTour = Math.round((baseRate(state, cargo, route.km) * factor) / 500) * 500;
   const c: Contract = {
     id: newId(state, 'con'),

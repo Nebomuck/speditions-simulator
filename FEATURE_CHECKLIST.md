@@ -2,7 +2,7 @@
 
 Statuswerte: **Geplant** · **In Entwicklung** · **Implementiert** (funktioniert, manuell geprüft) · **Getestet** (automatisierter Test vorhanden und bestanden) · **Fehlerhaft** · **Überarbeitet**
 
-Stand: 22.11.2026 · Version 0.25.0
+Stand: 22.11.2026 · Version 0.26.0
 
 ## 3 · Technik & Plattform
 | Anforderung | Status | Anmerkung |

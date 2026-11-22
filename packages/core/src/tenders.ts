@@ -6,7 +6,7 @@
 import type { SimContext } from './context.ts';
 import { activeCompetitors, nearCompetitor } from './competition.ts';
 import { deptCount } from './company.ts';
-import { acceptContract } from './contracts.ts';
+import { CONTRACT_RATE_FACTOR, acceptContract } from './contracts.ts';
 import { CITIES, CITY_BY_ID } from './data/cities.ts';
 import { CARGOS, CARGO_BY_ID, TRUCK_BY_ID } from './data/catalog.ts';
 import { addLog, formatMoney } from './finance.ts';
@@ -88,7 +88,7 @@ export function generateTender(state: GameState, ctx: SimContext): Tender | null
     weekdays: rand.pick(state, patterns[perWeek]),
     pickupHour: rand.int(state, 5, 13),
     weeks: rand.pick(state, [13, 13, 26]),
-    referencePrice: Math.round(baseRate(state, cargo, route.km) / 500) * 500,
+    referencePrice: Math.round((baseRate(state, cargo, route.km) * CONTRACT_RATE_FACTOR) / 500) * 500,
     created: state.time,
     deadline: state.time + rand.int(state, 3, 5) * MIN_PER_DAY + 12 * 60,
     status: 'open',

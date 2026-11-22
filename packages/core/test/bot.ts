@@ -5,7 +5,7 @@
 
 import {
   BRANCH_SETUP_COST, CITIES, CITY_BY_ID, COMPANY_LEVELS, FACILITY_DEFS, LOCATION_DEFS, LOCATION_ORDER, MIN_PER_DAY, TRUCK_BY_ID, applyCommand, campaignLock, capacity,
-  haversineKm, ownBid, setAutoDispatch, tickMinutes,
+  bankLiquidity, haversineKm, ownBid, setAutoDispatch, tickMinutes,
   type GameState, type StaffMember, type TrailerType,
 } from '../src/index.ts';
 import { ctx } from './helpers.ts';
@@ -40,8 +40,13 @@ export function createBot(s: GameState, opts: BotOptions = {}) {
     for (let i = bots.length; i < need; i++)
       s.company.staff.push({ id: `bot${i}`, name: `Bot ${i}`, dept: 'dispatch', salary: 0, hired: s.time, locationId: s.company.locations[0].id, skill: 80 } as StaffMember);
   }
-  /** Pflege wie ein umsichtiger Spieler: Wartung unter 50 % Zustand, Urlaub alle drei Monate */
+  /** Pflege wie ein umsichtiger Spieler: Wartung unter 50 % Zustand, Urlaub alle drei Monate, gekündigte Fahrer ersetzen */
   function care() {
+    const staffed = Object.values(s.drivers).filter((d) => d.leavesAt === undefined).length;
+    if (staffed < Object.keys(s.vehicles).length) {
+      const app = Object.values(s.applicants).sort((a, b) => a.salary - b.salary)[0];
+      if (app) applyCommand(s, ctx, 'p1', { type: 'hireDriver', applicantId: app.id });
+    }
     for (const v of Object.values(s.vehicles))
       if (v.status === 'idle' && v.condition < 50) applyCommand(s, ctx, 'p1', { type: 'serviceVehicle', vehicleId: v.id });
     for (const d of Object.values(s.drivers))
@@ -66,13 +71,20 @@ export function createBot(s: GameState, opts: BotOptions = {}) {
   }
   let lastLease = -Infinity;
   function grow() {
+    // Krise mit der Bank: nicht wachsen, Privatgeld einlegen
+    if (s.company.crisis) {
+      const priv = Object.values(s.players)[0]?.character.privateAccount.balance ?? 0;
+      if (priv > 1_000_00) applyCommand(s, ctx, 'p1', { type: 'injectCapital', amount: Math.floor((priv - 500_00) / 100_00) * 100_00 });
+      return;
+    }
+    if (bankLiquidity(s) < 15_000_00) return;
     const bal = s.company.account.balance;
     const cap = capacity(s);
     const hq = s.company.locations[0];
     // nächste Unternehmensstufe verlangt mehr Standorte: Niederlassung eröffnen, sobald Fahrzeuge und Geld reichen
     const nextLevel = COMPANY_LEVELS[s.company.level];
     const wantAbroad = BUSINESS && s.campaign?.chapter === 3 && !campaignLock(s, 'abroad') && new Set(s.company.locations.map((l) => CITY_BY_ID[l.cityId].country)).size < 2;
-    if ((nextLevel && s.company.locations.length < nextLevel.locations && cap.vehicles >= nextLevel.vehicles - 2 && bal > LOCATION_DEFS.office_yard.deposit + BRANCH_SETUP_COST + BUFFER) || (wantAbroad && bal > 45_000_00)) {
+    if ((nextLevel && s.company.locations.length < nextLevel.locations && cap.vehicles >= nextLevel.vehicles - 2 && bal > LOCATION_DEFS.office_yard.deposit + BRANCH_SETUP_COST + BUFFER) || (wantAbroad && bal > LOCATION_DEFS.office_yard.deposit + BRANCH_SETUP_COST + BUFFER)) {
       if (openBranch()) return;
     }
     if (cap.vehicles >= cap.parking || cap.trailers >= cap.trailerParking) {

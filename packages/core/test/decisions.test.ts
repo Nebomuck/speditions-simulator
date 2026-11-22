@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BID_RANGE, MIN_PER_DAY, ROUTINE_HOUR, STATE_VERSION, addPlayer, applyCommand, autopilotChoice, bidScore, dailyDecisions, dailyTenders, deserializeSave, generateTender,
+  BID_RANGE, CARGO_BY_ID, CONTRACT_RATE_FACTOR, MIN_PER_DAY, baseRate, generateContractOffer, ROUTINE_HOUR, STATE_VERSION, addPlayer, applyCommand, autopilotChoice, bidScore, dailyDecisions, dailyTenders, deserializeSave, generateTender,
   hourlyDecisions, hourlyLife, hourlyTenders, offerDecision, serializeSave, tickMinutes,
 } from '../src/index.ts';
 import { ctx, first, newGame } from './helpers.ts';
@@ -191,6 +191,17 @@ describe('Ausschreibungen (0.14.0)', () => {
     expect(t).toBeTruthy();
     return { s, t: t! };
   }
+
+  it('feste Strecken zahlen einen Aufschlag auf den Börsenpreis (leere Rückfahrt, keine Auswahl)', () => {
+    expect(CONTRACT_RATE_FACTOR).toBeGreaterThan(1);
+    const { s, t } = withTender();
+    expect(t.referencePrice).toBe(Math.round((baseRate(s, CARGO_BY_ID[t.cargoId], t.distanceKm) * CONTRACT_RATE_FACTOR) / 500) * 500);
+    let k = null;
+    for (let i = 0; i < 30 && !k; i++) k = generateContractOffer(s, ctx);
+    expect(k).toBeTruthy();
+    // auch mit Abschlag für neue Kunden mehr als die Börse
+    expect(k!.paymentPerTour).toBeGreaterThan(baseRate(s, CARGO_BY_ID[k!.cargoId], k!.distanceKm));
+  });
 
   it('Gebote nur innerhalb der Preisspanne und mit Flottenkapazität', () => {
     const { s, t } = withTender();

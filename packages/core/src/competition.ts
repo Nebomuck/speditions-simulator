@@ -3,7 +3,7 @@
 // verkleinern sich bei Verlust und können in Konkurs gehen. Unzufriedene Kunden wechseln zu ihnen –
 // mit Vertriebsarbeit lassen sie sich zurückgewinnen.
 
-import { onCampaignCustomerLost } from './campaign.ts';
+import { onCampaignCustomerLost, rivalTruckCap } from './campaign.ts';
 import { CITIES, CITY_BY_ID, type CityDef } from './data/cities.ts';
 import { companyViews, isMultiCompany, worldOf } from './shard.ts';
 import { COUNTRY_NAMES } from './data/catalog.ts';
@@ -254,8 +254,8 @@ export function monthlyCompetition(state: GameState): void {
       c.priceLevel = c.strategy === 'budget' ? 0.92 : c.strategy === 'premium' ? 1.04 : 1;
     }
     // Wachstum bei Gewinn und hoher Auslastung
-    if (profit > 0 && utilization > 0.8 && c.cash > c.trucks * 20_000_00) {
-      const buy = Math.max(1, Math.round(c.trucks * 0.1));
+    if (profit > 0 && utilization > 0.8 && c.cash > c.trucks * 20_000_00 && c.trucks < rivalTruckCap(state, c.id)) {
+      const buy = Math.max(1, Math.min(Math.round(c.trucks * 0.1), rivalTruckCap(state, c.id) - c.trucks));
       c.trucks += buy;
       c.cash -= buy * TRUCK_DOWN_PAYMENT;
     }

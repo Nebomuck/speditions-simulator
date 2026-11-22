@@ -1854,6 +1854,19 @@ describe('Veröffentlichung: Speichermigration, Fehlerbehandlung, Fahrer-Anreise
     // kein zweiter Fahrer für denselben LKW
     runAutoDispatch(s2, ctx);
     expect(Object.values(s2.drivers).filter((x) => x.status === 'traveling')).toHaveLength(1);
+
+    // weit entfernt gestrandeter LKW (Lissabon): erst nach einem Tag ohne Fahrer holt der Disponent einen – nie für immer stehen lassen
+    const s3 = newGame(3);
+    const d3 = first(s3.drivers), v3 = first(s3.vehicles), t3 = first(s3.trailers);
+    v3.cityId = 'lissabon';
+    t3.cityId = 'lissabon';
+    s3.company.staff.push({ id: 'st1', name: 'Dana Dispo', dept: 'dispatch', salary: 0, hired: s3.time, locationId: s3.company.locations[0].id, skill: 70 } as StaffMember);
+    expect(applyCommand(s3, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto' }).ok).toBe(true);
+    for (let h = 0; h < 12; h++) runAutoDispatch(s3, ctx);
+    expect(d3.status).toBe('idle');
+    for (let h = 0; h < 13; h++) runAutoDispatch(s3, ctx);
+    expect(d3.status).toBe('traveling');
+    expect(d3.travelTo).toBe('lissabon');
   });
 });
 

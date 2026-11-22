@@ -43,6 +43,8 @@ const RETURN_AFTER_HOURS = 24;
 /** ohne Fahrer vor Ort: nach so vielen Stunden einen Fahrer per Bahn holen, höchstens aus dieser Entfernung */
 const FETCH_DRIVER_AFTER_HOURS = 2;
 const MAX_FETCH_KM = 1200;
+/** so lange ohne Fahrer gilt ein LKW als gestrandet: dann ohne Entfernungsgrenze einen Fahrer holen */
+const STRANDED_AFTER_HOURS = 24;
 
 const ll = (cityId: string): [number, number] => [CITY_BY_ID[cityId].lon, CITY_BY_ID[cityId].lat];
 
@@ -105,6 +107,8 @@ interface Lookahead {
 
 const LOOKAHEAD_DAYS = 7;
 const CONTRACT_WINDOW_MIN = 4 * 60;
+/** Sicherheitsabstand vor dem Ende des Ladefensters: Beladung, Tageslenkzeit, Ruhezeiten des Fahrers */
+const COMMIT_MARGIN_MIN = 120;
 
 /** Fahrzeit grob: Straße ≈ Luftlinie × 1,25 bei 65 km/h, 45 min Pause je 4,5 h, 11 h Ruhe je 9 h Lenkzeit, plus Rangieren */
 function approachMin(from: string, to: string): number {
@@ -148,7 +152,7 @@ function buildLookahead(state: GameState, ctx: SimContext): Lookahead | undefine
     let bestArr = Infinity;
     for (const [id, f] of free) {
       const arr = f.time + approachMin(f.cityId, c.fromCityId);
-      if (arr <= c.pickupEnd && arr < bestArr) [best, bestArr] = [id, arr];
+      if (arr <= c.pickupEnd - COMMIT_MARGIN_MIN && arr < bestArr) [best, bestArr] = [id, arr];
     }
     if (!best) continue; // schafft niemand – keinen LKW dafür festhalten
     if (!next.has(best)) next.set(best, c);
@@ -161,7 +165,7 @@ function buildLookahead(state: GameState, ctx: SimContext): Lookahead | undefine
 function blocksCommitment(look: Lookahead, vehicleId: Id, toCityId: string, eta: number, orderId: Id): boolean {
   const c = look.next.get(vehicleId);
   if (!c || c.orderId === orderId) return false;
-  return eta + approachMin(toCityId, c.fromCityId) > c.pickupEnd;
+  return eta + approachMin(toCityId, c.fromCityId) > c.pickupEnd - COMMIT_MARGIN_MIN;
 }
 
 function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: StaffMember, reserved: Reserved, look?: Lookahead): Candidate | null {
@@ -417,7 +421,8 @@ function fetchDriver(state: GameState, ctx: SimContext, vehicle: Vehicle, staff:
     .filter((d) => d.status === 'idle' && d.cityId !== vehicle.cityId && d.leavesAt === undefined && !reserved.drivers.has(d.id))
     .filter(surplus)
     .map((d) => ({ d, t: driverTravel(ctx, d.cityId, vehicle.cityId) }))
-    .filter((x) => x.t && x.t.km <= MAX_FETCH_KM)
+    // nach einem Tag ohne Fahrer auch von weiter her – sonst bliebe ein LKW in der Ferne für immer stehen
+    .filter((x) => x.t && (x.t.km <= MAX_FETCH_KM || (state.autoDispatch.idleHours[vehicle.id] ?? 0) >= STRANDED_AFTER_HOURS))
     .sort((a, b) => a.t!.km - b.t!.km || a.d.id.localeCompare(b.d.id))[0];
   if (!best) return false;
   const r = sendDriver(state, ctx, best.d.id, vehicle.cityId);
