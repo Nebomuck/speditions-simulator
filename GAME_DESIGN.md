@@ -125,7 +125,7 @@ Eine Fahrt besteht aus Fahrer, Zugmaschine und Auflieger, die am selben Ort steh
 
 Disponenten (Abteilung Disposition) betreuen je 8 Fahrzeuge. Drei Modi: **manuell**, **teilautomatisch** (stündliche Vorschläge, ein Klick übernimmt) und **vollautomatisch** (nimmt Angebote an und disponiert selbst).
 
-Je Fahrzeug sucht der Disponent passende Aufträge (Laderaum, Nutzlast, Qualifikationen, Abholfenster), rechnet die besten mit derselben Kalkulation wie die manuelle Disposition durch und entscheidet nach den Regeln des Spielers: Mindestgewinn, maximale Leerfahrt, bevorzugte Ladungsarten, Einsatzländer, Stammkunden bevorzugen, keine riskanten Termine (2 h Puffer), nächstes Fahrzeug statt höchstem Gewinn. Angenommene Aufträge und Vertragstouren haben immer Vorrang. Weitere Aufgaben: Rückladungen als Folgeauftrag für fahrende LKW (ab Kompetenz 40), verspätete Folgeaufträge neu vergeben (ab 60), LKW ohne Auftrag nach 24 h zum nächsten Standort zurückholen. Steht ein LKW länger ohne Auftrag, nimmt der Disponent auch weitere Anfahrten in Kauf (je 4 h Standzeit +100 % der maximalen Leerfahrt, bis zum Vierfachen); Ruhezeiten des Fahrers zählen dabei nicht als Standzeit.
+Je Fahrzeug sucht der Disponent passende Aufträge (Laderaum, Nutzlast, Qualifikationen, Abholfenster), rechnet die besten mit derselben Kalkulation wie die manuelle Disposition durch und entscheidet nach den Regeln des Spielers: Mindestgewinn, maximale Leerfahrt, bevorzugte Ladungsarten, Einsatzländer, Stammkunden bevorzugen, keine riskanten Termine (2 h Puffer), nächstes Fahrzeug statt höchstem Gewinn. Angenommene Aufträge und Vertragstouren haben immer Vorrang. **Vorausschau** (ab Kompetenz 30): Zugesagte Touren mit Vertragsstrafe – Vertrags-, Lager- und Containertouren der nächsten 7 Tage, auch Vertragstouren, die noch nicht angelegt sind – werden der Reihe nach dem LKW vorgemerkt, der sie am frühesten erreicht (Anfahrt grob mit Pausen und Ruhezeiten). Dieser LKW nimmt keine Börsenfahrt an, nach der er seine nächste vorgemerkte Tour nicht mehr schafft. Weitere Aufgaben: Rückladungen als Folgeauftrag für fahrende LKW (ab Kompetenz 40), verspätete Folgeaufträge neu vergeben (ab 60), LKW ohne Auftrag nach 24 h zum nächsten Standort zurückholen. Steht ein LKW länger ohne Auftrag, nimmt der Disponent auch weitere Anfahrten in Kauf (je 4 h Standzeit +100 % der maximalen Leerfahrt, bis zum Vierfachen); Ruhezeiten des Fahrers zählen dabei nicht als Standzeit.
 
 **Kompetenz** (Einsteiger 20–42, Erfahren 45–68, Profi 72–92; Gehalt 82 % / 100 % / 130 %) bestimmt die Suchtiefe (4–30 Aufträge), den Kalkulationsfehler (bis ±25 % Gewinn, unterschätzte Leerfahrten, zu optimistische Fahrzeiten) und Fehlgriffe bei der Priorisierung. Jede Disposition bringt etwas Erfahrung. Beförderte Fahrer starten mit Kompetenz 25 + 0,6 × Erfahrung.
 
@@ -182,7 +182,7 @@ Fahrer haben Name, Alter, Heimatort, Erfahrung, Führerscheinklassen, Qualifikat
 
 Persistente Unternehmen mit Branche, Größe, Zahlungsmoral, Zahlungsziel, Zufriedenheit und Preissensibilität. Pünktliche Lieferungen bringen +3 Zufriedenheit (Express +4), Verspätungen −5 bis −25. Die Firmen-Reputation (0–100) bewegt sich mit. Zufriedene Stammkunden zahlen in der Börse bis zu 5 % mehr. Sinkt die Zufriedenheit unter 40 % und läuft kein Rahmenvertrag, kann der Kunde zur Konkurrenz wechseln (siehe Abschnitt 17).
 
-**Rahmenverträge:** Stammkunden (ab 2 Lieferungen und Zufriedenheit 55) und Ausschreibungen aus der Region bieten Verträge an: feste Strecke, 1–3 Touren pro Woche an festen Wochentagen, 4–12 Wochen, fester Preis je Tour, 30 % Strafe bei Ausfall. Die Touren erscheinen am Vortag als angenommene Aufträge. Nicht disponierte Touren gelten 6 h nach Ende des Ladefensters als verpasst (Strafe, −8 Zufriedenheit). Wer mindestens 85 % pünktlich erfüllt, bekommt eine Verlängerung zu +4 % angeboten. Vorzeitige Kündigung kostet 3 Ausfallstrafen.
+**Rahmenverträge:** Stammkunden (ab 2 Lieferungen und Zufriedenheit 55) und Ausschreibungen aus der Region bieten Verträge an: feste Strecke, 1–3 Touren pro Woche an festen Wochentagen, 4–12 Wochen, fester Preis je Tour, 30 % Strafe bei Ausfall. Der Vertrag beginnt 3 Tage nach der Annahme (Vorlauf, um einen LKW hinzubringen). Die Touren erscheinen am Vortag als angenommene Aufträge. Nicht disponierte Touren gelten 6 h nach Ende des Ladefensters als verpasst (Strafe, −8 Zufriedenheit). Wer mindestens 85 % pünktlich erfüllt, bekommt eine Verlängerung zu +4 % angeboten. Vorzeitige Kündigung kostet 3 Ausfallstrafen.
 
 ## 12. Standorte
 
@@ -228,7 +228,7 @@ Jeder Spieler hat einen Charakter mit 2D-Avatar (im Charakter-Editor gestaltet: 
 | | Einfach | Normal | Realistisch |
 |---|---|---|---|
 | Startkapital | 60.000 € | 25.000 € | 18.000 € |
-| Frachtraten | +8 % | ±0 | ±0 |
+| Frachtraten | +8 % | +5 % | ±0 |
 | Pannen/Verzögerungen | ×0,5 | ×1 | ×1,1 |
 | Zahlungsrisiko | ×0,5 | ×1 | ×1,1 |
 | Start-LKW | gekauft | geleast | geleast |
@@ -238,6 +238,12 @@ Jeder Spieler hat einen Charakter mit 2D-Avatar (im Charakter-Editor gestaltet: 
 **Balancing (0.11):** Das allgemeine Ratenniveau liegt bei etwa 1,85–2,00 € je Last-km. Ein gut disponierter LKW erwirtschaftet so rund 2.000–3.000 € Deckungsbeitrag im Monat; ein einzelner LKW trägt Büro und Geschäftsführergehalt nur knapp, ab dem zweiten wird die Firma profitabel. Gemessen mit einem Spieler-Bot über 18 Monate (`packages/core/test/measure-balance.ts`): Auf „Normal“ wächst die Firma über Leasing auf 5–8 LKW, auf „Realistisch“ bleibt sie mit zwei LKW lange um die Gewinnschwelle, auf „Einfach“ wächst sie schnell.
 
 **Balancing (0.15.3):** „Realistisch“ war zu hart: Mit einem LKW blieb die Firma dauerhaft im Minus, an Wachstum war nicht zu denken. Realistisch unterscheidet sich jetzt vor allem durch das knappere Startkapital und etwas mehr Risiko, nicht mehr durch schlechtere Frachtraten. Ein einzelner LKW verdient auf Realistisch etwa so viel wie auf Normal (Bot, 6 Monate, drei Seeds). Das Polster für den zweiten LKW muss man sich aber erst erarbeiten. Wer gleich am ersten Tag einen zweiten LKW least, rutscht weiterhin tief in den Dispo. Laufende Spielstände auf „Realistisch“ übernehmen die neuen Faktoren per Migration (Version 12).
+
+**Balancing (Konsolidierung nach Paket E):** Auf „Normal“ trug sich der Anfang nicht. Zwei LKW mit KI-Disposition kamen auf 1,46 € Erlös und 1,46 € Kosten je km, also 0 % Marge (Bot, 4 Startwerte, Tag 60–180).
+- Gute Führung allein änderte daran wenig: Tankkarte, günstig tanken, Spritspartraining, Aerodynamikpaket und strengere Dispositionsregeln ergaben höchstens 1–2 % Marge.
+- Nach einem Jahr hatte der Bot im Mittel 2,5 LKW und Stufe 1,25 (8 Startwerte).
+- „Normal“ zahlt deshalb 5 % höhere Frachtraten und liegt damit zwischen „Einfach“ (+8 %) und „Realistisch“ (±0). Nach einem Jahr: 4,6 LKW, Stufe 2,0, 283 statt 200 Lieferungen.
+- Laufende Spielstände auf „Normal“ übernehmen den Faktor per Migration (Version 15).
 
 ## 15. Multiplayer (kooperativ)
 
@@ -375,6 +381,22 @@ Die Spedition verschwindet danach vom Markt. Der eigene Ruf steigt um 2.
 
 ### Branchenblatt
 Jeden Montag erscheint eine Ausgabe, die sich als Zeitung im Popup öffnet (im Einzelspiel angehalten). Sie hat Zeitungskopf, Kennzahlenleiste, Aufmacher mit Pressefoto, Marktdaten-Kasten, „Kurz notiert“ und Spalten mit Rubriken: Konjunktur, die stärkste Region, Dieselpreis zur Vorwoche, Konkurrenz (Konkurs, Neugründung, Wachstum, Schwierigkeiten mit Übernahmepreis), Wetterwarnungen, Saisonausblick, Feiertage, die eigene Woche in Zahlen und ein Fahrer der Woche. Eine Schlagzeile wiederholt sich nicht zwei Wochen in Folge. Das Archiv hält 12 Ausgaben.
+
+### Bank und Insolvenz
+
+Die Hausbank sieht auf die **Liquidität**: Kontostand plus 90 % der offenen Forderungen. Der Kontokorrentrahmen liegt bei −10.000 €. Ein kurzes Minus beim Wachsen (Fahrzeugkauf, Rechnungen noch offen) zählt deshalb nicht.
+
+1. **Warnung:** Die Liquidität liegt unter dem Rahmen. Sonst passiert nichts.
+2. **Kündigung:** Liegt sie nach 14 Tagen noch darunter, kündigt die Bank den Rahmen. Es gilt eine Sanierungsfrist von 45 Tagen, neue Kredite gibt es in dieser Zeit nicht.
+3. **Insolvenz:** Liegt die Liquidität zur Frist noch unter dem Rahmen, ist die Firma zahlungsunfähig und das Spiel endet. Es gibt keinen Neustart-Bonus.
+
+Sobald die Liquidität wieder im Rahmen liegt, endet die Krise auf jeder Stufe. Auswege sind:
+- Fahrzeuge verkaufen,
+- Forderungen verkaufen (Factoring),
+- Kosten senken,
+- **Privateinlage**: Geld vom Privatkonto in die Firma. Eine Einlage zählt nicht als Umsatz.
+
+In der Wettbewerbswelt ruht eine insolvente Firma, die Welt läuft für die anderen weiter.
 
 ### Firmenverkauf und Neustart-Bonus
 Im Einzelspiel lässt sich die Firma ab dem 90. Tag verkaufen, wenn keine Fahrt läuft. Der Preis setzt sich aus zwei Teilen zusammen:

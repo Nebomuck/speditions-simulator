@@ -144,6 +144,12 @@ export const MIGRATIONS: Record<number, Migration> = {
     if (company?.locations?.some((l) => l.facilities?.includes('warehouse'))) s.storageContracts ??= {};
     return s;
   },
+  14: (s) => {
+    // Balance 0.25: „Normal“ zahlt 5 % höhere Frachtraten (vorher so knapp wie „Realistisch“)
+    const d = s.difficulty as { id?: string; rateFactor?: number } | undefined;
+    if (d?.id === 'normal' && d.rateFactor === 1) d.rateFactor = 1.05;
+    return s;
+  },
 };
 
 export function deserializeSave(text: string): GameState {

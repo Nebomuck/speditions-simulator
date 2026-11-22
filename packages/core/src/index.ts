@@ -35,6 +35,7 @@ export * from './progress.ts';
 export * from './partners.ts';
 export * from './news.ts';
 export * from './exit.ts';
+export * from './insolvency.ts';
 export * from './fuel.ts';
 export * from './inspections.ts';
 export * from './equipment.ts';

@@ -219,7 +219,7 @@ describe('Lager & Kontraktlogistik (Paket E, Schritt E2)', () => {
     expect(next.partial).toBe(true);
   });
 
-  it('Bestandshalle aus 0.21.0: Startvertrag in Höhe der alten Auslastung, Spielstand-Version 14', () => {
+  it('Bestandshalle aus 0.21.0: Startvertrag in Höhe der alten Auslastung, aktuelle Spielstand-Version', () => {
     const { s, hq } = withWarehouse(29);
     // Zustand wie vor 0.22.0: pauschale Auslastung, kein Lagerzustand, Spielstand-Version 13
     delete hq.warehouse;
@@ -229,7 +229,7 @@ describe('Lager & Kontraktlogistik (Paket E, Schritt E2)', () => {
     const save = serializeSave(s, 'alt').replace(`"version":${STATE_VERSION},`, '"version":13,');
     expect(save).toContain('"version":13,');
     const loaded = deserializeSave(save);
-    expect(loaded.version).toBe(14);
+    expect(loaded.version).toBe(STATE_VERSION);
     expect(loaded.storageContracts).toEqual({});
     dailyStorage(loaded, ctx);
     const lhq = loaded.company.locations[0];

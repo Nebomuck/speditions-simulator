@@ -753,3 +753,7 @@ svg.brand-logo { border-radius: 0; }
 .career-msg-head .dim { font-size: 12px; }
 .career-msg p { font-size: 13.5px; line-height: 1.5; color: var(--text-2); margin: 8px 0; white-space: pre-line; }
 .career-msg .row { gap: 8px; margin-top: 10px; }
+
+/* ---------- Insolvenz ---------- */
+.crisis-card { border-color: var(--danger); }
+.exit-card.insolvency { border-top: 3px solid var(--danger); }

@@ -77,6 +77,7 @@ export type LedgerCategory =
   | 'tax'
   | 'subcontract'
   | 'acquisition'
+  | 'capital'
   | 'other';
 
 export interface LedgerEntry {
@@ -222,6 +223,8 @@ export interface AutoDispatchState {
 }
 
 export interface Company {
+  /** Krise mit der Hausbank (fehlt: alles in Ordnung) */
+  crisis?: CompanyCrisis;
   name: string;
   hqCityId: string;
   account: Account;
@@ -1150,7 +1153,17 @@ export interface GameState {
 }
 
 /** Verkauf der Firma (Ende des Spiels, Grundlage für den Neustart-Bonus) */
+/** Krise mit der Hausbank (Liquidität unter dem Kontokorrentrahmen) */
+export interface CompanyCrisis {
+  since: GameTime;
+  /** warning: Warnung · notice: Rahmen gekündigt, Sanierungsfrist läuft */
+  stage: 'warning' | 'notice';
+  deadline?: GameTime;
+}
+
 export interface CompanyExit {
+  /** Verkauf (Standard) oder Insolvenz */
+  kind?: 'sale' | 'insolvency';
   t: GameTime;
   price: Money;
   /** Substanzwert ohne Kundenstamm */

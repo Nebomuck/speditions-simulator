@@ -1,6 +1,7 @@
 // SimulationEngine: deterministischer Minuten-Tick. Stündliche, tägliche und monatliche Prozesse
 // werden an Zeitgrenzen ausgelöst. Wird identisch im Einzelspieler-Worker und auf dem Server ausgeführt.
 
+import { dailyInsolvency } from './insolvency.ts';
 import { dailyLife, hourlyLife } from './life.ts';
 import { dailyContainers, hourlyContainers } from './containers.ts';
 import { dailyDecisions, hourlyDecisions } from './decisions.ts';
@@ -161,6 +162,7 @@ const DAILY: Step[] = [
     dailyGoals(state);
     dailyScenario(state);
     dailyCampaign(state, ctx);
+    dailyInsolvency(state);
     dailyProgress(state);
   } },
   { scope: 'company', run: (s) => dailyNews(s) }, // jede Firma liest ihre eigene Ausgabe (mit ihrer Firmenwoche)

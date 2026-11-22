@@ -3,6 +3,7 @@
 // Im Multiplayer führt ausschließlich der Server Befehle aus (serverautoritativ) – dadurch sind
 // Doppelbelegungen und widersprüchliche Aktionen ausgeschlossen, da Befehle sequenziell verarbeitet werden.
 
+import { crisisLoanBlock, injectCapital } from './insolvency.ts';
 import { campaignCommandLock, readCampaignMessages } from './campaign.ts';
 import { sanitizeAvatar, type AvatarLook } from './avatar.ts';
 import { onContainerAccepted, streetTurn } from './containers.ts';
@@ -129,7 +130,8 @@ export type Command =
   | { type: 'startCampaign'; country: string }
   | { type: 'attendFair'; fairId: string }
   | { type: 'setOnlinePresence'; on: boolean }
-  | { type: 'readCampaignMessage'; id?: Id };
+  | { type: 'readCampaignMessage'; id?: Id }
+  | { type: 'injectCapital'; amount: number };
 
 export type CommandResult = { ok: true; warnings?: Issue[]; id?: Id } | { ok: false; error: string; issues?: Issue[] };
 
@@ -183,6 +185,7 @@ export const COMMAND_PERMISSION: Record<Command['type'], Permission | null> = {
   factorInvoices: 'finance',
   chat: null,
   readCampaignMessage: null,
+  injectCapital: null,
   worldChat: null,
   offerHandover: 'dispatch',
   cancelHandover: 'dispatch',
@@ -594,6 +597,8 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       return { ok: true };
     }
     case 'takeLoan': {
+      const blocked = crisisLoanBlock(state);
+      if (blocked) return fail(blocked);
       const r = takeLoan(state, Number(cmd.amount), Number(cmd.months), (id) => vehicleMarketValue(state, id));
       return r.ok ? { ok: true, id: r.loan.id } : fail(r.error);
     }
@@ -737,6 +742,10 @@ function execute(state: GameState, ctx: SimContext, actor: Player, cmd: Command)
       if (!state.timeVote) return fail('Keine Abstimmung offen.');
       rejectTimeVote(state);
       return { ok: true };
+    }
+    case 'injectCapital': {
+      const r = injectCapital(state, actorId, cmd.amount);
+      return r.ok ? { ok: true } : fail(r.error);
     }
     case 'readCampaignMessage':
       readCampaignMessages(state, cmd.id);

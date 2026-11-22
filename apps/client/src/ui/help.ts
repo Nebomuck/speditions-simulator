@@ -348,6 +348,18 @@ export const HELP: HelpArticle[] = [
     ],
   },
   {
+    id: 'insolvency',
+    title: 'Bank und Insolvenz',
+    page: 'finance',
+    keywords: 'insolvenz pleite zahlungsunfähig bank kontokorrent dispo liquidität sanierung frist privateinlage einlage warnung kündigung',
+    body: [
+      'Die Hausbank sieht auf die Liquidität: Kontostand plus 90 % der offenen Forderungen. Liegt sie unter dem Kontokorrentrahmen von −10.000 €, warnt die Bank. Ein kurzes Minus beim Wachsen ist kein Problem, solange genug Rechnungen offen sind.',
+      '• Bleibt die Liquidität 14 Tage unter dem Rahmen, kündigt die Bank ihn und setzt eine Sanierungsfrist von 45 Tagen. In dieser Zeit gibt es keine neuen Kredite.',
+      '• Liegt die Liquidität zur Frist noch unter dem Rahmen, ist die Firma zahlungsunfähig – das Spiel endet ohne Neustart-Bonus.',
+      '• Auswege: Fahrzeuge verkaufen, Forderungen verkaufen (Factoring), Kosten senken oder Privatgeld einlegen (Finanzen → Kredite & Factoring). Stand und Frist zeigt dort die Karte „Liquidität aus Sicht der Bank“.',
+    ],
+  },
+  {
     id: 'exit',
     title: 'Firma verkaufen',
     page: 'finance',

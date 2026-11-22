@@ -3,9 +3,12 @@ import { DIFFICULTIES, STATE_VERSION, deserializeSave, serializeSave } from '../
 import { newGame } from './helpers.ts';
 
 describe('Schwierigkeitsgrad Realistisch (0.15.3)', () => {
-  it('hat normale Frachtraten und nur leicht erhöhtes Risiko', () => {
+  it('hat Marktraten ohne Aufschlag und nur leicht erhöhtes Risiko', () => {
     const r = DIFFICULTIES.realistic;
-    expect(r.rateFactor).toBe(DIFFICULTIES.normal.rateFactor);
+    expect(r.rateFactor).toBe(1);
+    // Normal zahlt seit der Konsolidierung nach Paket E 5 % mehr, Einfach 8 %
+    expect(DIFFICULTIES.normal.rateFactor).toBe(1.05);
+    expect(DIFFICULTIES.easy.rateFactor).toBeGreaterThan(DIFFICULTIES.normal.rateFactor);
     expect(r.eventFactor).toBeLessThanOrEqual(1.1);
     expect(r.paymentRiskFactor).toBeLessThanOrEqual(1.1);
     expect(r.startCapital).toBeLessThan(DIFFICULTIES.normal.startCapital);

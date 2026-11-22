@@ -25,7 +25,7 @@ Spielspaß-Paket 2 (unveröffentlicht) ist umgesetzt: Premium-Aufträge (Schwert
 
 Spielspaß-Paket 3 (0.16.x) ist umgesetzt: Subunternehmer, Übernahmen, Branchenblatt (als Zeitungs-Popup), Firmenverkauf mit Neustart-Bonus.
 
-Ausbau-Paket A (0.17.0), B (0.18.0), C (0.19.0) und D (0.20.0) sind veröffentlicht. Paket E ist vollständig: E1 (0.21.0), E2 (0.22.0), E3 (0.23.0) und E4 (0.24.0) sind veröffentlicht.
+Ausbau-Paket A (0.17.0), B (0.18.0), C (0.19.0) und D (0.20.0) sind veröffentlicht. Paket E ist vollständig: E1 (0.21.0), E2 (0.22.0), E3 (0.23.0) und E4 (0.24.0) sind veröffentlicht. Danach folgte eine Konsolidierung, als 0.25.0 veröffentlicht (Disposition mit Vorausschau, Vertragsvorlauf, Balance „Normal“, Insolvenz, Bot-Messungen).
 
 ### Ausbau-Plan (beschlossen am 20.11.2026)
 

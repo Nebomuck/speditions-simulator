@@ -13,6 +13,7 @@ import { addLog, formatMoney } from './finance.ts';
 import { driverTravel, sendDriver } from './personnel.ts';
 import { haversineKm } from './geo.ts';
 import { newId, rand } from './rng.ts';
+import { MIN_PER_DAY, dayIndex, weekday } from './time.ts';
 import type { AutoDispatchState, DispatchRules, DispatchSuggestion, Driver, GameState, Id, Order, StaffMember, Trailer, Vehicle } from './types.ts';
 
 export const DEFAULT_RULES: DispatchRules = {
@@ -86,7 +87,84 @@ function passesRules(rules: DispatchRules, o: Order): boolean {
 }
 
 /** Bester Auftrag für ein Fahrzeug nach den Regeln – oder null. */
-function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: StaffMember, reserved: Reserved): Candidate | null {
+// ---------- Vorausschau auf zugesagte Touren ----------
+
+/** zugesagte Tour mit Vertragsstrafe (Vertrag, Lager, Container – ohne Fahrt oder künftig) */
+interface Commitment {
+  orderId?: Id;
+  fromCityId: string;
+  toCityId: string;
+  pickupStart: number;
+  pickupEnd: number;
+}
+
+interface Lookahead {
+  /** je Fahrzeug die nächste ihm vorgemerkte Tour */
+  next: Map<Id, Commitment>;
+}
+
+const LOOKAHEAD_DAYS = 7;
+const CONTRACT_WINDOW_MIN = 4 * 60;
+
+/** Fahrzeit grob: Straße ≈ Luftlinie × 1,25 bei 65 km/h, 45 min Pause je 4,5 h, 11 h Ruhe je 9 h Lenkzeit, plus Rangieren */
+function approachMin(from: string, to: string): number {
+  const drive = (haversineKm(ll(from), ll(to)) * 1.25 * 60) / 65;
+  return drive + Math.floor(drive / 270) * 45 + Math.floor(drive / 540) * 660 + 30;
+}
+
+/**
+ * Zugesagte Touren der nächsten Tage (Vertrags-, Lager- und Containertouren ohne Fahrt, künftige Vertragstouren) vormerken:
+ * der Reihe nach für das Fahrzeug, das sie am frühesten erreicht. Dieses Fahrzeug nimmt danach keine Börsenfahrt,
+ * nach der es die Tour nicht mehr schafft.
+ */
+function buildLookahead(state: GameState, ctx: SimContext): Lookahead | undefined {
+  const list: Commitment[] = [];
+  const horizon = state.time + LOOKAHEAD_DAYS * MIN_PER_DAY;
+  for (const o of Object.values(state.orders))
+    if ((o.contractId || o.storage || o.container) && o.status === 'accepted' && !o.tripId && orderVisible(state, o) && o.pickupEnd > state.time && o.pickupStart < horizon)
+      list.push({ orderId: o.id, fromCityId: o.fromCityId, toCityId: o.toCityId, pickupStart: o.pickupStart, pickupEnd: o.pickupEnd });
+  // Vertragstouren entstehen erst am Vortag – die Wochentage des Vertrags sind aber bekannt
+  for (const c of Object.values(state.contracts ?? {})) {
+    if (c.status !== 'active' || c.start === undefined || c.end === undefined) continue;
+    for (let d = Math.max(dayIndex(state.time), (c.scheduledThrough ?? -1) + 1); d <= dayIndex(horizon); d++) {
+      const t0 = d * MIN_PER_DAY;
+      if (t0 < c.start || t0 >= c.end || !c.weekdays.includes(weekday(t0))) continue;
+      const start = t0 + c.pickupHour * 60;
+      list.push({ fromCityId: c.fromCityId, toCityId: c.toCityId, pickupStart: start, pickupEnd: start + CONTRACT_WINDOW_MIN });
+    }
+  }
+  if (!list.length) return undefined;
+  const free = new Map<Id, { cityId: string; time: number }>();
+  for (const v of Object.values(state.vehicles)) {
+    if (v.status === 'idle') free.set(v.id, { cityId: v.cityId, time: state.time });
+    else if (v.status === 'on_trip') {
+      const end = planEnd(state, ctx, v.id);
+      if (end) free.set(v.id, { cityId: end.cityId, time: end.time });
+    }
+  }
+  const next = new Map<Id, Commitment>();
+  for (const c of list.sort((a, b) => a.pickupEnd - b.pickupEnd)) {
+    let best: Id | undefined;
+    let bestArr = Infinity;
+    for (const [id, f] of free) {
+      const arr = f.time + approachMin(f.cityId, c.fromCityId);
+      if (arr <= c.pickupEnd && arr < bestArr) [best, bestArr] = [id, arr];
+    }
+    if (!best) continue; // schafft niemand – keinen LKW dafür festhalten
+    if (!next.has(best)) next.set(best, c);
+    free.set(best, { cityId: c.toCityId, time: Math.max(bestArr, c.pickupStart) + approachMin(c.fromCityId, c.toCityId) + 120 });
+  }
+  return { next };
+}
+
+/** Würde diese Fahrt (Ende `eta` in `toCityId`) die dem Fahrzeug vorgemerkte Tour verbauen? */
+function blocksCommitment(look: Lookahead, vehicleId: Id, toCityId: string, eta: number, orderId: Id): boolean {
+  const c = look.next.get(vehicleId);
+  if (!c || c.orderId === orderId) return false;
+  return eta + approachMin(toCityId, c.fromCityId) > c.pickupEnd;
+}
+
+function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: StaffMember, reserved: Reserved, look?: Lookahead): Candidate | null {
   const rules = state.autoDispatch.rules;
   const skill = staff.skill;
   const err = 1 - skill / 100;
@@ -166,6 +244,8 @@ function bestFor(state: GameState, ctx: SimContext, vehicle: Vehicle, staff: Sta
       const optimism = skill < 50 ? rand.float(state, 0, 90) * err : 0;
       const slack = o.deliveryEnd - estimate.deliveryEta + optimism;
       if (rules.safeDeadlines ? slack < SAFE_BUFFER_MIN : estimate.lateMin > 0 && skill >= 30) continue;
+      // Vorausschau: keine Börsenfahrt, nach der eine zugesagte Tour niemand mehr schafft
+      if (look && skill >= 30 && blocksCommitment(look, vehicle.id, o.toCityId, estimate.deliveryEta, o.id)) continue;
     }
     const cust = state.customers[o.customerId];
     let score = rules.nearestFirst ? 100_000_00 - estimate.emptyKm * 1_00 * 100 + perceived / 100 : perceived;
@@ -255,6 +335,7 @@ export function runAutoDispatch(state: GameState, ctx: SimContext): void {
   if (!managed.length) return;
 
   const reserved: Reserved = { orders: new Set(), drivers: new Set(), trailers: new Set(), vehicles: new Set() };
+  const look = buildLookahead(state, ctx);
   for (const s of ad.suggestions) {
     if (s.orderId) reserved.orders.add(s.orderId);
     reserved.drivers.add(s.driverId);
@@ -275,8 +356,9 @@ export function runAutoDispatch(state: GameState, ctx: SimContext): void {
     if (!idle && !chain) continue;
     if (idle && vehicle.condition < 15) continue;
 
-    const c = bestFor(state, ctx, vehicle, staff, reserved);
+    const c = bestFor(state, ctx, vehicle, staff, reserved, look);
     if (c) {
+      if (look?.next.get(vehicle.id)?.orderId === c.order.id) look.next.delete(vehicle.id);
       if (idle) delete ad.idleHours[vehicle.id];
       reserved.orders.add(c.order.id);
       reserved.drivers.add(c.input.driverId);

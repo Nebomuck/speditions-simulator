@@ -49,7 +49,7 @@ export function book(state: GameState, account: LedgerAccount, amount: Money, ca
   accountOf(state, account).balance += amount;
   state.ledger.push({ t: state.time, account, amount, category, text });
   if (state.ledger.length > LEDGER_LIMIT) state.ledger.splice(0, state.ledger.length - LEDGER_LIMIT);
-  if (account === 'company') {
+  if (account === 'company' && category !== 'capital') {
     if (amount > 0) state.today.revenue += amount;
     else state.today.costs -= amount;
   }

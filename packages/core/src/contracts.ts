@@ -20,6 +20,8 @@ export const CONTRACT_OFFER_TARGET = 4;
 /** Touren gelten als nicht gefahren, wenn sie so lange nach Ende des Ladefensters nicht disponiert sind */
 const MISSED_AFTER_MIN = 6 * 60;
 const PICKUP_WINDOW_H = 4;
+/** Tage zwischen Vertragsschluss und erster Tour */
+export const CONTRACT_LEAD_DAYS = 3;
 
 export function contractWeekdays(c: Contract): string {
   return c.weekdays.map((d) => WEEKDAY_SHORT[d]).join(', ');
@@ -166,16 +168,16 @@ export function acceptContract(state: GameState, ctx: SimContext, contractId: Id
   const active = Object.values(state.contracts).filter((x) => x.status === 'active').length;
   const maxActive = Math.max(2, Object.keys(state.vehicles).length * 2);
   if (active >= maxActive) return { ok: false, error: `Mit der aktuellen Flotte sind höchstens ${maxActive} laufende Verträge möglich.` };
-  const tomorrow = dayIndex(state.time) + 1;
+  // Vorlauf: Die erste Tour liegt frühestens in drei Tagen – Zeit, einen LKW dorthin zu bringen
+  const first = dayIndex(state.time) + CONTRACT_LEAD_DAYS;
   c.status = 'active';
-  c.start = tomorrow * MIN_PER_DAY;
+  c.start = first * MIN_PER_DAY;
   c.end = c.start + c.weeks * 7 * MIN_PER_DAY;
-  scheduleDay(state, ctx, c, tomorrow);
   const cust = state.customers[c.customerId];
   addLog(state, {
     level: 'success',
     category: 'order',
-    text: `Rahmenvertrag mit ${cust?.name ?? 'Kunde'} geschlossen: ${CITY_BY_ID[c.fromCityId].name} → ${CITY_BY_ID[c.toCityId].name}, ${contractWeekdays(c)}, bis ${formatDate(c.end)}.`,
+    text: `Rahmenvertrag mit ${cust?.name ?? 'Kunde'} geschlossen: ${CITY_BY_ID[c.fromCityId].name} → ${CITY_BY_ID[c.toCityId].name}, ${contractWeekdays(c)}, vom ${formatDate(c.start)} bis ${formatDate(c.end)}.`,
   });
   return { ok: true };
 }

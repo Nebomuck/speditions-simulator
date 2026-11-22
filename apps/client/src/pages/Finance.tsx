@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { LOAN_TERMS, annuity, factoringPayout, formatDate, formatDateTime, formatMoney, loanLimit, loanRate, monthlyFixedCosts, ratingLabel, receivables, companyValue, vehicleMarketValue, exitBlock, exitValuation, EXIT_MIN_DAYS, type LedgerCategory } from '@spedsim/core';
-import { Landmark, HandCoins, Handshake } from 'lucide-react';
+import { LOAN_TERMS, annuity, factoringPayout, formatDate, formatDateTime, formatMoney, loanLimit, loanRate, monthlyFixedCosts, ratingLabel, receivables, companyValue, vehicleMarketValue, exitBlock, exitValuation, EXIT_MIN_DAYS, bankLiquidity, CREDIT_LINE, WARNING_DAYS, type LedgerCategory } from '@spedsim/core';
+import { Landmark, HandCoins, Handshake, PiggyBank, Siren } from 'lucide-react';
 import { askConfirm } from '../ui/confirm.tsx';
-import { sendCommand, useGame } from '../game/store.ts';
+import { sendCommand, useGame, useUi } from '../game/store.ts';
 import { Badge, Card, Empty, LineChart, Money, PageHeader, Stat } from '../ui/components.tsx';
 
 const CAT_LABEL: Record<LedgerCategory, string> = {
   revenue: 'Erlöse', fuel: 'Diesel', toll: 'Maut', wages: 'Löhne', rent: 'Miete', insurance: 'Versicherung', leasing: 'Leasing',
   maintenance: 'Wartung', repair: 'Reparatur', vehicle_purchase: 'Fahrzeugkauf', vehicle_sale: 'Fahrzeugverkauf', storage: 'Lagerlogistik', penalty: 'Strafen',
-  hiring: 'Personalgewinnung', salary: 'GF-Gehalt', living: 'Lebenshaltung', loan: 'Kredit', interest: 'Zinsen', tax: 'Steuern', subcontract: 'Subunternehmer', acquisition: 'Übernahmen', other: 'Sonstiges',
+  hiring: 'Personalgewinnung', salary: 'GF-Gehalt', living: 'Lebenshaltung', loan: 'Kredit', interest: 'Zinsen', tax: 'Steuern', subcontract: 'Subunternehmer', acquisition: 'Übernahmen', capital: 'Privateinlage', other: 'Sonstiges',
 };
 
 export function FinancePage() {
@@ -98,6 +98,7 @@ export function FinancePage() {
           {invoices.length === 0 && <Empty>Noch keine Rechnungen – nach jeder Lieferung wird eine Rechnung gestellt.</Empty>}
         </div>
       )}
+      {tab === 'credit' && <CrisisCard />}
       {tab === 'credit' && (
         <div className="grid grid-2">
           <Card title={<><Landmark size={16} /> Bankkredit</>} sub={`Kreditrahmen ${formatMoney(limit)} · Bonität ${ratingLabel(s)}`}>
@@ -202,6 +203,44 @@ function ExitCard() {
       <div className="row" style={{ alignItems: 'center' }}>
         <span className="dim" style={{ flex: 1, fontSize: 12.5 }}>{block ?? 'Ein Käufer ist interessiert.'}</span>
         <button className="btn danger" disabled={!!block} onClick={sell}><Handshake size={15} />Verkaufen</button>
+      </div>
+    </Card>
+  );
+}
+
+/** Liquidität aus Sicht der Bank, Krise mit Frist und Privateinlage */
+function CrisisCard() {
+  const s = useGame();
+  const pid = useUi((u) => u.playerId);
+  const [amount, setAmount] = useState(10_000);
+  const crisis = s.company.crisis;
+  const liq = bankLiquidity(s);
+  const priv = s.players[pid]?.character.privateAccount.balance ?? 0;
+  return (
+    <Card
+      className={`mb ${crisis ? 'crisis-card' : ''}`}
+      title={<>{crisis ? <Siren size={16} /> : <Landmark size={16} />} Liquidität aus Sicht der Bank</>}
+      sub={`Kontostand plus 90 % der offenen Forderungen · Kontokorrentrahmen ${formatMoney(CREDIT_LINE)}`}
+      actions={crisis ? <Badge kind="danger">{crisis.stage === 'notice' ? 'Rahmen gekündigt' : 'Warnung'}</Badge> : <Badge kind="success">im Rahmen</Badge>}
+    >
+      <div className="row wrap" style={{ gap: 16 }}>
+        <div><small className="dim">Liquidität</small><div><b className={liq < CREDIT_LINE ? 'neg' : ''}><Money value={liq} /></b></div></div>
+        {crisis?.stage === 'warning' && <div><small className="dim">Kündigung droht</small><div><b>ab {formatDate(crisis.since + WARNING_DAYS * 1440)}</b></div></div>}
+        {crisis?.stage === 'notice' && crisis.deadline && <div><small className="dim">Sanierungsfrist bis</small><div><b className="neg">{formatDate(crisis.deadline)}</b></div></div>}
+      </div>
+      {crisis && (
+        <p className="dim" style={{ fontSize: 12.5, marginBottom: 0 }}>
+          {crisis.stage === 'notice'
+            ? 'Die Bank gibt keine neuen Kredite. Liegt die Liquidität zur Frist noch unter dem Rahmen, ist die Firma zahlungsunfähig und das Spiel endet. Auswege: Fahrzeuge verkaufen, Forderungen verkaufen (Factoring), Privatgeld einlegen, Kosten senken.'
+            : `Bleibt die Liquidität ${WARNING_DAYS} Tage unter dem Rahmen, kündigt die Bank den Kontokorrent und setzt eine Sanierungsfrist.`}
+        </p>
+      )}
+      <div className="row wrap mt" style={{ gap: 8, alignItems: 'flex-end' }}>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Privateinlage (€) · Privatkonto <Money value={priv} /></label>
+          <input className="input" type="number" min={100} step={1000} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+        </div>
+        <button className="btn" disabled={priv < amount * 100 || amount < 100} onClick={() => sendCommand({ type: 'injectCapital', amount: amount * 100 })}><PiggyBank size={14} /> Einlegen</button>
       </div>
     </Card>
   );

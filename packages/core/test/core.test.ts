@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CITIES, CITY_BY_ID, CARGO_BY_ID, GameSession, HOS_RULES, PRIVATE_LIVING_COST, TRAILER_BY_TYPE, applyCommand, book,
-  deserializeSave, haversineKm, serializeSave, tickMinutes, vehicleMarker, processMonthEnd, generateOrder, SaveError, createInvoice,
+  deserializeSave, dayIndex, CONTRACT_LEAD_DAYS, haversineKm, serializeSave, tickMinutes, vehicleMarker, processMonthEnd, generateOrder, SaveError, createInvoice,
   TRUCK_BY_ID, estimateTrip, vehicleSchedule, STATE_VERSION, planCoLoad, ordersOnBoard, rerouteAffected, routeNow, tripEta, updateDisruptions, disruptionLabel,
   type Disruption, type Contract, generateContractOffer, marketSalary, COURSES, dailyPersonnel, tradeInValue, MIN_PER_DAY,
   type GameState, LOCATION_DEFS, BRANCH_SETUP_COST, capacity, monthlyFixedCosts, dailyCompany, monthlyCompany, serviceCost, dispatchShortfall,
@@ -696,8 +696,11 @@ describe('Rahmenverträge', () => {
     expect(applyCommand(s, ctx, 'p1', { type: 'acceptContract', contractId: c.id }).ok).toBe(true);
     expect(c.status).toBe('active');
     const tours = () => Object.values(s.orders).filter((o) => o.contractId === c.id);
-    expect(tours().length).toBe(1); // Tour für morgen sofort angelegt
-    expect(tours()[0].status).toBe('accepted');
+    expect(tours().length).toBe(0); // Vorlauf: erste Tour frühestens in drei Tagen
+    expect(c.start).toBe((dayIndex(s.time) + CONTRACT_LEAD_DAYS) * MIN_PER_DAY);
+    tickMinutes(s, ctx, (CONTRACT_LEAD_DAYS + 2) * MIN_PER_DAY); // Touren entstehen am Vortag
+    expect(tours().length).toBeGreaterThanOrEqual(1);
+    expect(Math.min(...tours().map((o) => o.pickupStart))).toBeGreaterThanOrEqual(c.start!);
     expect(tours()[0].payment).toBe(600_00);
   });
 
@@ -709,7 +712,7 @@ describe('Rahmenverträge', () => {
     applyCommand(s, ctx, 'p1', { type: 'acceptContract', contractId: c.id });
     const sat0 = s.customers[c.customerId].satisfaction;
     // Disponent: jede Vertragstour mit dem einzigen Fahrzeug fahren, Rückfahrt nach Leipzig
-    await runUntil(s, () => c.status === 'completed', 10 * 1440, () => {
+    await runUntil(s, () => c.status === 'completed', 14 * 1440, () => {
       if (v.status !== 'idle' || d.status !== 'idle') return;
       const next = Object.values(s.orders).find((o) => o.contractId === c.id && o.status === 'accepted');
       if (next && v.cityId === 'leipzig' && s.time >= next.pickupStart - 3 * 60)
@@ -717,7 +720,7 @@ describe('Rahmenverträge', () => {
       else if (v.cityId !== 'leipzig') applyCommand(s, ctx, 'p1', { type: 'relocate', driverId: d.id, vehicleId: v.id, trailerId: t.id, toCityId: 'leipzig' });
     });
     expect(c.status).toBe('completed');
-    expect(c.stats.tours).toBe(5); // Mo–Fr innerhalb einer Woche ab Dienstag
+    expect(c.stats.tours).toBe(5); // Mo–Fr innerhalb einer Woche ab Vertragsbeginn
     expect(c.stats.delivered).toBe(5);
     expect(c.stats.missed).toBe(0);
     expect(s.customers[c.customerId].satisfaction).toBeGreaterThan(sat0);
@@ -731,7 +734,7 @@ describe('Rahmenverträge', () => {
     applyCommand(s, ctx, 'p1', { type: 'acceptContract', contractId: c.id });
     const bal0 = s.company.account.balance;
     const sat0 = s.customers[c.customerId].satisfaction;
-    await runUntil(s, () => c.stats.missed >= 2, 4 * 1440);
+    await runUntil(s, () => c.stats.missed >= 2, (CONTRACT_LEAD_DAYS + 5) * 1440);
     expect(c.stats.missed).toBeGreaterThanOrEqual(2);
     expect(s.ledger.filter((l) => l.text.startsWith('Vertragsstrafe')).length).toBe(c.stats.missed);
     expect(s.company.account.balance).toBeLessThan(bal0);
@@ -1040,6 +1043,33 @@ describe('KI-Disponenten (Automatiktest)', () => {
     for (const o of [poor, far, better]) expect(o.status).toBe('offered');
     expect(s.autoDispatch.stats.planned).toBe(1);
     expect(s.log.some((l) => l.text.startsWith('Disponent'))).toBe(true);
+  });
+
+  it('Vorausschau: keine Börsenfahrt, nach der eine vorgemerkte Vertragstour nicht mehr erreichbar ist', () => {
+    const run = (withContract: boolean) => {
+      const s = setup();
+      const paris = addOrder(s, 'leipzig', 'paris', { payment: 3_200_00 });
+      const near = addOrder(s, 'leipzig', 'dresden', { payment: 700_00 });
+      if (withContract) {
+        // laufender Vertrag ab Leipzig, erste Tour übermorgen früh – noch nicht als Auftrag angelegt
+        const day = dayIndex(s.time) + 2;
+        s.contracts.con_look = {
+          id: 'con_look', customerId: first(s.customers).id, cargoId: 'pallets', fromCityId: 'leipzig', toCityId: 'berlin', trailerType: 'curtain', qualifications: [],
+          weightT: 14, distanceKm: 190, weekdays: [0, 1, 2, 3, 4, 5, 6], pickupHour: 8, paymentPerTour: 600_00, penaltyMissed: 180_00, weeks: 4, regular: true,
+          status: 'active', offerExpires: s.time, start: day * MIN_PER_DAY, end: (day + 28) * MIN_PER_DAY, scheduledThrough: day - 1, stats: { tours: 0, delivered: 0, late: 0, missed: 0 },
+        };
+      }
+      applyCommand(s, ctx, 'p1', { type: 'setAutoDispatch', mode: 'auto', rules: { maxEmptyKm: 150, minProfit: 100_00 } });
+      runAutoDispatch(s, ctx);
+      const v = first(s.vehicles);
+      const id = v.tripId ? s.trips[v.tripId].orderId : undefined;
+      return id === paris.id ? 'paris' : id === near.id ? 'near' : id;
+    };
+    const free = run(false);
+    const bound = run(true);
+    // ohne Vertrag lockt die lange Fahrt nach Paris, mit Vertrag bleibt der LKW in der Nähe
+    expect(free).toBe('paris');
+    expect(bound).toBe('near');
   });
 
   it('Regeln greifen: Ladungsart, Einsatzländer und Mindestgewinn', () => {
@@ -1616,6 +1646,17 @@ describe('Erweiterte Simulation (Phase 10)', () => {
     for (let i = 1; i < bad.length; i++) expect(bad[i] - bad[i - 1]).toBeGreaterThanOrEqual(4 * MIN_PER_DAY);
     expect(new Set(t.events.history.map((e) => e.rule)).size).toBeGreaterThan(3);
     expect(Object.values(t.orders).some((o) => o.tender)).toBe(true);
+  });
+
+  it('Spielstände der Version 14 auf „Normal“ bekommen die höheren Frachtraten, andere Schwierigkeitsgrade bleiben', () => {
+    const s = newGame();
+    const old = JSON.parse(JSON.stringify(s));
+    old.difficulty.rateFactor = 1;
+    const loaded = deserializeSave(serializeSave(old, 'alt').replace(`"version":${STATE_VERSION}`, '"version":14'));
+    expect(loaded.difficulty.rateFactor).toBe(1.05);
+    const custom = JSON.parse(JSON.stringify(s));
+    custom.difficulty = { ...custom.difficulty, id: 'custom', rateFactor: 1 };
+    expect(deserializeSave(serializeSave(custom, 'alt').replace(`"version":${STATE_VERSION}`, '"version":14')).difficulty.rateFactor).toBe(1);
   });
 
   it('Spielstände der Version 8 bekommen Wetter, Konjunktur, Konkurrenz und Ereignisse', () => {

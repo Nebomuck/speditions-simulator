@@ -6,7 +6,8 @@ import { CITY_BY_ID } from './data/cities.ts';
 import { throughput } from './storage.ts';
 import { CARGO_BY_ID, TRAILER_BY_TYPE, TRUCK_BY_ID } from './data/catalog.ts';
 import { TEAM_ALLOWANCE_PER_DAY, penaltyFor } from './dispatch.ts';
-import { EMPLOYER_COST_FACTOR, monthlyFixedCosts } from './finance.ts';
+import { EMPLOYER_COST_FACTOR, formatMoney, monthlyFixedCosts } from './finance.ts';
+import { CREDIT_LINE, WARNING_DAYS, bankLiquidity } from './insolvency.ts';
 import { energyPriceIn } from './energy.ts';
 import { HOS_RULES } from './hos.ts';
 import { companyIdOf, orderOwner } from './shard.ts';
@@ -302,6 +303,16 @@ export interface Bottleneck {
 
 export function bottlenecks(state: GameState): Bottleneck[] {
   const out: Bottleneck[] = [];
+  const crisis = state.company.crisis;
+  if (crisis)
+    out.push({
+      id: 'crisis',
+      level: 'danger',
+      text: crisis.stage === 'notice' && crisis.deadline
+        ? `Die Bank hat den Kontokorrentrahmen gekündigt: Bis ${formatDateTime(crisis.deadline)} muss die Liquidität wieder über ${formatMoney(CREDIT_LINE)} liegen, sonst droht die Insolvenz.`
+        : `Warnung der Bank: Die Liquidität liegt unter dem Kontokorrentrahmen (${formatMoney(bankLiquidity(state))}). Hält das ${WARNING_DAYS} Tage an, kündigt die Bank.`,
+      page: 'finance',
+    });
   const vehicles = Object.values(state.vehicles);
   const drivers = Object.values(state.drivers);
   const ready = drivers.filter((d) => d.status !== 'sick' && d.status !== 'vacation' && d.status !== 'training' && d.leavesAt === undefined);

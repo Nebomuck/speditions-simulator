@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.25.0 – 22.11.2026
+
+Konsolidierung nach Paket E:
+
+- **Rahmenverträge mit Vorlauf:** Ein angenommener Vertrag (auch aus einer Ausschreibung) beginnt erst nach 3 Tagen, nicht mehr am nächsten Tag. So bleibt Zeit, einen LKW zum Verlader zu bringen.
+- **KI-Disposition mit Vorausschau:** Die Disponenten merken Vertrags-, Lager- und Containertouren der nächsten 7 Tage einem LKW vor, auch Vertragstouren, die noch nicht angelegt sind. Dieser LKW nimmt keine Börsenfahrt mehr an, nach der er seine Tour nicht mehr schafft.
+  - Vorher war die Vorausschau nur einen Tag lang. LKW fuhren tagelang durch Europa, und die Vertragstouren platzten.
+  - Im Vergleichslauf (6 Startwerte, 150 Tage, zwei LKW mit Verträgen) sinkt der Anteil verpasster Vertragstouren von 81 % auf 38 %.
+  - Im freien Spiel ohne Verträge ändert sich nichts.
+- **Insolvenz:** Eine Firma kann jetzt pleitegehen. Vorher konnte das Konto ohne Folgen beliebig tief ins Minus rutschen; im Testlauf waren es −570.000 €.
+  - Die Hausbank sieht auf die Liquidität: Kontostand plus 90 % der offenen Forderungen. Der Kontokorrentrahmen liegt bei −10.000 €.
+  - Liegt die Liquidität darunter, kommt eine Warnung. Nach 14 Tagen kündigt die Bank den Rahmen: 45 Tage Sanierungsfrist, keine neuen Kredite.
+  - Liegt die Liquidität zur Frist noch darunter, ist die Firma zahlungsunfähig. Das Spiel endet mit eigenem Abschlussbildschirm und ohne Neustart-Bonus.
+  - Neu ist die **Privateinlage**: Geld vom Privatkonto in die Firma (Finanzen → Kredite & Factoring). Dort zeigt eine neue Karte die Liquidität, die Krisenstufe und die Frist; die Warnungen im Dashboard nennen sie ebenfalls.
+- **Balance „Normal“:** 5 % höhere Frachtraten.
+  - Vorher war „Normal“ bei den Raten so knapp wie „Realistisch“. Zwei LKW kamen auf 0 % Marge, ein Wachstum war kaum möglich.
+  - Nach einem Jahr wächst die Firma im Vergleichslauf jetzt auf im Mittel 4,6 statt 2,5 LKW.
+  - Laufende Spiele auf „Normal“ übernehmen den neuen Wert beim Laden.
+
 ## 0.24.0 – 21.11.2026
 
 Paket E „Logistikdienstleister“, Schritt E4 „Karriere-Kampagne“:

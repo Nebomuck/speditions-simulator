@@ -26,11 +26,11 @@ import { toDate } from './time.ts';
 import type { Character, Difficulty, DifficultyId, GameState, Id, Permission, Player, ScenarioId, TeamRole } from './types.ts';
 import { MAIN_COMPANY, companyView, freshRelation, splitState, worldOf, type WorldState } from './shard.ts';
 
-export const STATE_VERSION = 14;
+export const STATE_VERSION = 15;
 
 export const DIFFICULTIES: Record<Exclude<DifficultyId, 'custom'>, Difficulty> = {
   easy: { id: 'easy', startCapital: 60_000_00, rateFactor: 1.08, eventFactor: 0.5, paymentRiskFactor: 0.5, startTruckOwned: true },
-  normal: { id: 'normal', startCapital: 25_000_00, rateFactor: 1.0, eventFactor: 1.0, paymentRiskFactor: 1.0, startTruckOwned: false },
+  normal: { id: 'normal', startCapital: 25_000_00, rateFactor: 1.05, eventFactor: 1.0, paymentRiskFactor: 1.0, startTruckOwned: false },
   realistic: { id: 'realistic', startCapital: 18_000_00, rateFactor: 1.0, eventFactor: 1.1, paymentRiskFactor: 1.1, startTruckOwned: false },
 };
 
